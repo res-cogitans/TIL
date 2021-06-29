@@ -1,0 +1,15 @@
+# Mutator method
+
+In computer science, a mutator method is a method used to control changes to a variable. They are also widely known as setter methods. Often a setter is accompanied by a getter (also known as an accessor), which returns the value of the private member variable.
+
+컴퓨터 과학에서, mutator 메소드는 변수에 변화를 제어하기 위해 사용되는 메소드이다. 그것들은 setter 메소드라고도 잘 알려져 있다. 종종 setter는 getter(accessor라고도 알려진)를 동반하는데, 이 getter는 private 멤버 변수의 값을 리턴한다.
+
+The mutator method is most often used in object-oriented programming, in keeping with the principle of encapsulation. According to this principle, member variables of a class are made private to hide and protect them from other code, and can only be modified by a public member function (the mutator method), which takes the desired new value as a parameter, optionally validates it, and modifies the private member variable. Mutator methods can be compared to assignment operator overloading but they typically appear at different levels of the object hierarchy.
+
+캡슐화 원칙에 따라, mutator 메소드는 객체지향 프로그래밍에서 가장 자주 사용된다.  캡슐화 원칙에 따르면, 클래스의 멤버 변수들은 다른 코드로부터 숨기고 보호하기 위하여 private 지시자가 붙으며, public 멤버 함수(mutator 메소드)에 의해서만이 수정될 수 있다. 이 멤버 함수는 새 값으로 원하는 것을 매개변수로 하며, 경우에 따라 그것을 검증하며(validates), private 멤버 변수를 수정한다. mutator 메소드는 대입 연산자 오버로딩(assignment operator overloading)과 비교될 수 있으나, 보통은 object 계층의 다른 단계에서 나타난다.
+
+Mutator methods may also be used in non-object-oriented environments. In this case, a reference to the variable to be modified is passed to the mutator, along with the new value. In this scenario, the compiler cannot restrict code from bypassing the mutator method and changing the variable directly. The responsibility falls to the developers to ensure the variable is only modified through the mutator method and not modified directly.
+
+In programming languages that support them, properties offer a convenient alternative without giving up the utility of encapsulation.
+
+In the examples below, a fully implemented mutator method can also validate the input data or take further action such as triggering an event.
