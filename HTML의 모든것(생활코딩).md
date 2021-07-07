@@ -131,4 +131,5 @@ GML(1960말)-&gt; SGML-&gt;SGMLguid(19개태그)-&gt;HTML(+1태그(<code>&lt;a&g
 -병합 관련 속성:  rowspan=“value”: 수직결합, colspan=“value”: 수평결합</li>
 </ul>
 <h2 id="form">form</h2>
+<p>til에 업데이트</p>
 
