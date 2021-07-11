@@ -6,6 +6,8 @@
 - Shift + F6 = Rename
 - Ctrl + Alt + V = 변수 추출
 - Shift + Ctrl + T = 테스트 작성
+- Ctrl + Alt + N = Inline Variable
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTE4NDI2NzQ2LDE4MTE3MTE5NzhdfQ==
+eyJoaXN0b3J5IjpbNjA4MjczMzA5LDExODQyNjc0NiwxODExNz
+ExOTc4XX0=
 -->
