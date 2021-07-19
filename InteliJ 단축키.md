@@ -5,9 +5,12 @@
 - Ctrl + Shift + Alt + T = 리팩토링
 - Shift + F6 = Rename
 - Ctrl + Alt + V = 변수 추출
-- Shift + Ctrl + T = 테스트 작성
+- Ctrl + Shift + T = 테스트 작성
 - Ctrl + Alt + N = Inline Variable
+- iter tab = for문 자동완성
+- Ctrl + D = 복사
+- Ctrl + O = 탐색(라이브러리 밖까지)
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjA4MjczMzA5LDExODQyNjc0NiwxODExNz
-ExOTc4XX0=
+eyJoaXN0b3J5IjpbMjA2Nzk1MTI1NSwxMTg0MjY3NDYsMTgxMT
+cxMTk3OF19
 -->
