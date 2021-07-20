@@ -10,7 +10,8 @@
 - iter tab = for문 자동완성
 - Ctrl + D = 복사
 - Ctrl + O = 탐색(라이브러리 밖까지)
+- sout -> System.out.println
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMjA2Nzk1MTI1NSwxMTg0MjY3NDYsMTgxMT
-cxMTk3OF19
+eyJoaXN0b3J5IjpbMTE1NzIyMDQwLDExODQyNjc0NiwxODExNz
+ExOTc4XX0=
 -->
