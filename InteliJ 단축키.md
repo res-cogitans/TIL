@@ -11,7 +11,8 @@
 - Ctrl + D = 복사
 - Ctrl + O = 탐색(라이브러리 밖까지)
 - sout -> System.out.println
+- psvm -> public static void main(String[] args)
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTE1NzIyMDQwLDExODQyNjc0NiwxODExNz
+eyJoaXN0b3J5IjpbNzc1MTg5OTMzLDExODQyNjc0NiwxODExNz
 ExOTc4XX0=
 -->
