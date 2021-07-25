@@ -307,4 +307,140 @@ label 선택(클릭)을 통해 관련 form으로 이동하게 함. (직관적)</
 <li>keywords, author 등 속성들도.</li>
 <li><code>&lt;meta http-equiv="refresh" content="30"&gt;</code>30초 간격으로 새로고침.</li>
 </ul>
+<h3 id="의미론적인semantic-태그">의미론적인(semantic) 태그</h3>
+<ul>
+<li><code>&lt;header&gt;</code> <code>&lt;/header&gt;</code> 실질적인 변화는 없지만, header: 전체 내용을 표현하는 부분을 표현해주는 것.</li>
+<li><code>&lt;footer&gt;</code> <code>&lt;/footer&gt;</code> 개인보호정책, 회사소개 등</li>
+<li><code>&lt;nav&gt;</code> <code>&lt;/nav&gt;</code> 페이지 컨텐츠 탐색하는 네비게이션 역할을 해준다.</li>
+<li><code>&lt;article&gt;</code> <code>&lt;/article&gt;</code> 본문, 본문 여럿을 <code>&lt;section&gt;</code> <code>&lt;/section&gt;</code>으로 묶어줄수도. 각 섹션은 각각 단위. 애매한 것들을 통째로 묶기도.</li>
+</ul>
+<h3 id="검색-엔진-최적화">검색 엔진 최적화</h3>
+<ul>
+<li>html 코드를 의미론적으로 잘 쓰는 것이 핵심.</li>
+<li>Search Engine Optimization</li>
+<li><code>&lt;title&gt;</code>태그 사용 적절히, 각 페이지마다 달리</li>
+<li><code>&lt;meta name="description=" content="페이지 설명 내용" &gt;</code> 검색 시 메타 태그 부분 나옴</li>
+<li>url 구조 개선: 개선을 통해 검색엔진이 문서를 크롤링하기 좋게 만들 수 있다.
+<ul>
+<li>피해야 할 것들:
+<ul>
+<li>불필요한 매개변수와 세션 ID가 있는 긴 url: url에 알 수 없는 매개변수가 너무 많으면 그 부분을 빠트려서 링크가 깨지는 경우도 있음.</li>
+<li><code>page1.htm</code>l과 같은 페이지 이름 선택</li>
+<li><code>car-seat-car-seat-car-seat-car-seat.html</code>과 같은 과도하게 반복적인 키워드 사용</li>
+</ul>
+</li>
+<li>단순 디렉토리 구조 만들기: 다음은 피해라
+<ul>
+<li><code>...dir1/dir2/dir3/.../page.html</code>과 같은 깊이 중첩된 하위 디렉토리 사용</li>
+<li>내용과 관련 없는 디렉토리 이름 사용</li>
+</ul>
+</li>
+<li>특정 문서에 도달하기 위한 한 가지 형태의 url 제공:
+<ul>
+<li>url 인지도 분산을 피하기 위함</li>
+<li><code>&lt;link rel="canonical" href="link~"&gt;</code> 동일성표시(표준url지정)</li>
+<li>여러 url로 같은 페이지 접속시 301리다이렉션을 이용하라</li>
+</ul>
+</li>
+<li>사이트 내 이동을 쉽게: 크롤링은 하이퍼텍스트를 이용하여 이동: 조직적 링크
+<ul>
+<li>사이드 이동 경로의 제공으로 편리하게 만들기 1&gt;2&gt;3&gt;4 표시</li>
+<li>사용자가 url의 일부를 제공하는 경우를 고려</li>
+<li>실사용자와 검색엔진을 위한 두 종류의 사이트맵 준비</li>
+<li>이동경로를 위해 텍스트 링크를 제공하라(검색엔진은 자바스크립트를 통한 이동 등은 이해 못할 수도 있다)</li>
+</ul>
+</li>
+<li>양질의 콘텐츠/서비스
+<ul>
+<li>검색엔진을 위한 것이 아닌 사용자를 위한 컨텐츠 작성: 과도하게 검색엔진만을 위해 작성시에 웹스팸으로 분류될 수 있다.</li>
+</ul>
+</li>
+<li>보다 나은 앵커 텍스트 작성
+<ul>
+<li>함축적, 간결한, 유관한  텍스트</li>
+<li>피해야 할 작성법
+<ul>
+<li>페이지, 문서, 여기를 클릭 같은 형태(정보전달에 도움이 안 됨)</li>
+<li>url을 대부분의 앵커 텍스트로 이용</li>
+<li>링크를 눈에 띄기 쉽게 표현</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>이미지 사용의 최적화
+<ul>
+<li>alt 태그를 이용하라: 웹 접근성에도 도움이 됨</li>
+<li>/images 등 단일 디렉토리에 일반적인 방식으로 저장하라</li>
+<li>의미 있는 이미지, 짧은 파일명, 적당한 alt(너무 길거나, 전체 문장은 안 됨)</li>
+</ul>
+</li>
+<li>제목 태그 적절히 사용</li>
+<li>robot.txt 를 효과적으로 활용
+<ul>
+<li>크롤링 제어. 검색에 필요하지 않은 부분을 제어 -&gt; 트래픽 조절</li>
+<li><code>/robots.txt</code>
+<ul>
+<li>Disallow 부분은 불필요하거나, 검색을 원치 않는 부분들</li>
+<li>이는 보안 도구로서는 부적함 - 민감한 콘텐츠는 더 안전한 방식 사용</li>
+<li><code>Sitemap: /sitemap</code> 기계가 이해하기 쉬운 사이트맵</li>
+</ul>
+</li>
+<li>페이지랭크:
+<ul>
+<li>많은 사이트가 가리킬수록 페이지랭크가 증가</li>
+<li>페이지랭크가 높은 사이트가 링크할수록 페이지랭크가 높음</li>
+<li>웹의 핵심은 하이퍼링크</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="웹개발자-도구--모바일-지원">웹개발자 도구 / 모바일 지원</h3>
+<p>웹개발자 도구로 기기별 뷰를 볼 수도 있음<br>
+<code>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</code></p>
+<h2 id="html5">HTML5</h2>
+<h3 id="새로운-제출-양식들">새로운 제출 양식들</h3>
+<ul>
+<li>input types: 어떤 타입만 입력 가능하게, 모바일에서는 input type에 맞게 입력하기 편한 방식제공. 유효하지 않은 값 입력을 제한
+<ul>
+<li>color</li>
+<li>date</li>
+<li>datetime</li>
+<li>datetime-local</li>
+<li>email</li>
+<li>month</li>
+<li>number<br>
+<code>&lt;input type="number" min="10" max="15"&gt;</code></li>
+<li>range</li>
+<li>search</li>
+<li>tel</li>
+<li>time</li>
+<li>url</li>
+<li>week</li>
+</ul>
+</li>
+</ul>
+<h3 id="입력폼의-새로운-속성들">입력폼의 새로운 속성들</h3>
+<ul>
+<li>자동완성
+<ul>
+<li><code>&lt;form action="login.php" autocomplete="on"&gt;</code></li>
+</ul>
+</li>
+<li>placeholder: 칸에 대한 설명
+<ul>
+<li>`</li>
+</ul>
+</li>
+<li><code>&lt;. . . autofocus&gt;</code>: 자동적으로 포커싱이 오게</li>
+</ul>
+<h3 id="입력-값-체크">입력 값 체크</h3>
+<p>유효성 검사validation: 입력값의 유효성, 안전성 검사</p>
+<ul>
+<li>위에서 다뤘던 input의 type값은 유효성 검사 역할을 하기도 함</li>
+<li>입력 필수값은 <code>required</code> 속성을 넣으면 됨</li>
+<li><code>pattern="정규표현식"</code></li>
+</ul>
 
