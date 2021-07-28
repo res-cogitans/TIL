@@ -1,0 +1,328 @@
+---
+
+
+---
+
+<h1 id="스프링-mvc-1편---백엔드-웹-개발-핵심-기술-정리김영한">스프링 MVC 1편 - 백엔드 웹 개발 핵심 기술 정리(김영한)</h1>
+<h2 id="웹-애플리케이션-이해">웹 애플리케이션 이해</h2>
+<h3 id="웹-서버-웹-애플리케이션-서버">웹 서버, 웹 애플리케이션 서버</h3>
+<p><strong>웹 서버</strong></p>
+<ul>
+<li>HTTP 기반으로 동작</li>
+<li>정적 리소스 제공, 기타 부가기능</li>
+<li>정적(파일) HTML, CSS, JS, 이미지, 영상</li>
+<li>Ex) NGINX, APACHE</li>
+</ul>
+<p><strong>웹 애플리케이션 서버 WAS</strong></p>
+<ul>
+<li>HTTP 기반 동작</li>
+<li>웹 서버 기능(정적 리소스 제공) 포함 +</li>
+<li>프로그램 코드를 실행해서 어플리케이션 로직 수행
+<ul>
+<li>동적 HTML, HTTP API(JSON)</li>
+<li>서블릿, JSP, 스프링 MVC</li>
+</ul>
+</li>
+<li>Ex) 톰캣, Jetty, Undertow</li>
+</ul>
+<p><strong>차이</strong></p>
+<ul>
+<li>정적 리소스 vs + 애플리케이션 로직</li>
+<li>경계가 사실 모호: 웹 서버도 프로그램 실행 기능을 포함하기도</li>
+<li>자바의 경우 서블릿 컨테이너 기능을 제공하면 WAS(단, 서블릿 없이 자바코드를 실행하는 서버 프레임워크도 존재)</li>
+<li>WAS는 애플리케이션 코드를 실행하는데 더 특화</li>
+</ul>
+<p><strong>웹 시스템 구성 - WAS, DB</strong></p>
+<ul>
+<li>CLI -&gt; WAS(애플리케이션 로직 / HTML, CSS, JS / 이미지) -&gt; DB</li>
+<li>WAS, DB만으로 시스템 구성 가능</li>
+<li>WAS가 너무 많은 역할을 담당, 서버 과부화 우려</li>
+<li>가장 중요한 애플리케이션 로직이 정적 리소스로 인해 수행이 어려워질 수 있음</li>
+<li>WAS 장애시 오류 화면도 노출 불가</li>
+</ul>
+<p><strong>웹 시스템 구성 - WEB, WAS, DB</strong></p>
+<ul>
+<li>CLI -&gt; Web Server(HTML, CSS, JS / 이미지) -&gt; WAS(애플리케이션 로직) -&gt; DB</li>
+<li>정적 리소스는 웹 서버가 처리</li>
+<li>웹 서버는 동적 처리(애플리케이션 로직 등) 필요시 WAS에 요청 위임</li>
+<li>WAS는 중요한 애플리케이션 로직 처리 전담</li>
+<li>효율적인 리소스 관리: 정적 리소스 사용이 많다면 Web 서버 증설,<br>
+애플리케이션 리소스가 많이 사용되면 WAS 증설</li>
+<li>잘 죽지 않는 웹 서버, 잘 죽는 WAS -&gt; WAS, DB 장애시 웹 서버가 오류 제공 가능</li>
+<li>실제 사용에서는 CDN 등 추가, 만일 API만 제공 시에는 웹 서버 없어도 되는 등 차이 존재</li>
+</ul>
+<h3 id="서블릿">서블릿</h3>
+<p><strong>HTML Form 데이터 전송 -&gt; 웹 애플리케이션 서버 직접 구현 방식</strong></p>
+<ul>
+<li>서버 TCP/IP 대기, 소켓 연결</li>
+<li>HTTP 메시지 파싱 … 읽기 작업들</li>
+<li>로직 실행 후 응답 데이터 생성 TCP/IP 응답 전달, 소켓 종료</li>
+<li>짧은 비즈니스 로직 실행을 위해 해야 할 일이 너무 많음<br>
+-&gt; 서블릿 사용 필요</li>
+</ul>
+<p><strong>서블릿</strong></p>
+<ul>
+<li>urlPatterns(/save)의 URL이 호출되면 서블릿 코드가 실행</li>
+<li>HTTP 요청 정보를 편리하게 사용할 수 있는 HttpServletRequest</li>
+<li>HTTP 응답 정보를 편리하게 제공할 수 있는 HttpServletResponse</li>
+<li>웹 브라우저 -&gt; localhost:8080/save -&gt; WAS에서 요청 메시지를 기반으로 request, response 객체 생성 -&gt; 서블릿 컨테이너의 myServlet 실행(request, response) -&gt; response 객체 정보로 HTTP 응답 생성 -&gt; 웹 브라우저</li>
+<li><strong>HTTP 요청, 응답 흐름</strong>
+<ul>
+<li>HTTP 요청시
+<ul>
+<li>WAS는 request, response 객체를 새로 만들어서 서블릿 객체 호출</li>
+<li>개발자는 request 객체에서 HTTP 요청 정보를 꺼내 사용</li>
+<li>개발자는 response 객체에 HTTP 응답 정보를 입력</li>
+<li>WAS는 response 객체에 담긴 내용으로 HTTP 응답 정보 생성</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>서블릿 컨테이너</strong></p>
+<ul>
+<li>톰캣처럼 서블릿을 지원하는 WAS</li>
+<li>WAS 내의 서블릿 컨테이너는 서블릿 객체를 생성, 초기화 호출, 종료하는 생명주기 관리</li>
+<li>서블릿 객체는 <strong>싱글톤</strong>으로 관리
+<ul>
+<li>최초 로딩 시점에 서블릿 객체를 미리 만들어두고 재활용</li>
+<li>모든 고객 요청은 동일한 서블릿 객체 인스턴스에 접근</li>
+<li><strong>공유 변수 사용 주의!</strong></li>
+<li>서블릿 컨테이너 종료시 같이 종료</li>
+</ul>
+</li>
+<li>JSP도 서블릿으로 변환되어서 사용</li>
+<li>동시 요청을 위한 멀티 쓰레드 처리 지원</li>
+</ul>
+<h3 id="동시-요청---멀티-쓰레드">동시 요청 - 멀티 쓰레드</h3>
+<p>서블릿 객체는 쓰레드가 호출함</p>
+<p><strong>쓰레드</strong></p>
+<ul>
+<li>
+<p>애플리케이션 코드를 하나하나 순차적으로 실행하는 것</p>
+</li>
+<li>
+<p>하나의 코드 라인만 수행</p>
+</li>
+<li>
+<p>동시 처리가 필요하면 쓰레드를 추가로 생성</p>
+</li>
+<li>
+<p><strong>단일 요청시</strong>: 요청 -&gt; 연결 -&gt; 쓰레드 할당 -&gt; 서블릿 호출 -&gt; 응답 -&gt; 휴식</p>
+</li>
+<li>
+<p><strong>다중 요청시</strong>: 요청1 -&gt; 연결 -&gt; 쓰레드 할당 -&gt; 요청 처리중(처리 지연)<br>
+이 때 요청 2 발생시에 연결 -&gt; 쓰레드 대기 -&gt; timeout</p>
+</li>
+<li>
+<p><strong>요청마다 쓰레드 생성</strong>: 요청1이 지연된다 해도 쓰레드2 생성한다면 요청 2 처리(사용 후에는 쓰레드 날림)</p>
+<ul>
+<li><strong>장점</strong>:
+<ul>
+<li>동시 요청 처리 가능</li>
+<li>리소스(CPU, 메모리) 가 허용할 때까지 처리 가능</li>
+<li>하나의 쓰레드가 지연되도 나머지는 정상작동</li>
+</ul>
+</li>
+<li><strong>단점</strong>
+<ul>
+<li>쓰레드 생성 비용이 비쌈 -&gt; 응답 속도 감소</li>
+<li>쓰레드는 컨텍스트 스위칭 비용이 발생 -&gt; 한정된 CPU로 처리를 옮겨 다닐 때 생기는 비용</li>
+<li>쓰레드 생성에 제한이 없음 -&gt; 요청이 너무 많으면 리소스 임계점을 넘어서 서버가 죽을 수 있음</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>쓰레드 풀</strong> - 요청마다 쓰레드를 생성하는 방식의 보완</p>
+<ul>
+<li><strong>특징</strong>
+<ul>
+<li>필요한 쓰레드를 쓰레드 풀에 보관, 관리</li>
+<li>쓰레드 최대치를 관리: 톰캣은 최대 200개 기본설정</li>
+</ul>
+</li>
+<li><strong>사용</strong>
+<ul>
+<li>요청 시 쓰레드를 쓰레드 풀에서 꺼내 사용, 다 사용후에는 반납</li>
+<li>쓰레드 풀에 남은 쓰레드가 없을 경우 거절 혹은 특정 숫자만큼 대기하게 설정 가능</li>
+</ul>
+</li>
+<li><strong>장점</strong>
+<ul>
+<li>쓰레드가 미리 생성되어 있기에, 생성 및 종료 비용이 절약되고 응답이 빠름</li>
+<li>최대치가 있기에 요청이 너무 많아도 기존 요청은 안전하게 처리 가능</li>
+</ul>
+</li>
+<li><strong>실무 팁</strong>
+<ul>
+<li>주요 튜닝 포인트는 최대 쓰레드(max thread) 수</li>
+<li>값이 너무 낮을 경우: 서버 리소스는 여유, 클라이언트는 쉽게 응답 지연</li>
+<li>값이 너무 높을 경우: 리소스 임계점 초과로 서버 다운 가능</li>
+<li>장애 발생시
+<ul>
+<li>클라우드의 경우 서버 늘리고, 이후 튜닝</li>
+<li>평상시에 충분히 튜닝</li>
+</ul>
+</li>
+<li>적정 숫자:
+<ul>
+<li>애플리케이션 로직의 복잡도, CPU, 메모리, IO 리소스 상황에 따라 달라짐</li>
+<li>성능 테스트
+<ul>
+<li>실서비스와 최대한 유사하게 시도</li>
+<li>tool: 아파치, ab, 제이미터, nGrinder</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>WAS의 멀티 쓰레드 지원</strong></p>
+<ul>
+<li>멀티 쓰레드에 대한 부분은 WAS가 처리</li>
+<li>개발자가 멀티 쓰레드 관련 코드를 신경쓰지 않아도 됨: 싱글 쓰레드 프로그래밍처럼 개발</li>
+<li>단, 멀티 쓰레드 환경이기에 싱글톤 객체(서블릿, 스프링 빈)는 주의해서 사용</li>
+</ul>
+<h3 id="html-http-api-csr-ssr">HTML, HTTP API, CSR, SSR</h3>
+<p><strong>백엔드 개발자의 관심사 3가지</strong><br>
+<strong>1. 정적 리소스</strong>: 고정된 HTML, CSS, JS, 이미지, 영상 등을 제공, 주로 웹 브라우저</p>
+<p><strong>2. 동적 HTML 페이지</strong></p>
+<ul>
+<li>동적으로 필요한 HTML파일을 생성해서 전달</li>
+<li>웹 브라우저 -&gt; 요청 -&gt; WAS -&gt; DB -&gt; 주문정보 조회 -&gt; WAS -&gt; 동적으로 HTML 생성(JSP, thymeleaf) -&gt; 생성된 HTML -&gt; 웹 브라우저</li>
+</ul>
+<p><strong>3. HTTP API</strong></p>
+<ul>
+<li>HTML이 아니라 <strong>데이터(JSON) 전달</strong>: UI 화면이 필요하면 클라이언트가 별도처리</li>
+<li>HTTP API의 접점
+<ul>
+<li><strong>UI 클라이언트</strong> 접점
+<ul>
+<li>앱 클라이언트(안드로이드, 아이폰, PC 앱)</li>
+<li>웹 브라우저에저 JS 통한 HTTP API 호출
+<ul>
+<li>Ex) 웹 클라이언트: JS로 ajax로 서버 API 호출해 데이터를 전달 받고 HTML 동적 생성 후 화면에 띄움</li>
+</ul>
+</li>
+<li>React, Vue.js 같은 웹 클라이언트</li>
+</ul>
+</li>
+<li><strong>서버 to 서버</strong>
+<ul>
+<li>주문 서버 -&gt; 결제 서버
+<ul>
+<li>Ex) 웹/앱 클라이언트의 HTTP API를 통해 주문 서버 WAS에서 주문 정보를 받고 DB에서 조회, 정보를 결제 서버 WAS에 전달</li>
+</ul>
+</li>
+<li>기업간 데이터 통신</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>SSR 서버 사이드 렌더링</strong></p>
+<ul>
+<li><strong>최종 HTML을 서버에서 만들어서 웹 브라우저에 전달</strong></li>
+<li>주로 정적인 화면에 사용</li>
+<li>관련: JSP, thymeleaf</li>
+</ul>
+<p><strong>CSR 클라이언트 사이드 렌더링</strong></p>
+<ul>
+<li>HTML 결과를 웹 브라우저의 JS로 동적 생성</li>
+<li>주로 동적인 화면에 사용, 웹 환경을 앱처럼 필요한 부분부분 변경 가능</li>
+<li>HTML 요청 -&gt; 내용 없고 JS 링크 있는 HTML 응답 -&gt; JS 요청 -&gt; 클라이언트 로직, HTML 렌더링 코드 있는 JS 응답 -&gt; HTTP API가 데이터 요청 -&gt; JSON 응답 -&gt; 자바스크립트로 HTML 결과 렌더링</li>
+<li>Ex) 구글 지도, Gmail, 구글 캘린더</li>
+<li>관련: React, Vue.js</li>
+</ul>
+<p><strong>ETC</strong></p>
+<ul>
+<li>React, Vue.js를 CSR + SSR 동시 지원하는 웹 프레임워크도 있음</li>
+<li>SSR 사용해도 JS 사용해서 화면 일부를 동적으로 변경 가능</li>
+</ul>
+<p><strong>백엔드 개발자 입장에서 UI기술</strong></p>
+<ul>
+<li>서버사이드 렌더링 기술(<strong>필수</strong>)
+<ul>
+<li>JSP, <strong>thymeleaf</strong> 등</li>
+<li>화면이 정적, 복잡하지 않을 경우</li>
+</ul>
+</li>
+<li>클라이언트 사이드 렌더링 기술
+<ul>
+<li>React, Vue.js</li>
+<li>복잡하고 동적인 UI 사용</li>
+</ul>
+</li>
+<li>선택
+<ul>
+<li>백엔드 개발자에게 프론트엔드 학습은 옵션</li>
+<li>서버, DB, 인프라 등등을 배워야</li>
+</ul>
+</li>
+</ul>
+<h3 id="자바-백엔드-웹-기술-역사">자바 백엔드 웹 기술 역사</h3>
+<p><strong>과거 기술</strong></p>
+<ul>
+<li>서블릿(1997): HTML (동적) 생성이 어려움</li>
+<li>JSP(1999): HTML 생성은 편리하지만, 비즈니스 로직까지 너무 많은 역할 담당</li>
+<li>서블릿, JSP 포함 MVC 패턴 사용</li>
+<li>MVC프레임워크 난립(2000초 ~ 2010초)
+<ul>
+<li>MVC 패턴 자동화, 웹 편의성 기능 다수 지원</li>
+<li>스트럿츠, 웹워크, 스프링 MVC(구버전)</li>
+</ul>
+</li>
+<li>애노테이션 기반의 스프링 MVC 등장<br>
+<strong>현재 기술</strong></li>
+<li>스프링 부트 등장
+<ul>
+<li>서버 내장</li>
+<li>과거: 서버에 WAS 직접 설치, 소스는 War파일 만들어서 WAS에 배포</li>
+<li>스프링 부트는 Jar에 WAS 포함 -&gt; 빌드 배포 단순화<br>
+<strong>최신 기술 - 스프링 웹 기술의 분화</strong></li>
+</ul>
+</li>
+<li>Web Servlet - Spring MVC</li>
+<li>Web Reactive - Spring WebFlux
+<ul>
+<li>특징
+<ul>
+<li>비동기 논블로킹 처리</li>
+<li>최소 쓰레드로 최대 성능 -&gt; 쓰레드 컨텍스트 스위칭 비용 효율화</li>
+<li>함수형 스타일 -&gt; 동시처리 코드 효율화</li>
+<li>서블릿 기술 사용 안 함</li>
+</ul>
+</li>
+<li>문제
+<ul>
+<li>기술적 난도</li>
+<li>RDB 지원 부족</li>
+<li>MVC의 쓰레드 모델도 아직 충분히 빠름</li>
+<li>실무 사용 적음</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>자바 뷰 템플릿 역사</strong>: HTML을 편리하게 동적 생성하는 뷰 기능</p>
+<ul>
+<li>JSP: 느린 속도, 기능 부족</li>
+<li>프리마커(Freemarker), 벨로시티(Velocity): 속도 문제 해결, 다양한 기능</li>
+<li><strong>타임리프</strong>(Thymeleaf)
+<ul>
+<li>네츄럴 템플릿: HTML의 형태를 유지하면서 뷰 템플릿 적용 가능</li>
+<li>스프링 MVC와 강력한 기능 통함</li>
+<li>가장 낫지만, 성능 측면에서는 프리마커, 벨로시티가 더 나음</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="서블릿-1">서블릿</h2>
+<ul>
+<li>톰캣 설치 -&gt; 서블릿 코드를 클래스 파일로 빌드해서 올림 -&gt; 톰캣 서버 실행</li>
+<li>스프링 부트의 경우 내장 톰캣</li>
+</ul>
+<p><code>@ServletComponentScan</code>: 서블릿 자동 등록</p>
+
