@@ -323,6 +323,59 @@
 <ul>
 <li>톰캣 설치 -&gt; 서블릿 코드를 클래스 파일로 빌드해서 올림 -&gt; 톰캣 서버 실행</li>
 <li>스프링 부트의 경우 내장 톰캣</li>
+<li><code>@ServletComponentScan</code>: 서블릿 자동 등록</li>
+<li><code>@WebServlet</code> 서블릿 애노테이션
+<ul>
+<li>name: 서블릿 이름</li>
+<li>urlPatterns: URL 매핑</li>
+<li>서블릿명과 URL 매핑은 겹치면 안 됨</li>
 </ul>
-<p><code>@ServletComponentScan</code>: 서블릿 자동 등록</p>
+</li>
+<li><strong>application properties</strong>에 <code>logging.level.org.apache.coyote.http11=debug</code> 개발 용으로 유용한 로그(운영 서버의 경우 성능 저하)</li>
+</ul>
+<h3 id="httpservletrequest">HttpServletRequest</h3>
+<p><strong>HttpServletRequest</strong></p>
+<ul>
+<li>HTTP 요청 메시지를 파싱해주며, 그 결과를 객체에 담아 제공</li>
+<li>부가 기능 제공
+<ul>
+<li><strong>임시 저장소</strong> 기능: 해당 HTTP 요청이 끝날 때까지 유지
+<ul>
+<li>저장: <code>request.setAttribute(name, value)</code></li>
+<li>조회: <code>request.getAttribute(name)</code></li>
+</ul>
+</li>
+<li><strong>세션 관리 기능</strong>: <code>request.getSession(create:true)</code></li>
+</ul>
+</li>
+<li>request.getLocale(): Accept-Language 최고 순위를 반환</li>
+</ul>
+<h3 id="http-요청-데이터---개요">HTTP 요청 데이터 - 개요</h3>
+<p>HTTP CLI -&gt; SRV 데이터 전달 방법</p>
+<ol>
+<li>GET - 쿼리 파라미터</li>
+<li>POST - HTML Form</li>
+<li>HTTP message body에 데이터를 직접 담아 요청</li>
+</ol>
+<h3 id="http-요청-데이터---get-쿼리-파라미터">HTTP 요청 데이터 - GET 쿼리 파라미터</h3>
+<ul>
+<li><code>URL?queryparam1&amp;queryparam2</code> 형식</li>
+<li><code>request.getParameter("name");</code> 형태로 조회</li>
+<li><code>request.getParameterValues("name");</code>는 복수의 동일 명칭 값이 있을 때 배열로 반환</li>
+</ul>
+<h3 id="http-요청-데이터-post-html-form">HTTP 요청 데이터 POST HTML Form</h3>
+<p><strong>특징</strong></p>
+<ul>
+<li>content-type: <code>application/x-www-form-urlencoded</code></li>
+<li>메시지 바디에 쿼리 파라미터와 같은 형식으로 데이터 전달: <code>username=hello&amp;age=20</code></li>
+<li>서버 입장에서는 GET 쿼리 파라미터 방식과 동일하게 조회</li>
+<li>단 이 경우에는 <code>content-type</code>이 지정</li>
+</ul>
+<h3 id="http-요청-데이터---api-메시지-바디">HTTP 요청 데이터 - API 메시지 바디</h3>
+<ul>
+<li>주로 POST, PUT, PATCH 사용<br>
+<strong>단순 텍스트</strong><br>
+inputStream 이용해서 데이터 읽음 -&gt; 바이트코드<br>
+바이트 &lt;-&gt; 문자 전환은 인코딩 명시</li>
+</ul>
 
