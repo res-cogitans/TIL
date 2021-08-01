@@ -378,4 +378,83 @@
 inputStream 이용해서 데이터 읽음 -&gt; 바이트코드<br>
 바이트 &lt;-&gt; 문자 전환은 인코딩 명시</li>
 </ul>
+<p><strong>JSON</strong></p>
+<ul>
+<li>JSON은 객체로 바꿔서 사용</li>
+<li>ObjectMapper.readValue() 이용해서 파싱(Jackson 라이브러리)</li>
+<li>HTML Form 데이터의 경우도 Body 통한 전달이라 InputStream으로 읽는 것이 가능하지만 파라미터 조회가 더 좋음.</li>
+</ul>
+<h3 id="httpservletresponse">HttpServletResponse</h3>
+<p><strong>역할</strong>: 응답 메시지 생성</p>
+<ul>
+<li>응답코드 지정</li>
+<li>헤더 생성</li>
+<li>바디 생성</li>
+<li>편의 기능 제공: Content-Type, 쿠키, Redirect</li>
+</ul>
+<p><strong>응답코드</strong></p>
+<ul>
+<li><code>response.setStatus(HttpServletResponse.SC_OK)</code><br>
+<code>response.setStatus(200)</code>도 가능하지만, 위 처럼 적는 편이 더 나음</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token keyword">private</span> <span class="token keyword">void</span> <span class="token function">content</span><span class="token punctuation">(</span>HttpServletResponse response<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  <span class="token comment">//Content-Type: text/plain;charset=utf-8  </span>
+ <span class="token comment">//Content-Length: 2 //response.setHeader("Content-Type", "text/plain;charset=utf-8");  response.setContentType("text/plain");  </span>
+  response<span class="token punctuation">.</span><span class="token function">setCharacterEncoding</span><span class="token punctuation">(</span><span class="token string">"utf-8"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token comment">//response.setContentLength(2); //(생략시 자동 생성)  </span>
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>Content-Type, 문자 인코딩을 <code>setHeader</code>이용하여 지정할 수도 있으나, <code>response.setContentType("text/plain")</code> 등 이용하여 간단하게 지정하는 것도 가능하다.</li>
+<li>Content-Length 지정을 생략시 자동 생성된다.</li>
+</ul>
+<p><strong>쿠키 설정</strong></p>
+<pre class=" language-java"><code class="prism  language-java"><span class="token keyword">private</span> <span class="token keyword">void</span> <span class="token function">cookie</span><span class="token punctuation">(</span>HttpServletResponse response<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    <span class="token comment">//Set-Cookie: myCookie=good; Max-Age=600;  </span>
+ <span class="token comment">//response.setHeader("Set-Cookie", "myCookie=good; Max-Age=600");  Cookie cookie = new Cookie("myCookie", "good");  </span>
+  cookie<span class="token punctuation">.</span><span class="token function">setMaxAge</span><span class="token punctuation">(</span><span class="token number">600</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//600초  </span>
+  response<span class="token punctuation">.</span><span class="token function">addCookie</span><span class="token punctuation">(</span>cookie<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>Cookie 객체 생성하여 간단하게 설정 가능</li>
+</ul>
+<p><strong>Redirect 설정</strong></p>
+<pre class=" language-java"><code class="prism  language-java"><span class="token keyword">private</span> <span class="token keyword">void</span> <span class="token function">redirect</span><span class="token punctuation">(</span>HttpServletResponse response<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+    <span class="token comment">//Status Code 302  </span>
+ <span class="token comment">//Location: /basic/hello-form.html  </span>
+ 
+ <span class="token comment">//response.setStatus(HttpServletResponse.SC_FOUND); //302 //response.setHeader("Location", "/basic/hello-form.html");</span>
+  response<span class="token punctuation">.</span><span class="token function">sendRedirect</span><span class="token punctuation">(</span><span class="token string">"/basic/hello-form.html"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>주석처리된 2줄로도 설정 가능, 아래의 한 줄로 간단하게 설정 가능.</li>
+</ul>
+<p><strong>Message Body 설정</strong></p>
+<pre class=" language-java"><code class="prism  language-java">PrintWriter writer <span class="token operator">=</span> response<span class="token punctuation">.</span><span class="token function">getWriter</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// InputStream이용할수도 있다</span>
+writer<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span><span class="token string">"OK"</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">//(print/println);</span>
+</code></pre>
+<h3 id="http-응답-데이터">HTTP 응답 데이터</h3>
+<p>응답 메시지의 내용:</p>
+<ol>
+<li>단순 텍스트(<code>writer.println("OK");</code>)</li>
+<li>HTML 응답</li>
+<li>HTTP API - Message Body JSON 응답</li>
+</ol>
+<p><strong>단순 텍스트, HTML</strong></p>
+<pre class=" language-java"><code class="prism  language-java">response<span class="token punctuation">.</span><span class="token function">setContentType</span><span class="token punctuation">(</span><span class="token string">"text/html"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+response<span class="token punctuation">.</span><span class="token function">setCharacterEncoding</span><span class="token punctuation">(</span><span class="token string">"utf-8"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p><strong>API JSON</strong></p>
+<pre class=" language-java"><code class="prism  language-java">response<span class="token punctuation">.</span><span class="token function">setContentType</span><span class="token punctuation">(</span><span class="token string">"application/json"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+response<span class="token punctuation">.</span><span class="token function">setCharacterEncoding</span><span class="token punctuation">(</span><span class="token string">"utf-8"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>	<span class="token comment">// 사실 불필요</span>
+String result <span class="token operator">=</span> objectMapper<span class="token punctuation">.</span><span class="token function">writeValueAsString</span><span class="token punctuation">(</span>helloData<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+response<span class="token punctuation">.</span><span class="token function">getWriter</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span>result<span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<ul>
+<li>application/json은 utf-8 사용하게 정의되어 있음, 추가할 필요 없음.</li>
+</ul>
+<hr>
+<h2 id="서블릿-jsp-mvc-패턴">서블릿, JSP, MVC 패턴</h2>
 
