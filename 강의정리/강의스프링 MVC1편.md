@@ -457,4 +457,98 @@ response<span class="token punctuation">.</span><span class="token function">get
 </ul>
 <hr>
 <h2 id="서블릿-jsp-mvc-패턴">서블릿, JSP, MVC 패턴</h2>
+<ul>
+<li>동시성 문제를 고려하여, 실무에서는 HashMap 대신 ConcurrentHashMap, AtomicLong 사용을 고려하라.</li>
+</ul>
+<h3 id="서블릿을-이용한-개발">서블릿을 이용한 개발</h3>
+<ul>
+<li>서블릿으로 직접 HTML 전달 시 일일히 HTML 적어줘야 하기에 실수할 가능성 높음</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java">w<span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"&lt;html&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;head&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">" &lt;meta charset=\"UTF-8\"&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;/head&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;body&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"성공\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;ul&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">" &lt;li&gt;id="</span><span class="token operator">+</span>member<span class="token punctuation">.</span><span class="token function">getId</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">+</span><span class="token string">"&lt;/li&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">" &lt;li&gt;username="</span><span class="token operator">+</span>member<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">+</span><span class="token string">"&lt;/li&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">" &lt;li&gt;age="</span><span class="token operator">+</span>member<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">+</span><span class="token string">"&lt;/li&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;/ul&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;a href=\"/index.html\"&gt;메인&lt;/a&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;/body&gt;\n"</span> <span class="token operator">+</span>  
+        <span class="token string">"&lt;/html&gt;"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<ul>
+<li>동적인 HTML 생성 가능<br>
+-&gt; 하지만 서블릿으로는 HTML 생성이 매우 불편하다.<br>
+-&gt; <strong>템플릿 엔진</strong>: 동적인 변경이 필요한 부분만 코드를 적용</li>
+</ul>
+<h3 id="jsp-이용한-개발">JSP 이용한 개발</h3>
+<pre class=" language-html"><code class="prism  language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>%@</span> <span class="token attr-name">page</span> <span class="token attr-name">contentType</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>text/html;charset=UTF-8<span class="token punctuation">"</span></span> <span class="token attr-name">language</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>java<span class="token punctuation">"</span></span> <span class="token attr-name">%</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>html</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>head</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>title</span><span class="token punctuation">&gt;</span></span>Title<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>title</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>head</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>body</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>form</span> <span class="token attr-name">action</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>/jsp/members/save.jsp<span class="token punctuation">"</span></span> <span class="token attr-name">method</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>post<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>  
+ username: <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>input</span> <span class="token attr-name">type</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>text<span class="token punctuation">"</span></span> <span class="token attr-name">name</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>username<span class="token punctuation">"</span></span> <span class="token punctuation">/&gt;</span></span>  
+ age: <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>input</span> <span class="token attr-name">type</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>text<span class="token punctuation">"</span></span> <span class="token attr-name">name</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>age<span class="token punctuation">"</span></span> <span class="token punctuation">/&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>button</span> <span class="token attr-name">type</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>submit<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>전송<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>button</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>form</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>body</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>html</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>%@</span> <span class="token attr-name">page</span> <span class="token attr-name">contentType</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>text/html;charset=UTF-8<span class="token punctuation">"</span></span> <span class="token attr-name">language</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>java<span class="token punctuation">"</span></span> <span class="token attr-name">%</span><span class="token punctuation">&gt;</span></span>
+</code></pre>
+<ul>
+<li>JSP 방식</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token operator">&lt;</span><span class="token operator">%</span>  
+<span class="token comment">// request, response 사용 가능  </span>
+  MemberRepository memberRepository <span class="token operator">=</span> MemberRepository<span class="token punctuation">.</span><span class="token function">getInstance</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+       
+     System<span class="token punctuation">.</span>out<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span><span class="token string">"save.jsp"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+     String username <span class="token operator">=</span> request<span class="token punctuation">.</span><span class="token function">getParameter</span><span class="token punctuation">(</span><span class="token string">"username"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+     <span class="token keyword">int</span> age <span class="token operator">=</span> Integer<span class="token punctuation">.</span><span class="token function">parseInt</span><span class="token punctuation">(</span>request<span class="token punctuation">.</span><span class="token function">getParameter</span><span class="token punctuation">(</span><span class="token string">"age"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+       
+     Member member <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Member</span><span class="token punctuation">(</span>username<span class="token punctuation">,</span> age<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+     System<span class="token punctuation">.</span>out<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span><span class="token string">"member = "</span> <span class="token operator">+</span> member<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+     memberRepository<span class="token punctuation">.</span><span class="token function">save</span><span class="token punctuation">(</span>member<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+<span class="token operator">%</span><span class="token operator">&gt;</span>
+</code></pre>
+<ul>
+<li>&lt;%  (자바코드) %&gt; 자바 로직 사용 가능</li>
+<li>표시 없는 경우 위의 서블릿에서 한 것처럼 프린트 한 것과 같다고 보면 됨.</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token operator">&lt;</span><span class="token operator">%</span>@ page <span class="token keyword">import</span><span class="token operator">=</span><span class="token string">"java.util.List"</span> <span class="token operator">%</span><span class="token operator">&gt;</span>  
+<span class="token operator">&lt;</span><span class="token operator">%</span>@ page <span class="token keyword">import</span><span class="token operator">=</span><span class="token string">"logos.servlet.domain.member.MemberRepository"</span> <span class="token operator">%</span><span class="token operator">&gt;</span>
+<span class="token operator">&lt;</span><span class="token operator">%</span>@<span class="token operator">=</span> java code <span class="token operator">%</span><span class="token operator">&gt;</span>
+</code></pre>
+<ul>
+<li>import 해줘야 함.</li>
+<li><code>&lt;%@=</code> 자바 코드를 출력</li>
+<li>JSP를 사용해도 아직 부족한 점이 많음:
+<ul>
+<li>로직과 뷰가 섞여 있음</li>
+<li>JSP가 과다한 역할을 맡고 있음<br>
+-&gt; MVC 패턴 등장</li>
+</ul>
+</li>
+</ul>
+<h3 id="mvc-패턴-개요">MVC 패턴: 개요</h3>
+<p><strong>문제상황</strong>: 위와 같이</p>
+<ul>
+<li>단일 서블릿이나 JSP만으로 비즈니스 + 뷰 처리 -&gt; 과도한 역할, 유지보수 힘듦</li>
+<li><strong>변경의 라이프 사이클: 변경 주기가 다르다면 분리해야 한다!</strong></li>
+<li>뷰 템플릿은 화면 렌더링 최적화되어 있음 -&gt; 기능에 맞게 담당하게 해야</li>
+</ul>
+<p><strong>MVC</strong></p>
+<ul>
+<li>컨트롤러: HTTP 요청을 받아서 파라미터를 검증하고, 비즈니스 로직을 실행, 뷰에 전달할 결과 데이터를 조회해서 모델에 담음</li>
+<li>모델: 뷰에 출력할 데이터를 담아둠 - 뷰의 역할 분할을 도움</li>
+<li>뷰: 모델에 담긴 데이터를 이용, 화면을 그림(HTML 생성 등)</li>
+<li>MVC 패턴1: 컨트롤러가 비즈니스 로직까지 -&gt; 과도한 역할</li>
+<li>MVC 패턴2: 컨트롤러는 컨트롤러 로직, 서비스, 리포지토리는 비즈니스 로직, 데이터 접근<br>
+-&gt; 컨트롤러는 비즈니스 로직이 있는 서비스를 호출</li>
+</ul>
 
