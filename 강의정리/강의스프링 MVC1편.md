@@ -551,4 +551,69 @@ response<span class="token punctuation">.</span><span class="token function">get
 <li>MVC 패턴2: 컨트롤러는 컨트롤러 로직, 서비스, 리포지토리는 비즈니스 로직, 데이터 접근<br>
 -&gt; 컨트롤러는 비즈니스 로직이 있는 서비스를 호출</li>
 </ul>
+<h3 id="mvc-패턴--적용">MVC 패턴 : 적용</h3>
+<ul>
+<li>컨트롤러: 서블릿</li>
+<li>뷰: JSP</li>
+<li>모델: HttpServletRequest(request는 데이터 저장소를 가지고 있음: .set/getAttribute</li>
+<li>액션이 “/save”(절대경로)가 아니라 “save”(상대경로)</li>
+<li><code>dispather.forward()</code>: 다른 서블릿이나 JSP로 이동하는 기능, 서버 내부에서 다시 호출이 발생
+<ul>
+<li>vs redirect: 리다이렉트와는 다르다. 포워드는 서버 내부의 호출이기에 클라이언트가 호출 불가, 리다이렉트는 클라이언트에 응답 -&gt; redirect 경로로 클라이언트의 재요청</li>
+</ul>
+</li>
+<li>컨트롤러를 통해서 호출하고 싶은 경우, WEB-INF에 저장</li>
+<li><code>age=&lt;%=((Member)request.getAttribute("member")).getAge()%&gt;</code>로 값을 얻어올 수 있지만,<br>
+<code>id=${member.id}</code>: JSP 표현식으로 간단하게 표현 가능. -&gt;프로퍼티 접근법</li>
+<li><code>&lt;%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%&gt;</code>: jstl 사용을 위함</li>
+</ul>
+<pre class=" language-html"><code class="prism  language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>table</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>thead</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>th</span><span class="token punctuation">&gt;</span></span>id<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>th</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>th</span><span class="token punctuation">&gt;</span></span>username<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>th</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>th</span><span class="token punctuation">&gt;</span></span>age<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>th</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>thead</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>tbody</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span><span class="token namespace">c:</span>forEach</span> <span class="token attr-name">var</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>item<span class="token punctuation">"</span></span> <span class="token attr-name">items</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>${members}<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>tr</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>td</span><span class="token punctuation">&gt;</span></span>${item.id}<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>td</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>td</span><span class="token punctuation">&gt;</span></span>${item.username}<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>td</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>td</span><span class="token punctuation">&gt;</span></span>${item.age}<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>td</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>tr</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span><span class="token namespace">c:</span>forEach</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>tbody</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>table</span><span class="token punctuation">&gt;</span></span>
+</code></pre>
+<ul>
+<li>jstl을 이용해서 반복 출력을 적용</li>
+</ul>
+<h3 id="mvc-패턴-한계">MVC 패턴: 한계</h3>
+<ul>
+<li>포워드 중복: RequestDispather 생성하고, foward로 뷰 이동하는 코드가 중복 호출됨</li>
+<li>ViewPath 중복: ViewPath 앞 뒷부분 중복 발생, 다른 뷰로 변경하려면 코드를 다 바꾸게됨</li>
+<li>사용하지 않는 코드: response 등 사용하지 않게 되는 코드가 많음, 또한 이러한 코드는 테스트 케이스 작성도 어려움</li>
+<li>공통 기능 처리가 어려움: 메서드로 뽑아내도, 호출이 필요하며, 안 호출하는 실수 가능<br>
+-&gt; <strong>공통 처리</strong>의 문제: 서블릿(컨트롤러) 호출 이전에 공통 기능이 처리해야 한다.<br>
+-&gt; <strong>프론트 컨트롤러(Front Controller) 패턴</strong></li>
+</ul>
+<hr>
+<h2 id="mvc-프레임워크-만들기">MVC 프레임워크 만들기</h2>
+<h3 id="프론트-컨트롤러-패턴-소개">프론트 컨트롤러 패턴 소개</h3>
+<p><strong>도입 이전에는</strong>: 공통로직을 직접적으로 컨트롤러 이전에 넣어줬어야 함<br>
+<strong>도입 후에는</strong>: 공통 로직을 담당하는 프론트 컨트롤러를 통해서 컨트롤러로 접근<br>
+<strong>FrontController 패턴 특징</strong></p>
+<ul>
+<li>프론트 컨트롤러 서블릿 하나로 CLI 요청 받음</li>
+<li>상황에 맞는 컨트롤러를 찾아 호출</li>
+<li>입구를 하나로!</li>
+<li>공통 처리 가능</li>
+<li>프론트 컨트롤러 외 컨트롤러는 서블릿 안 써도 됨!</li>
+<li><strong>스프링 웹 MVC와의 연관</strong>
+<ul>
+<li>스프링 웹 MVC의 핵심</li>
+<li>DispatherServlet이 프론트 컨트롤러 패턴</li>
+</ul>
+</li>
+</ul>
+<h3 id="프론트-컨트롤러-도입---v1">프론트 컨트롤러 도입 - v1</h3>
 
