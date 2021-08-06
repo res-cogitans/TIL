@@ -616,4 +616,46 @@ response<span class="token punctuation">.</span><span class="token function">get
 </li>
 </ul>
 <h3 id="프론트-컨트롤러-도입---v1">프론트 컨트롤러 도입 - v1</h3>
+<ul>
+<li>서블릿 컨트롤러가 매핑을 통해 개별 컨트롤러들(컨트롤러 인터페이스의 구현)을 호출, 각 컨트롤러들의 오버라이드 된 메서드를 호출하여 공통 코드를 이용해서 각각의 로직 실행 가능.</li>
+</ul>
+<h3 id="view-분리---v2">View 분리 - v2</h3>
+<ul>
+<li>dispatcher 생성, foward 부분을 MyView로 분리, 컨트롤러의 process 메서드가 MyView 반환, 그 MyView의 render()를 프론트 컨트롤러가 호출</li>
+<li>MyView를 인터페이스로 만들고 구현하면 JSP 말고 다른 템플릿 엔진 등으로도 쉽게 변경 가능</li>
+</ul>
+<h3 id="model-추가---v3">Model 추가 - v3</h3>
+<ul>
+<li>서블릿 종속성 제거
+<ul>
+<li>불필요한 request, response 전달을 지움 -&gt; Model 객체 이용</li>
+</ul>
+</li>
+<li>뷰 이름 중복 제거
+<ul>
+<li>개별 컨트롤러는 뷰의 논리 이름만 반환, 물리 이름은 프론트 컨트롤러에서 처리하게함<br>
+-&gt; ViewResolver</li>
+<li>뷰 위치가 변경되더라도 프론트 컨트롤러만 수정하면 됨 -&gt; 수정 용이
+<ul>
+<li><strong>변경 지점을 하나로 만들어라!</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>ModelView
+<ul>
+<li>Model 역할에 View 이름까지 전달</li>
+</ul>
+</li>
+</ul>
+<h3 id="단순하고-실용적인-컨트롤러---v4">단순하고 실용적인 컨트롤러 - v4</h3>
+<ul>
+<li>구조적 개선이 있었지만, 생산성이 낮다는 점을 개선 -&gt; 계속 모델 뷰를 만드는 수고가 없음</li>
+<li>프론트 컨트롤러는 모델 생성, 컨트롤러 호출 시 모델 전달</li>
+<li>컨트롤러는 뷰 논리 이름 그대로 반환</li>
+</ul>
+<h3 id="유연한-컨트롤러---v5">유연한 컨트롤러 - v5</h3>
+<ul>
+<li>기존 컨트롤러의 단점: process의 구조가 단일, 다른 인터페이스 컨트롤러 선택불가(인터페이스 제약의 특성)</li>
+</ul>
 
