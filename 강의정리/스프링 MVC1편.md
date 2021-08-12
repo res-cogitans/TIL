@@ -739,4 +739,57 @@ spring<span class="token punctuation">.</span>mvc<span class="token punctuation"
 <p><strong>스프링 부트가 등록하는 뷰 리졸버 순서</strong><br>
 0. <code>BeanNameViewResolver</code>: 빈 이름으로 뷰 찾아서 반환(엑셀 파일 생성 등)<br>
 1. <code>InternalResourceViewResolver</code>: JSP를 처리할 수 있는 뷰 반환</p>
+<h3 id="스프링-mvc---시작하기">스프링 MVC - 시작하기</h3>
+<p><strong><code>@RequestMapping</code></strong></p>
+<ul>
+<li>애노테이션 기반의 유연하고 실용적인 컨트롤러 사용 가능</li>
+<li>요청 정보를 매핑</li>
+<li>대응하는 핸들러 매핑 및 어댑터:
+<ul>
+<li><code>RequestMappingHandlerMapping</code></li>
+<li><code>RequestMappingHandlerAdapter</code></li>
+</ul>
+</li>
+<li><strong><code>@Controller</code></strong>
+<ul>
+<li>컴포넌트 스캔의 대상</li>
+<li>애노테이션 기반 컨트롤러로 인식됨</li>
+</ul>
+</li>
+<li>클래스에 <code>@RequestMapping</code> 혹은 <code>@Controller</code>가 클래스에 적혀 있으면 인식됨
+<ul>
+<li><code>@RequestMapping</code> 경우, <code>@Component</code>붙어서 스프링 빈에 등록시키자. (<code>@Bean</code>으로 직접 등록하거나)</li>
+<li><code>RequestMappingHandlerMapping</code>의 <code>isHander(Class&lt;?&gt; beanType)</code>메서드는 <code>Controller.class</code>||<code>RequestMapping.class</code>애노테이션 소유 여부를 검사하기 때문이다.</li>
+</ul>
+</li>
+</ul>
+<h3 id="스프링-mvc---컨트롤러-통합">스프링 MVC - 컨트롤러 통합</h3>
+<ul>
+<li>단일 컨트롤러에 <code>@RequestMapping</code> 붙은 여러 메서드 사용하여 한 컨트롤러 안에서 통합이 가능해짐.</li>
+<li>컨트롤러에 <code>@RequestMapping(공통 url)</code> + 메서드의 (부분url)로 호출 가능, 공통 url과 동일한 url의 경우 <code>@RequestMapping</code>만 작성.</li>
+</ul>
+<h3 id="스프링-mvc---실용적인-방식">스프링 MVC - 실용적인 방식</h3>
+<ul>
+<li>ModelView 직접 만들어 반환해서 생기는 불편을 해소</li>
+<li><strong>실무에서 주로 사용하는 방식</strong></li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token comment">//    @RequestMapping(name = "/save", method = RequestMethod.POST)  </span>
+  <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/save"</span><span class="token punctuation">)</span>
+  <span class="token keyword">public</span> String <span class="token function">save</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span><span class="token string">"username"</span><span class="token punctuation">)</span> String username<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span><span class="token string">"age"</span><span class="token punctuation">)</span> <span class="token keyword">int</span> age<span class="token punctuation">,</span>  
+  Model model<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    Member member <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Member</span><span class="token punctuation">(</span>username<span class="token punctuation">,</span> age<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  memberRepository<span class="token punctuation">.</span><span class="token function">save</span><span class="token punctuation">(</span>member<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  model<span class="token punctuation">.</span><span class="token function">addAttribute</span><span class="token punctuation">(</span><span class="token string">"member"</span><span class="token punctuation">,</span> member<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"save-result"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>Model model</li>
+<li><code>@RequestParam</code>: GET 쿼리 파라미터, POST Form 모두 지원</li>
+<li>반환값을 String으로</li>
+<li>HTTP메서드를 지정: method= 에서 <code>@PostMapping</code>식으로</li>
+</ul>
 
