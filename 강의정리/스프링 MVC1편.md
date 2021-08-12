@@ -792,4 +792,95 @@ spring<span class="token punctuation">.</span>mvc<span class="token punctuation"
 <li>반환값을 String으로</li>
 <li>HTTP메서드를 지정: method= 에서 <code>@PostMapping</code>식으로</li>
 </ul>
+<h2 id="스프링-mvc---기본-기능">스프링 MVC - 기본 기능</h2>
+<ul>
+<li><strong>War</strong>: 서블릿 컨테이너(WAS, 톰캣 등)을 별도로 설치하고 거기 빌드된 파일을 넣을 경우, JSP를 쓸 경우</li>
+<li><strong>Jar</strong>: 내장 서버(톰캣 등) 사용 시
+<ul>
+<li>스프링 부트 사용시: <code>/resources/static/index.html</code>을 자동적으로 welcome page로 처리</li>
+</ul>
+</li>
+</ul>
+<h3 id="로깅-logging">로깅 Logging</h3>
+<ul>
+<li>운영 시스템에서는 sout 등의 시스템 콘솔이 아니라, 로깅 라이브러리를 사용하여 로그를 출력</li>
+<li><strong>로깅 라이브러리</strong>: 스프링 부트 기본 로깅 라이브러리 <code>spring-boot-starter-logging</code>은 기본으로 다음 로깅 라이브러리를 사용:
+<ul>
+<li>SLF4J - <a href="http://www.slf4j.org">http://www.slf4j.org</a></li>
+<li>Logback - <a href="http://logback.qos.ch">http://logback.qos.ch</a></li>
+<li><strong>SLF4J</strong>는 여러 로그 라이브러리를 통합한 <strong>인터페이스</strong>, <strong>Logback</strong>은 <strong>구현체</strong></li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token keyword">import</span> org<span class="token punctuation">.</span>slf4j<span class="token punctuation">.</span>Logger<span class="token punctuation">;</span>  
+<span class="token keyword">import</span> org<span class="token punctuation">.</span>slf4j<span class="token punctuation">.</span>LoggerFactory<span class="token punctuation">;</span>  
+<span class="token keyword">import</span> org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>web<span class="token punctuation">.</span>bind<span class="token punctuation">.</span>annotation<span class="token punctuation">.</span>GetMapping<span class="token punctuation">;</span>  
+<span class="token keyword">import</span> org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>web<span class="token punctuation">.</span>bind<span class="token punctuation">.</span>annotation<span class="token punctuation">.</span>RestController<span class="token punctuation">;</span>  
+  
+  
+<span class="token annotation punctuation">@Slf4j</span>
+<span class="token annotation punctuation">@RestController</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">LogTestController</span> <span class="token punctuation">{</span>  
+  
+<span class="token comment">//    private final Logger log = LoggerFactory.getLogger(getClass());  // @Slf4J 애노테이션으로 생략가능(롬복 제공)</span>
+<span class="token comment">//    private final Logger log = LoggerFactory.getLogger(LogTestController.class);  </span>
+  
+<span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/log-test"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">logTest</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    String name <span class="token operator">=</span> <span class="token string">"HellowKnight"</span><span class="token punctuation">;</span>  
+ <span class="token keyword">int</span> age <span class="token operator">=</span> <span class="token number">25</span><span class="token punctuation">;</span>  
+  
+  log<span class="token punctuation">.</span><span class="token function">trace</span><span class="token punctuation">(</span><span class="token string">"trace log{}, {}"</span><span class="token punctuation">,</span> name<span class="token punctuation">,</span> <span class="token number">25</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">debug</span><span class="token punctuation">(</span><span class="token string">"debug log{}, {}"</span><span class="token punctuation">,</span> name<span class="token punctuation">,</span> <span class="token number">25</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"info log{}, {}"</span><span class="token punctuation">,</span> name<span class="token punctuation">,</span> <span class="token number">25</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">warn</span><span class="token punctuation">(</span><span class="token string">"warn log{}, {}"</span><span class="token punctuation">,</span> name<span class="token punctuation">,</span> <span class="token number">25</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token string">"info log{}, {}"</span><span class="token punctuation">,</span> name<span class="token punctuation">,</span> <span class="token number">25</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>출력:</li>
+</ul>
+<blockquote>
+<p>2021-08-13 03:06:19.896  INFO 14836 — [nio-8080-exec-1] logos.springmvc.basic.LogTestController  : info log=Spring</p>
+</blockquote>
+<ul>
+<li>application.properties: 어느 수준까지 로그를 볼 것인지
+<ul>
+<li>trace, debug, info, warn, error 순서(기본 설정은 <strong>info</strong>: <code>logging.level.root.info</code>)</li>
+<li><strong>서비스 레벨</strong>은 <strong>info</strong>, <strong>개발</strong>에서나 <strong>debug(주로)</strong>, trace 표시(로그의 장점)</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"># logos<span class="token punctuation">.</span>springmvc 패키지와 그 하위 로그 레벨 설정  
+logging<span class="token punctuation">.</span>level<span class="token punctuation">.</span>logos<span class="token punctuation">.</span>springmvc<span class="token operator">=</span>trace
+</code></pre>
+<ul>
+<li>
+<p><strong>RestController</strong>: 메시지 바디에 그 String 등을 바로 반환(REST API의 REST)</p>
+<ul>
+<li><code>@Controller</code> 반환값이 String인 경우 뷰의 이름으로 취급됨</li>
+<li><code>@RestController</code>는 반환 값으로 뷰를 찾지 않고 HTTP 메시지 바디에 바로 입력</li>
+</ul>
+</li>
+<li>
+<p><strong>올바른 로그 사용법</strong></p>
+<ul>
+<li><code>log.trace("data" + data)</code>: java는 data에 값을 넣고, "data"문자열과 얻은 값 “Spring” <strong>문자열을 연산</strong>한다. 이 과정에서 리소스가 사용되는데, 만일 info level까지 로그를 출력하는 상황임에도, 이런 방식으로 로그를 작성할 경우 trace, debug와 같이 <strong>실제 출력이 발생하지 않는데도 무의미한 리소스 낭비</strong>가 발생한다.</li>
+<li><code>log.trace("data={}", data)</code>: 메서드에 파라미터를 넘기기만 함, 무의미한 연산 없음.</li>
+</ul>
+</li>
+<li>
+<p><strong>로그 사용의 장점</strong></p>
+<ul>
+<li>쓰레드 사용/클래스 이름 등의 부가 정보를 볼 수 있음, 출력 형태 조절</li>
+<li>상황에 따라 로그 출력 레벨 조절 가능 - 간단한 설정 파일 변경만으로</li>
+<li>설정을 통해 콘솔 뿐만 아니라 파일, 네트워크 등 로그를 다른 위치에 남길 수 있으며, 파일 저장 시에는 날짜, 용량 등에 따라 분할도 가능</li>
+<li>성능 자체(내부 버퍼링, 멀티 쓰레드 등)</li>
+<li></li>
+</ul>
+</li>
+</ul>
 
