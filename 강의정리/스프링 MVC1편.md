@@ -879,8 +879,155 @@ logging<span class="token punctuation">.</span>level<span class="token punctuati
 <li>상황에 따라 로그 출력 레벨 조절 가능 - 간단한 설정 파일 변경만으로</li>
 <li>설정을 통해 콘솔 뿐만 아니라 파일, 네트워크 등 로그를 다른 위치에 남길 수 있으며, 파일 저장 시에는 날짜, 용량 등에 따라 분할도 가능</li>
 <li>성능 자체(내부 버퍼링, 멀티 쓰레드 등)</li>
-<li></li>
 </ul>
 </li>
+</ul>
+<h3 id="요청-매핑">요청 매핑</h3>
+<ul>
+<li><strong><code>@RequestMapping</code></strong>: 배열[]로 제공하므로, 두 개씩 넣을 수도 있다.
+<ul>
+<li>ex) <code>@RequestMapping({"hello-basic", "/hello-go"})</code></li>
+<li><code>/hello-basic</code>과 <code>/hello-basic/</code>은 다른 url이지만 스프링은 이 둘을 같은 요청으로 매핑</li>
+<li>매핑 메소드가 일치하지 않을 경우 스프링 MVC가 405(Method Not Allowed) 반환</li>
+<li><strong>경로 변수(PathVariable) 사용</strong>
+<ul>
+<li>리소스 경로에 식별자를 넣는 스타일</li>
+<li><code>@PathVariable</code>로 간편 조회</li>
+<li>매핑 주소의 값 명칭 <code>{userId}</code>와 <code>@PathVariable("value")</code>붙은 패러미터 <code>String {userId}</code>가 동일하다면 <code>@PathVariable</code>의 괄호를 지워도 작동.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/mapping/{userId}"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">mappingPath</span><span class="token punctuation">(</span><span class="token annotation punctuation">@PathVariable</span><span class="token punctuation">(</span><span class="token string">"userId"</span><span class="token punctuation">)</span> String data<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"mappingPath userId={}"</span><span class="token punctuation">,</span> data<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>
+</code></pre>
+<p>경로 변수는 여러 개 사용도 가능하다:</p>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/mapping/users/{userId}/orders/{orderId}"</span><span class="token punctuation">)</span>
+<span class="token keyword">public</span> String <span class="token function">mappingPath</span><span class="token punctuation">(</span><span class="token annotation punctuation">@PathVariable</span> String userId<span class="token punctuation">,</span> <span class="token annotation punctuation">@PathVariable</span> Long orderId<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"mappingPath userId={}, orderId={}"</span><span class="token punctuation">,</span> userId<span class="token punctuation">,</span> orderId<span class="token punctuation">)</span><span class="token punctuation">;</span>
+     <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>
+ <span class="token punctuation">}</span>
+</code></pre>
+<p>특정 <strong>패러미터</strong>가 있어야 한다는 <strong>조건</strong>을 추가할 수도 있다:</p>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span>value <span class="token operator">=</span> <span class="token string">"/mapping-param"</span><span class="token punctuation">,</span> params <span class="token operator">=</span> <span class="token string">"mode=debug"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">mappingParam</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"mappingParam"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<p>유사하게, 특정 <strong>헤더 조건</strong>을 요구할 수도 있다:</p>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span>value <span class="token operator">=</span> <span class="token string">"/mapping-header"</span><span class="token punctuation">,</span> headers <span class="token operator">=</span> <span class="token string">"mode=debug"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">mappingHeader</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"mappingHeader"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<p><strong>미디어 타입 조건</strong>을 요구하는 매핑도 가능하다:</p>
+<pre class=" language-java"><code class="prism  language-java"><span class="token comment">/**  
+ * Content-Type 헤더 기반 추가 매핑 Media Type  
+ * consumes="application/json"
+ * consumes="!application/json"
+ * consumes="application/*"
+ * consumes="*\/*"
+ * MediaType.APPLICATION_JSON_VALUE  &lt;- 추천
+*/</span>
+<span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span>value <span class="token operator">=</span> <span class="token string">"/mapping-consume"</span><span class="token punctuation">,</span> consumes <span class="token operator">=</span> <span class="token string">"application/json"</span><span class="token punctuation">)</span>  <span class="token comment">// consumes= MediaType.APPLICATION_JSON_VALUE</span>
+<span class="token keyword">public</span> String <span class="token function">mappingConsumes</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"mappingConsumes"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>만일 타입이 일치하지 않는다면 415 상태코드(Unsupported Media Type)</li>
+<li>consume은 컨텐츠 소비 시, 반대는 produce: (accept 헤더 기반)</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span>value <span class="token operator">=</span> <span class="token string">"/mapping-produce"</span><span class="token punctuation">,</span> produces <span class="token operator">=</span> <span class="token string">"text/html"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">mappingProduces</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"mappingProduces"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<h3 id="요청-매핑---api-예시">요청 매핑 - API 예시</h3>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@RestController</span>  
+<span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/mapping/users"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">MappingClassController</span> <span class="token punctuation">{</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span>  
+  <span class="token keyword">public</span> String <span class="token function">user</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token string">"get users"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@PostMapping</span>  
+  <span class="token keyword">public</span> String <span class="token function">addUser</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token string">"post user"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/{userId}"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">findUser</span><span class="token punctuation">(</span><span class="token annotation punctuation">@PathVariable</span> String userId<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token string">"get userId="</span> <span class="token operator">+</span> userId<span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@PatchMapping</span><span class="token punctuation">(</span><span class="token string">"/{userId}"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">updateUser</span><span class="token punctuation">(</span><span class="token annotation punctuation">@PathVariable</span> String userId<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token string">"update userId="</span> <span class="token operator">+</span> userId<span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@DeleteMapping</span><span class="token punctuation">(</span><span class="token string">"/{userId}"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">deleteUser</span><span class="token punctuation">(</span><span class="token annotation punctuation">@PathVariable</span> String userId<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token string">"delete userId="</span> <span class="token operator">+</span> userId<span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+<span class="token punctuation">}</span>
+</code></pre>
+<h3 id="http-요청---기본-헤더-조회">HTTP 요청 - 기본, 헤더 조회</h3>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@Slf4j</span>  
+<span class="token annotation punctuation">@RestController</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">RequestHeaderController</span> <span class="token punctuation">{</span>  
+  
+    <span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/headers"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">headers</span><span class="token punctuation">(</span>HttpServletRequest request<span class="token punctuation">,</span>  
+  HttpServletResponse response<span class="token punctuation">,</span>  
+  HttpMethod httpMethod<span class="token punctuation">,</span>  
+  Locale locale<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@RequestHeader</span> MultiValueMap<span class="token operator">&lt;</span>String<span class="token punctuation">,</span> String<span class="token operator">&gt;</span> headerMap<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@RequestHeader</span><span class="token punctuation">(</span><span class="token string">"host"</span><span class="token punctuation">)</span> String host<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@CookieValue</span><span class="token punctuation">(</span>value <span class="token operator">=</span> <span class="token string">"myCookie"</span><span class="token punctuation">,</span> required <span class="token operator">=</span> <span class="token boolean">false</span><span class="token punctuation">)</span> String cookie<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"request={}"</span><span class="token punctuation">,</span> request<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"response={}"</span><span class="token punctuation">,</span> response<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"httpMethod={}"</span><span class="token punctuation">,</span> httpMethod<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"locale={}"</span><span class="token punctuation">,</span> locale<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"headerMap={}"</span><span class="token punctuation">,</span> headerMap<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"header host={}"</span><span class="token punctuation">,</span> host<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"myCookie={}"</span><span class="token punctuation">,</span> cookie<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>LocaleResolver: 기본 제공 외의 locale 사용</li>
+<li><strong><code>MultiValueMap</code></strong>: 하나의 키에 여러 값을 받을 수 있는 Map, List로 반환한다.</li>
+</ul>
+<blockquote>
+<p>참고 &gt; @Conroller 의 사용 가능한 파라미터 목록은 다음 공식 메뉴얼에서 확인할 수 있다.<br>
+<a href="https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-annarguments">https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-annarguments</a><br>
+참고<br>
+@Conroller 의 사용 가능한 응답 값 목록은 다음 공식 메뉴얼에서 확인할 수 있다.<br>
+<a href="https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-annreturn-types">https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-annreturn-types</a></p>
+</blockquote>
+<h3 id="http-요청-파라미터---쿼리-파라미터-html-form">HTTP 요청 파라미터 - 쿼리 파라미터, HTML Form</h3>
+<ul>
+<li>요청의 3가지 방식
+<ol>
+<li>GET-쿼리 파라미터(검색, 필터, 페이징 등)</li>
+<li>POST-HTML Form(회원가입, 상품 주문 등)</li>
+<li>HTTP message body: json, xml, text(HTTP API) -&gt; POST, PUT, PATCH</li>
+</ol>
+</li>
+<li>요청 파라미터(request parameter) 조회: 1, 2 해당</li>
+<li>Jar 사용시 Web-app 루트 사용 불가, static에 리소스</li>
 </ul>
 
