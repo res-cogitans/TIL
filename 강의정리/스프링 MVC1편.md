@@ -1030,4 +1030,199 @@ logging<span class="token punctuation">.</span>level<span class="token punctuati
 <li>요청 파라미터(request parameter) 조회: 1, 2 해당</li>
 <li>Jar 사용시 Web-app 루트 사용 불가, static에 리소스</li>
 </ul>
+<blockquote>
+<p><strong>Jar에 JSP를 넣기</strong><br>
+SpringBoot에서 기본 View는 타임리프<br>
+타임리프는 src/main/resources/templates에 만들면 특별한 설정없이 자동으로 View를 찾음<br>
+JSP는 jar로 묶을 때 src/main/webapp/WEB-INF/jsp에 위치하다보니 jar에 포함되지 않았음<br>
+해결 방법은?<br>
+<strong>src/main/resources/META-INF/resources/WEB-INF/jsp</strong>에 JSP파일을 두면 jar에 포함되고 view도 잘 찾는다.<br>
+출처: <a href="https://seongtak-yoon.tistory.com/24">https://seongtak-yoon.tistory.com/24</a></p>
+</blockquote>
+<h3 id="http-요청-파라미터---requestparam">HTTP 요청 파라미터 - @RequestParam</h3>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/request-param-v2"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">requestParamV2</span><span class="token punctuation">(</span>  
+        <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span><span class="token string">"username"</span><span class="token punctuation">)</span> String memberName<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span><span class="token string">"age"</span><span class="token punctuation">)</span> <span class="token keyword">int</span> memberAge<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"memberName={}, memberAge={}"</span><span class="token punctuation">,</span> memberName<span class="token punctuation">,</span> memberAge<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>
+<p><strong><code>@ResponseBody</code></strong></p>
+<ul>
+<li>컨트롤러 클래스가 <code>@RestController</code>가 아니라 <code>@Controller</code>인데, 리턴 타입이 String이면 ok라는 뷰를 찾게 된다(뷰 리졸버), 이럴 때 이 매핑만 직접 바디에 스트링을 전달하는 식으로 하고 싶다면 <strong><code>@ResponseBody</code></strong> 붙이자.</li>
+</ul>
+</li>
+<li>
+<p>수정된 버전</p>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/request-param-v3"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">requestParamV3</span><span class="token punctuation">(</span>  
+        <span class="token annotation punctuation">@RequestParam</span> String username<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@RequestParam</span> <span class="token keyword">int</span> age<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"memberName={}, memberAge={}"</span><span class="token punctuation">,</span> username<span class="token punctuation">,</span> age<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>수정된 버전2</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/request-param-v4"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">requestParamV4</span><span class="token punctuation">(</span>String username<span class="token punctuation">,</span> <span class="token keyword">int</span> age<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"memberName={}, memberAge={}"</span><span class="token punctuation">,</span> username<span class="token punctuation">,</span> age<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong><code>@RequestParam</code></strong>
+<ul>
+<li>파라미터 이름으로 바인딩</li>
+<li><code>@RequestParam("name")</code>의 name이 파라미터 변수명과 동일하다면 괄호는 생략 가능하다(수정된 버전)</li>
+<li>위의 경우, 패러미터가 String, int, Integer 등 단순 타입일 경우 <code>@RequestParam</code> 자체도 생략 가능하다(수정된 버전2).
+<ul>
+<li>단 이 경우, <code>@RequestParam(Required=false)</code>로 설정된다.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/request-param-required"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">requestParamRequired</span><span class="token punctuation">(</span>  
+        <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span>required <span class="token operator">=</span> <span class="token boolean">true</span><span class="token punctuation">)</span> String username<span class="token punctuation">,</span>  
+  <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span>required <span class="token operator">=</span> <span class="token boolean">false</span><span class="token punctuation">)</span> Integer age<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"memberName={}, memberAge={}"</span><span class="token punctuation">,</span> username<span class="token punctuation">,</span> age<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>필수 파라미터 여부 - <code>@RequestParam(required = false)</code></strong>
+<ul>
+<li>false의 경우 파라미터가 없어도 된다.</li>
+<li><code>@RequestParam</code> 생략 시 기본적으로 false다.</li>
+<li><strong>파라미터가 오지 않는(null)의 경우와, 빈 문자를 보내는 경우"" 구별</strong>
+<ul>
+<li><code>http://localhost:8080/request-param-required</code> :이 경우 username은 null이기에 bad request며, <code>MissingServletRequestParameterException</code>발생하지만,</li>
+<li><code>http://localhost:8080/request-param-required?username</code> 혹은 <code>http://localhost:8080/request-param-required?username=</code>: 이 경우에는  400 bad request나 예외가 발생하지 않는다. 로그를 보면 <code>memberName=, memberAge=null</code>이다.</li>
+<li><strong>null과 빈 문자 구별에 유의하자!</strong></li>
+</ul>
+</li>
+<li><strong>int가 아니라 Integer를 사용해야 하는 이유</strong>
+<ul>
+<li>
+<p>위에서  age 파라미터의 자료형을 int로 받을 경우 required=false임에도 <code>IllegalStateException</code> 발생한다. 원시 자료형 int는 null값으로 변환(translated) 될 수 없기 때문이다.</p>
+</li>
+<li>
+<blockquote>
+<p>java.lang.IllegalStateException: Optional int parameter ‘age’ is present but cannot be translated into a null value due to being declared as a primitive type. Consider declaring it as object wrapper for the corresponding primitive type.</p>
+</blockquote>
+</li>
+<li>
+<p><strong>해결법</strong></p>
+<ul>
+<li>Integer 같은 Wrapper 클래스 사용</li>
+<li>defaultValue 적용</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java">    <span class="token annotation punctuation">@ResponseBody</span>  
+    <span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/request-param-default"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">requestParamDefault</span><span class="token punctuation">(</span>  
+        <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span>defaultValue <span class="token operator">=</span> <span class="token string">"guest"</span><span class="token punctuation">)</span> String username<span class="token punctuation">,</span>  
+        <span class="token annotation punctuation">@RequestParam</span><span class="token punctuation">(</span>defaultValue <span class="token operator">=</span> <span class="token string">"-1"</span><span class="token punctuation">)</span> <span class="token keyword">int</span> age<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+        log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"memberName={}, memberAge={}"</span><span class="token punctuation">,</span> username<span class="token punctuation">,</span> age<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+        <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>defaultValue</strong></li>
+<li><code>http://localhost:8080/request-param-default</code>(null) 혹은 <code>http://localhost:8080/request-param-default?username=</code>(빈 문자)의 경우에도 로그가 <code>memberName=guest, memberAge=-1</code>출력되는 것을 볼 수 있다.
+<ul>
+<li>이 경우 required가 불필요하다.</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java">    <span class="token annotation punctuation">@ResponseBody</span>  
+ <span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/request-param-map"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">requestParamMap</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestParam</span> Map<span class="token operator">&lt;</span>String<span class="token punctuation">,</span> Object<span class="token operator">&gt;</span> paramMap<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+        log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"memberName={}, memberAge={}"</span><span class="token punctuation">,</span> paramMap<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span><span class="token string">"username"</span><span class="token punctuation">)</span><span class="token punctuation">,</span> paramMap<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span><span class="token string">"age"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+<span class="token comment">/*        for (Object key : paramMap.keySet()) {  
+               log.info("{}={}", key, paramMap.get(key));
+               }  
+
+         paramMap.keySet().iterator().forEachRemaining( (key) -&gt;    
+                     log.info("{}={}", key, paramMap.get(key)) );*/</span>  
+  <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong><code>@RequestParamMap</code></strong>: 파라미터를 맵으로 조회
+<ul>
+<li><code>Map(key=value)</code> 형태나 <code>MultiValueMap(key=[value1, value2 . . .])</code> 형태도 가능</li>
+<li>파라미터가 한 개임이 명확하지 않다면 <code>MultiValueMap</code> 사용할 것, 하지만 보통의 경우 한 개</li>
+</ul>
+</li>
+</ul>
+<h3 id="http-요청-파라미터---modelattribute">HTTP 요청 파라미터 - @ModelAttribute</h3>
+<ul>
+<li>lombok <code>@Data</code>
+<ul>
+<li><code>@Getter</code> <code>@Setter</code> <code>@ToString</code> <code>@EqualsAndHashCode</code> <code>@RequiredArgsConstructor</code>를 자동적용</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/model-attribute-v1"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">ModelAttributeV1</span><span class="token punctuation">(</span><span class="token annotation punctuation">@ModelAttribute</span> HelloData helloData<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"username={}, age={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"hellodata={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong><code>@ModelAttribute</code></strong>
+<ul>
+<li>실행 순서
+<ol>
+<li><code>HelloData</code>객체 생성</li>
+<li>요청 파라미터 이름을 객체 프로퍼티에서 찾아 setter로 값을 바인딩</li>
+</ol>
+</li>
+<li><code>BindException</code>: 프로퍼티와 자료형이 맞지 않는 파라미터 값으로 바인딩 할 때</li>
+<li><code>@ModelAttribute</code> 생략 가능하다.</li>
+</ul>
+</li>
+<li><strong>애노테이션 생략 규칙</strong>
+<ul>
+<li><code>String,</code>, <code>int</code>, <code>Integer</code> 등 단순 타입 =  <code>@RequestParam</code></li>
+<li>그 외 = <code>@ModelAttribute</code> (단 argument resolver로 지정해 둔 타입은 제외!)</li>
+</ul>
+</li>
+</ul>
+<h3 id="http-요청-메시지---단순-텍스트">HTTP 요청 메시지 - 단순 텍스트</h3>
 
