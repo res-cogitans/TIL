@@ -1225,4 +1225,155 @@ JSP는 jar로 묶을 때 src/main/webapp/WEB-INF/jsp에 위치하다보니 jar�
 </li>
 </ul>
 <h3 id="http-요청-메시지---단순-텍스트">HTTP 요청 메시지 - 단순 텍스트</h3>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@Slf4j</span>  
+<span class="token annotation punctuation">@Controller</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">RequestBodyStringController</span> <span class="token punctuation">{</span>  
+  
+    <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-string-v1"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">requestBodyStringV1</span><span class="token punctuation">(</span>HttpServletRequest request<span class="token punctuation">,</span> HttpServletResponse response<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+        ServletInputStream inputStream <span class="token operator">=</span> request<span class="token punctuation">.</span><span class="token function">getInputStream</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  String messageBody <span class="token operator">=</span> StreamUtils<span class="token punctuation">.</span><span class="token function">copyToString</span><span class="token punctuation">(</span>inputStream<span class="token punctuation">,</span> StandardCharsets<span class="token punctuation">.</span>UTF_8<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"messageBody={}"</span><span class="token punctuation">,</span> messageBody<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  response<span class="token punctuation">.</span><span class="token function">getWriter</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-string-v2"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">requestBodyStringV2</span><span class="token punctuation">(</span>InputStream inputStream<span class="token punctuation">,</span> Writer responseWriter<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+  
+        String messageBody <span class="token operator">=</span> StreamUtils<span class="token punctuation">.</span><span class="token function">copyToString</span><span class="token punctuation">(</span>inputStream<span class="token punctuation">,</span> StandardCharsets<span class="token punctuation">.</span>UTF_8<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"messageBody={}"</span><span class="token punctuation">,</span> messageBody<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  responseWriter<span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-string-v3"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> HttpEntity<span class="token operator">&lt;</span>String<span class="token operator">&gt;</span> <span class="token function">requestBodyStringV3</span><span class="token punctuation">(</span>HttpEntity<span class="token operator">&lt;</span>String<span class="token operator">&gt;</span> httpEntity<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+  
+        String messageBody <span class="token operator">=</span> httpEntity<span class="token punctuation">.</span><span class="token function">getBody</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"messageBody={}"</span><span class="token punctuation">,</span> messageBody<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">HttpEntity</span><span class="token operator">&lt;</span><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong>HttpEntity</strong>: HTTP header, body 편리하게 조회 가능
+<ul>
+<li>메시지 바디 정보를 직접 조회</li>
+<li>응답에서 사용
+<ul>
+<li>메시지 바디 정보 직접 반환</li>
+<li>헤더 정보 포함 가능</li>
+<li>view 조회 X</li>
+</ul>
+</li>
+<li><code>RequestEntity</code>, <code>ResponseEntity("message body", 상태코드)</code>도 사용 가능</li>
+</ul>
+</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-string-v4"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">requestBodyStringV4</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestBody</span> String messageBody<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"messageBody={}"</span><span class="token punctuation">,</span> messageBody<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><strong><code>@RequestBody</code> <code>@ResponseBody</code> 사용 방식</strong>
+<ul>
+<li>헤더 정보가 필요하다면 <code>@RequestHeader</code>나 <code>HttpEntity</code>사용</li>
+</ul>
+</li>
+<li>스프링 MVC는 메시지 바디 -&gt; 문자/객체로 변환 전달: <strong>HTTP 메시지 컨버터</strong></li>
+</ul>
+<h3 id="http-요청-메시지---json">HTTP 요청 메시지 - JSON</h3>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@Slf4j</span>  
+<span class="token annotation punctuation">@Controller</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">RequestBodyJsonController</span> <span class="token punctuation">{</span>  
+  
+    <span class="token keyword">private</span> ObjectMapper objectMapper <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ObjectMapper</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-json-v1"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">requestBodyJsonV1</span><span class="token punctuation">(</span>HttpServletRequest request<span class="token punctuation">,</span> HttpServletResponse response<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+        ServletInputStream inputStream <span class="token operator">=</span> request<span class="token punctuation">.</span><span class="token function">getInputStream</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  String messageBody <span class="token operator">=</span> StreamUtils<span class="token punctuation">.</span><span class="token function">copyToString</span><span class="token punctuation">(</span>inputStream<span class="token punctuation">,</span> StandardCharsets<span class="token punctuation">.</span>UTF_8<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"messageBody={}"</span><span class="token punctuation">,</span> messageBody<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  HelloData helloData <span class="token operator">=</span> objectMapper<span class="token punctuation">.</span><span class="token function">readValue</span><span class="token punctuation">(</span>messageBody<span class="token punctuation">,</span> HelloData<span class="token punctuation">.</span><span class="token keyword">class</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"userName={}, age={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+  response<span class="token punctuation">.</span><span class="token function">getWriter</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@ResponseBody</span>  
+ <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-json-v2"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">requestBodyJsonV2</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestBody</span> String messageBody<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+  
+        log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"messageBody={}"</span><span class="token punctuation">,</span> messageBody<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  HelloData helloData <span class="token operator">=</span> objectMapper<span class="token punctuation">.</span><span class="token function">readValue</span><span class="token punctuation">(</span>messageBody<span class="token punctuation">,</span> HelloData<span class="token punctuation">.</span><span class="token keyword">class</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"userName={}, age={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@ResponseBody</span>  
+ <span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-json-v3"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">requestBodyJsonV3</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestBody</span> HelloData helloData<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+        log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"userName={}, age={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><code>HttpEntity</code>나 <code>@RequestBody</code>를 사용시 HTTP 메시지 컨버터가 메시지 바디의 내용을 변환해 준다.</li>
+<li><code>@RequestBody</code> 생략 불가 -&gt; 생략시 <code>@ModelAttribute</code>적용되버림</li>
+</ul>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-json-v4"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> String <span class="token function">requestBodyJsonV4</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestBody</span> HttpEntity<span class="token operator">&lt;</span>HelloData<span class="token operator">&gt;</span> data<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    HelloData helloData <span class="token operator">=</span> data<span class="token punctuation">.</span><span class="token function">getBody</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"userName={}, age={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>  
+  
+<span class="token annotation punctuation">@ResponseBody</span>  
+<span class="token annotation punctuation">@PostMapping</span><span class="token punctuation">(</span><span class="token string">"/request-body-json-v5"</span><span class="token punctuation">)</span>  
+<span class="token keyword">public</span> HelloData <span class="token function">requestBodyJsonV5</span><span class="token punctuation">(</span><span class="token annotation punctuation">@RequestBody</span> HelloData helloData<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+  
+    log<span class="token punctuation">.</span><span class="token function">info</span><span class="token punctuation">(</span><span class="token string">"userName={}, age={}"</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getUsername</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> helloData<span class="token punctuation">.</span><span class="token function">getAge</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> helloData<span class="token punctuation">;</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><code>HttpEntity</code> 사용 가능(<code>@RequestBody</code> 생략)</li>
+<li>파라미터로 받은 객체를 반환 가능</li>
+<li><strong>요청, 응답흐름</strong>
+<ul>
+<li><strong><code>@RequestBody</code> 요청</strong>: JSON요청 -&gt; HTTP 메시지 컨버터 -&gt; 객체
+<ul>
+<li><strong>content-type: application/json 주의!!</strong></li>
+</ul>
+</li>
+<li><strong><code>@ResponseBody</code> 응답</strong>: 객체 -&gt; HTTP 메시지 컨버터 -&gt; JSON 응답
+<ul>
+<li><strong>Accept: application/json 주의!!</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="http-응답---정적-리소스-뷰-템플릿">HTTP 응답 - 정적 리소스, 뷰 템플릿</h3>
 
