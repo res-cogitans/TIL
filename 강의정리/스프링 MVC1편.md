@@ -1376,4 +1376,188 @@ JSP는 jar로 묶을 때 src/main/webapp/WEB-INF/jsp에 위치하다보니 jar�
 </li>
 </ul>
 <h3 id="http-응답---정적-리소스-뷰-템플릿">HTTP 응답 - 정적 리소스, 뷰 템플릿</h3>
+<ul>
+<li>
+<p>서버에서 응답 데이터를 만드는 방법</p>
+<ol>
+<li>정적 리소스 - 브라우저에 정적인 html, css, js</li>
+<li>뷰 템플릿: 동적 html</li>
+<li>HTTP 메시지 - HTTP API의 경우, 메시지 바디에 JSON</li>
+</ol>
+</li>
+<li>
+<p><strong>정적 리소스</strong></p>
+<ul>
+<li>스프링 부트가 사용하는 정적 리소스 디렉토리
+<ul>
+<li><code>/static</code> <code>/public</code> <code>/resources</code> <code>/META_INF/resources</code></li>
+</ul>
+</li>
+<li><code>src/main/resources</code> 리소스 보관 장소</li>
+<li>변경 없이 해당 파일을 실행</li>
+</ul>
+</li>
+<li>
+<p><strong>뷰 템플릿</strong></p>
+<ul>
+<li>뷰 템플릿을 거쳐 html 생성, 뷰가 응답을 만들어 전달</li>
+<li>스프링 부트 기본 경로: <code>src/main/resources/templates</code></li>
+</ul>
+</li>
+</ul>
+<pre class=" language-html"><code class="prism  language-html"><span class="token doctype">&lt;!DOCTYPE html&gt;</span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>html</span> <span class="token attr-name"><span class="token namespace">xmlns:</span>th</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>http://www.thymeleaf.org<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>head</span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>meta</span> <span class="token attr-name">charset</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>UTF-8<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>  
+ <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>title</span><span class="token punctuation">&gt;</span></span>Title<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>title</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>head</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>body</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>p</span> <span class="token attr-name"><span class="token namespace">th:</span>text</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>${data}<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>empty<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>p</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>body</span><span class="token punctuation">&gt;</span></span>  
+<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>html</span><span class="token punctuation">&gt;</span></span>
+</code></pre>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@Controller</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">ResponseViewController</span> <span class="token punctuation">{</span>  
+  
+    <span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/response-view-v1"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> ModelAndView <span class="token function">responseViewV1</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        ModelAndView mv <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ModelAndView</span><span class="token punctuation">(</span><span class="token string">"response/hello"</span><span class="token punctuation">)</span>  
+                <span class="token punctuation">.</span><span class="token function">addObject</span><span class="token punctuation">(</span><span class="token string">"data"</span><span class="token punctuation">,</span> <span class="token string">"hello! prototype"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> mv<span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/response-view-v2"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">responseViewV2</span><span class="token punctuation">(</span>Model model<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        model<span class="token punctuation">.</span><span class="token function">addAttribute</span><span class="token punctuation">(</span><span class="token string">"data"</span><span class="token punctuation">,</span> <span class="token string">"hello! v2"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+ <span class="token keyword">return</span> <span class="token string">"response/hello"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@RequestMapping</span><span class="token punctuation">(</span><span class="token string">"/response/hello"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">responseViewV3</span><span class="token punctuation">(</span>Model model<span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        model<span class="token punctuation">.</span><span class="token function">addAttribute</span><span class="token punctuation">(</span><span class="token string">"data"</span><span class="token punctuation">,</span> <span class="token string">"hello! v2"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li>String 반환하는 경우: 뷰 리졸버가 뷰를 찾고 렌더링(<code>@ResponseBody</code> 구별 주의)</li>
+<li>void 반환하는 경우: <code>@Controller</code> 사용  &amp;&amp; HTTP 메시지 바디를 처리하는 파라미터 없는 경우(<code>HttpServletResponse</code>나 <code>OutputStream(Writer)</code> 등이 없는 경우)
+<ul>
+<li>요청 url을 참고하여 논리 뷰 이름으로 사용</li>
+<li>명시성이 낮고, 조건에 맞지 않는 상황도 종종 있음</li>
+</ul>
+</li>
+<li><strong>Thymeleaf</strong>
+<ul>
+<li><code>bulid.gradle</code>에 등록</li>
+<li><code>application.properties</code>에서 prefix와 suffix 설정</li>
+</ul>
+</li>
+</ul>
+<h3 id="http-응답---http-api-메시지-바디에-직접-입력">HTTP 응답 - HTTP API, 메시지 바디에 직접 입력</h3>
+<pre class=" language-java"><code class="prism  language-java"><span class="token annotation punctuation">@Slf4j</span>  
+<span class="token annotation punctuation">@Controller</span>  
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">ResponseBodyController</span> <span class="token punctuation">{</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-string-v1"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">responseBodyV1</span><span class="token punctuation">(</span>HttpServletResponse response<span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+        response<span class="token punctuation">.</span><span class="token function">getWriter</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-string-v2"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> ResponseEntity<span class="token operator">&lt;</span>String<span class="token operator">&gt;</span> <span class="token function">responseBodyV2</span><span class="token punctuation">(</span><span class="token punctuation">)</span>  <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">ResponseEntity</span><span class="token operator">&lt;</span><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">,</span> HttpStatus<span class="token punctuation">.</span>OK<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-string-v21"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> HttpEntity<span class="token operator">&lt;</span>String<span class="token operator">&gt;</span> <span class="token function">responseBodyV21</span><span class="token punctuation">(</span><span class="token punctuation">)</span>  <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">HttpEntity</span><span class="token operator">&lt;</span>String<span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-string-v3"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> String <span class="token function">responseBodyV3</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
+        <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-json-v1"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> ResponseEntity<span class="token operator">&lt;</span>HelloData<span class="token operator">&gt;</span> <span class="token function">responseBodyJsonV1</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        HelloData helloData <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">HelloData</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  helloData<span class="token punctuation">.</span><span class="token function">setUsername</span><span class="token punctuation">(</span><span class="token string">"hellowKnight"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  helloData<span class="token punctuation">.</span><span class="token function">setAge</span><span class="token punctuation">(</span><span class="token number">36</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">ResponseEntity</span><span class="token operator">&lt;</span>HelloData<span class="token operator">&gt;</span><span class="token punctuation">(</span>helloData<span class="token punctuation">,</span> HttpStatus<span class="token punctuation">.</span>OK<span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+    <span class="token annotation punctuation">@ResponseStatus</span><span class="token punctuation">(</span>HttpStatus<span class="token punctuation">.</span>OK<span class="token punctuation">)</span>  
+    <span class="token annotation punctuation">@ResponseBody</span>  
+ <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-json-v2"</span><span class="token punctuation">)</span>  
+    <span class="token keyword">public</span> HelloData <span class="token function">responseBodyJsonV2</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>  
+        HelloData helloData <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">HelloData</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  helloData<span class="token punctuation">.</span><span class="token function">setUsername</span><span class="token punctuation">(</span><span class="token string">"hellowKnight"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  helloData<span class="token punctuation">.</span><span class="token function">setAge</span><span class="token punctuation">(</span><span class="token number">36</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
+  
+ <span class="token keyword">return</span> helloData<span class="token punctuation">;</span>  
+  <span class="token punctuation">}</span>  
+  
+<span class="token punctuation">}</span>
+</code></pre>
+<ul>
+<li><code>@ResponseBody</code>사용 시 상태코드 전달은 <code>@ResponseStatus</code>를 사용</li>
+<li>정적, 동적 상태 코드
+<ul>
+<li><code>@ResponseStatus</code>사용할 시 애노테이션으로 고정되기에 <strong>정적</strong>인 것만 가능</li>
+<li><code>HttpEntity</code>나 <code>ResponseEntity</code>를 사용하면 <code>@ResponseStatus</code>사용이 강제되는 <code>@ResponseBody</code>와 다르게 <strong>동적</strong>인 처리가 가능</li>
+</ul>
+</li>
+<li>클래스 레벨에 <code>@ResponseBody</code> 사용하여 일괄적용 가능, <strong><code>@ResponseBody</code>+<code>@Controller</code> -&gt; <code>@RestController</code></strong></li>
+</ul>
+<h3 id="http-메시지-컨버터">HTTP 메시지 컨버터</h3>
+<ul>
+<li>HTTP 메시지 바디에 담긴 데이터를 직접 읽는 경우 용이</li>
+<li>스프링 MVC가 HTTP 메시지 컨버터를 <strong>적용하는 경우</strong>
+<ul>
+<li><code>@RequestBody</code> <code>@ResponseBody</code></li>
+<li><code>HttpEntity</code> <code>RequestEntity</code> <code>ResponseEntity</code></li>
+</ul>
+</li>
+<li><strong>스프링 부트 기본 메시지 컨버터</strong>
+<ul>
+<li>ByteArrayHttpMessageConverter
+<ul>
+<li>클래스 타입 <code>byte[]</code></li>
+<li>모든 미디어 타입 가능</li>
+<li>쓰기 미디어 타입: <code>application/octet-stream</code></li>
+</ul>
+</li>
+<li>StringHttpMessageConverter
+<ul>
+<li>클래스타입 <code>String</code></li>
+<li>모든 미디어 타입 가능</li>
+<li>쓰기 미디어 타입: <code>text/plain</code></li>
+</ul>
+</li>
+<li>MappingJackson2HttpMessageConverter
+<ul>
+<li>클래스타입: 객체, <code>HashMap</code></li>
+<li>미디어 타입 <code>application/json</code> 관련</li>
+<li>쓰기 미디어 타입: <code>application/json</code> 관련</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>HTTP 요청 데이터 읽기</strong>
+<ol>
+<li>HTTP 메시지 컨버터가 적용되는 형태의 요청이 옴</li>
+<li>메시지 컨버터가 <code>canRead()</code> 호출: 클래스 타입 지원 여부, Content-Type 미디어 타입 지원 여부</li>
+<li><code>read()</code>호출, 객체 생성, 반환</li>
+</ol>
+</li>
+<li><strong>HTTP 응답 데이터 생성</strong>
+<ol>
+<li>컨트롤러에서 지원 형태로 값이 반환</li>
+<li>메시지 컨버터가 <code>canWrite()</code> 호출: 클래스 타입 지원 여부, 요청의 Accept 미디어 타입 지원 여부(정확히는 <code>@RequestMapping</code>의 produces</li>
+<li><code>write()</code>호출, 응답 메시지 바디에 데이터 생성</li>
+</ol>
+</li>
+</ul>
 
