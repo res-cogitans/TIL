@@ -1474,6 +1474,7 @@ JSP는 jar로 묶을 때 src/main/webapp/WEB-INF/jsp에 위치하다보니 jar�
         <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">HttpEntity</span><span class="token operator">&lt;</span>String<span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="token string">"ok"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>  
   <span class="token punctuation">}</span>  
   
+    <span class="token annotation punctuation">@ResponseBody</span>
     <span class="token annotation punctuation">@GetMapping</span><span class="token punctuation">(</span><span class="token string">"/response-body-string-v3"</span><span class="token punctuation">)</span>  
     <span class="token keyword">public</span> String <span class="token function">responseBodyV3</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token keyword">throws</span> IOException <span class="token punctuation">{</span>  
         <span class="token keyword">return</span> <span class="token string">"ok"</span><span class="token punctuation">;</span>  
@@ -1559,5 +1560,35 @@ JSP는 jar로 묶을 때 src/main/webapp/WEB-INF/jsp에 위치하다보니 jar�
 <li><code>write()</code>호출, 응답 메시지 바디에 데이터 생성</li>
 </ol>
 </li>
+</ul>
+<h3 id="요청-매핑-핸들러-어댑터-구조">요청 매핑 핸들러 어댑터 구조</h3>
+<ul>
+<li><strong>RequestMappingHandlerAdapter</strong>
+<ul>
+<li>애노테이션(<code>@RequestMapping</code>) 기반 컨트롤러들을 처리하는 핸들러 어댑터</li>
+<li><strong>ArgumentResolver</strong>: <code>HandlerMethodArgumentResolver</code>
+<ul>
+<li>컨트롤러들의 파라미터들: <code>HttpServlet Request</code>, <code>Model</code>, <code>@RequestParam</code>, <code>@ModelAttribute</code>, <code>InputStream</code>, <code>@ReqeustBody</code>, <code>HttpEntity</code> 등을 처리해주는 역할</li>
+<li><code>RequestMappingHandlerAdapter</code>가 <code>ArgumentResolver</code> 호출하면, 파라미터 값(객체)을 생성하고, 컨트롤러를 호출하고 값을 넘겨준다.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>ReturnValueHandler</strong>: <code>HandlerMethodReturnValueHandler</code>
+<ul>
+<li>응답 값을 반환, 처리</li>
+</ul>
+</li>
+<li><strong>HTTP 메시지 컨버터</strong>: <code>@ResponseBody</code>나 <code>HttpEntity</code> 등 처리
+<ul>
+<li>요청 시, <code>@ResponseBody</code>나 <code>HttpEntity</code> 등을 처리하는 <code>ArgumentResolver</code>가 HTTP 컨버터를 사용하여(read) 객체를 생성</li>
+<li>응답 시, <code>ReturnValueHandler</code>가 HTTP컨버터를 호출해서(write) 응답 결과를 만듦.</li>
+</ul>
+</li>
+<li><code>WebMvcConfigurer</code> 을 상속받아 스프링 빈으로 등록하여,<code>HandlerMethodArgumentResolver</code> <code>HandlerMethodReturnValueHandler</code> <code>HttpMessageConverter</code> 인터페이스 기능 확장 가능</li>
+</ul>
+<h3 id="스프링-mvc---웹-페이지-만들기">스프링 MVC - 웹 페이지 만들기</h3>
+<ul>
+<li>artifact를 item-service라고 작성했는데, 패키지명에는 '-'가 포함되지 않게 주의</li>
 </ul>
 
