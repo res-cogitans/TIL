@@ -12,9 +12,10 @@ import static org.assertj.core.api.Assertions.*;
 
 
 @SpringBootTest
-class MemberRepositoryTest {
+class MemberRepositoryOldTest {
 
-    @Autowired MemberRepository memberRepository;
+    @Autowired
+    MemberRepositoryOld memberRepositoryOld;
 
     @Test
     @Transactional
@@ -26,8 +27,8 @@ class MemberRepositoryTest {
         member.setName("memberA");
 
         //when
-        Long savedId = memberRepository.save(member);
-        Member foundMember = memberRepository.find(member.getId());
+        Long savedId = memberRepositoryOld.save(member);
+        Member foundMember = memberRepositoryOld.find(member.getId());
 
         //then
         assertThat(foundMember.getId()).isEqualTo(member.getId());
