@@ -1,5 +1,6 @@
 package cogitans.jpashop.service;
 
+import cogitans.jpashop.domain.item.Book;
 import cogitans.jpashop.domain.item.Item;
 import cogitans.jpashop.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,15 @@ public class ItemService {
     @Transactional
     public void saveItem(Item item) {
         itemRepository.save(item);
+    }
+
+    @Transactional
+    public Item updateItem(Long itemId, Book bookParam) {
+        Item foundItem = itemRepository.findOne(itemId);
+        foundItem.setPrice(bookParam.getPrice());
+        foundItem.setName(bookParam.getName());
+        foundItem.setStockQuantity(bookParam.getStockQuantity());
+        return foundItem;
     }
 
     public List<Item> findItems() {
