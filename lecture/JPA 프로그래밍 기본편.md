@@ -48,4 +48,190 @@
 		- **O**bject-**R**elational **M**apping(객체관계매핑)
 		- 객체는 객체대로, RBD는 RBD대로
 		- 객체와 RDB를 중간에서 매핑해주는 ORM 프레임워크
-	- JPA는 애플리케이션과 JDBC 사이에서 동작
+- JPA는 애플리케이션과 JDBC 사이에서 동작
+	- 대신 SQL을 생성하고, JDBC API를 통해 DB와 통신해줌
+	- 패러다임 불일치를 해결
+- 역사
+	- EJB - 엔티티 빈(자바 표준)
+	- 하이버네이트(오픈 소스): EJB의 문제를 해결한 ORM 프레임워크
+	- JPA(자바 표준): 하이버네이트 기반으로 만든 표준
+		- JPA는 표준 스펙: 인터페이스 모음
+		- 구현체: 하이버네이트, EclipseLink, DataNucleus 
+	- 버전
+		- JPA 1.0(JSR 220) 2006년: 초기 버전, 복합 키와 연관관계 기능이 부족
+		- JPA 2.0(JSR 317) 2009년: 대부분의 ORM 기능을 포함, Jpa Criteria 추가
+		- JPA 2.1(JSR 338) 2013년: 스토어드 프로시저 접근, 컨버터(Converter), 엔티티 그래프 기능 추가
+	- JPA를 사용해야 할 이유
+		- SQL중심적 개발이 아닌 객체 중심적 개발 가능
+		- 생산성
+			- 컬렉션처럼 단순하게 사용
+			- 변경 감지
+		- 유지보수
+			- 기존에는 필드 변경시 모든 SQL을 수정해야 했음
+			- JPA는 필드만 추가하면 SQL은 JPA가 처리
+		- **패러다임의 불일치 해결**
+			1. 상속
+				- 객체 상속 관계를 테이블 슈퍼타입 서브타입
+			2. 연관관계
+			3. 객체 그래프 탐색
+				-> JPA는 객체 그래프를 자유롭게 탐색 가능
+			4. 비교하기
+				- 동일한 트랜잭션에서 조회한 엔티티는 같음을 보장
+		- 성능 최적화
+			- JPA라는 중간 계층의 존재로 인해서 오히려 최적화 가능한 부분이 있음
+			1. 1차 캐시와 동일성(identity) 보장
+				1) 동일 트랜잭션 내에서는 동일 엔티티 반환 -> 조회 성능 약간 향상
+				2) DB Isolation Level이 Read Commit이어도 애플리케이션에서 Repeatable Read 보장
+			2. 트랜잭션을 지원하는 쓰기 지연(transactional write-behind)
+				- INSERT의 경우
+					1) 트랜잭션을 커밋할 때까지 INSERT SQL을 모음
+					2) JDBC BATCH SQL 기능을 사용해서 한 번에 SQL 전송
+						- BATCH 직접 하려고 하면 코드가 상당히 난잡해짐
+				- UPDATE의 경우
+					1) UPDATE, DELETE로 인한 로우(ROW)락 시간 최소한
+					2) 트랜잭션 커밋 시 UPDATE, DELETE SQL 실행하고, 바로 커밋
+			3. 지연 로딩(lazy Loading)
+				1) 지연 로딩: 객체가 실제 사용될 때 로딩
+				2) 즉시 로딩: JOIN SQL로 한번에 연관된 객체까지 미리 조회
+		- 데이터 접근 추상화와 벤더 독립성
+		- 표준
+- ORM은 객체와 RDB 둘이 떠받치고 있는 기술
+
+## 시작하기
+- 메이븐
+	- 의존성관리 등
+	- `pom.xml` 설정: 스프링 부트 문서 등 참고하여 맞는 버전으로
+- JPA 설정
+	- `persistence.xml`
+		- `META-INF/persistence.xml`
+- **데이터베이스 방언**
+- JPA는 특정 데이터베이스에 종속 X
+- SQL 표준을 지키지 않는 특정 DB만의 고유 기능
+- `<property name="hibernate.dialect" value="org.hibernate.dialect.H2Dialect"/>`등이 방언에 대한 지정 부분
+
+### JPA 소개
+- **JPA의 구동방식**
+	1. Persistence 클래스에서 설정정보(persistence.xml)을 읽음
+	2. EntityManagerFactory 클래스 만듦
+	3. EntityManagerFactory에서 EntityManager를 생성
+- 정석적인 방식
+	```java	
+	private static void create(String memberName, Long id) {  
+	  EntityManagerFactory emf = Persistence.createEntityManagerFactory("hello");  
+	  
+	  EntityManager em = emf.createEntityManager();  
+	  
+	  EntityTransaction tx = em.getTransaction();  
+	  tx.begin();  
+	  
+	 try{  
+	        Member member = new Member();  
+	        member.setName(memberName);  
+	        member.setId(id);  
+	  
+	  em.persist(member);  
+	  
+	  tx.commit();  
+	  } catch (Exception e) {  
+	        tx.rollback();  
+	  } finally {  
+	        em.close();  
+	  }  
+	  
+	    emf.close();  
+	}
+	```
+	1. emf생성
+	2. em 생성
+	3. 트랜잭션 시작
+	4. 본 코드
+	5. 트랜잭션 커밋 / 예외 시에는 롤백
+	6. em close
+	7. emf close
+	-> 스프링 사용 환경에서는 `em.persist();`로 충분
+	
+- update
+	```java
+	private static void update(String name, Long id) {  
+	  EntityManagerFactory emf = Persistence.createEntityManagerFactory("hello");  
+	  
+	  EntityManager em = emf.createEntityManager();  
+	  
+	  EntityTransaction tx = em.getTransaction();  
+	  tx.begin();  
+	  
+	 try{  
+	        Member member = em.find(Member.class, id);  
+	        member.setName(name);  
+	  
+	  tx.commit();  
+	  } catch (Exception e) {  
+	        tx.rollback();  
+	  } finally {  
+	        em.close();  
+	  }  
+	  
+	    emf.close();  
+	}
+	```
+	- 왜 `member.setName()`만으로 변경이 가능한가?
+	-> JPA 통해 가져온(find) 엔티티는 JPA 관리 하에 있고, 변경 여부를 체크한다. 변경 발견시 Update 쿼리를 날리기 때문에 가능한 것. 
+
+- **주의사항**
+	- `EntityManagerFactory`는 하나만 생성해서 애플리케이션 전체에서 공유한다.
+		- 웹 서버가 올라오는 시점에 DB당 단 하나만 생성!
+	- `EntityManager`는 쓰레드간에 공유하지 않는다. (사용 후 버려야 한다)
+		- 고객의 요청이 올 때마다 생성, 사용 후 버림
+	- JPA의 모든 데이터 변경은 트랜잭션 안에서 실행해야 한다.
+		- RDB에서 데이터 변경은 기본적으로 트랜잭션 안에서 이루어져야 한다.
+		
+**JPQL 소개**
+- JPQL의 필요성
+	- 단순한 조회의 경우
+		- `em.find();`
+		- 객체 그래프 탐색 `(a.getB().getC())`
+	- where 등 조건을 붙여서 검색하고 싶다면?
+	-> JPQL
+	```java
+	public static void jpqlFind() {  
+	  EntityManagerFactory emf = Persistence.createEntityManagerFactory("hello");  
+	  
+	  EntityManager em = emf.createEntityManager();  
+	  
+	  EntityTransaction tx = em.getTransaction();  
+	  tx.begin();  
+	  
+	 try{  
+	        List<Member> findMembers = em.createQuery("select m from Member as m", Member.class)  
+	                .getResultList();  
+	  
+	 for (Member findMember : findMembers) {  
+	            System.out.println("findMember.getName() = " + findMember.getName());  
+	  }  
+	  
+	        tx.commit();  
+	  } catch (Exception e) {  
+	        tx.rollback();  
+	  } finally {  
+	        em.close();  
+	  }  
+	  
+	    emf.close();  
+	}
+	```
+	- 취지
+		- JPA -> 엔티티 객체 중심으로 개발
+		- 그런데 검색의 경우 모든 DB데이터를 객체로 변횐해서 검색하는 것은 불가능하다.
+		- 테이블을 검색할 경우 DB에 종속적인 개발이 되어버린다.
+		- JPQL은 테이블이 아니라, **엔티티 객체를 대상**으로 검색한다 -> 엔티티 중심의 개발에 도움이 된다.
+		-> 객체 지향 쿼리 언어
+	- JPA가 제공하는 SQL을 추상화한 객체 지향 쿼리 언어
+	- SQL을 추상화했기에 DB 방언을 변경하더라도 JPQL을 수정할 필요는 없음(특정 DB SQL에 종속적이지 않다)
+	- SQL과 문법 유사: SELECT, FROM, WHERE, GROUP BY, HAVING, JOIN 지원
+	- **JPQL은 엔티티 객체 대상 쿼리**
+	- **SQL은 **DB 테이블 대상 쿼리**
+
+<br>
+
+## 영속성 관리 - 내부 동작 방식
+### 영속성 컨텍스트
