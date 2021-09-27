@@ -1,4 +1,4 @@
-﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -8,7 +8,9 @@
 	2. JPA의 내부 동작 방식에 대한 이해 결여
 		- 장애 상황에서 대응 못 함
 
-<br>
+
+
+
 
 ## JPA 소개
 ### SQL 중심적인 언어의 문제점
@@ -48,9 +50,11 @@
 		- **O**bject-**R**elational **M**apping(객체관계매핑)
 		- 객체는 객체대로, RBD는 RBD대로
 		- 객체와 RDB를 중간에서 매핑해주는 ORM 프레임워크
+	
 - JPA는 애플리케이션과 JDBC 사이에서 동작
 	- 대신 SQL을 생성하고, JDBC API를 통해 DB와 통신해줌
 	- 패러다임 불일치를 해결
+	
 - 역사
 	- EJB - 엔티티 빈(자바 표준)
 	- 하이버네이트(오픈 소스): EJB의 문제를 해결한 ORM 프레임워크
@@ -95,7 +99,10 @@
 				2) 즉시 로딩: JOIN SQL로 한번에 연관된 객체까지 미리 조회
 		- 데이터 접근 추상화와 벤더 독립성
 		- 표준
+	
 - ORM은 객체와 RDB 둘이 떠받치고 있는 기술
+
+
 
 ## 시작하기
 - 메이븐
@@ -232,7 +239,9 @@
 	- **JPQL은 엔티티 객체 대상 쿼리**
 	- **SQL은 **DB 테이블 대상 쿼리**
 
-<br>
+
+
+
 
 ## 영속성 관리 - 내부 동작 방식
 ### 영속성 컨텍스트
@@ -328,4 +337,208 @@
       - `em.clear()`: 영속성 컨텍스트를 완전히 초기화
       - `em.close()`: 영속성 컨텍스트를 종료
   - 지연 로딩(Lazy Loading)
+
+
+
+
+
+## 엔티티 매핑
+
+### 객체와 테이블 매핑
+
+#### 엔티티 매핑 소개
+
+- 객체와 테이블 매핑: `@Entity`, `@Table`
+- 필드와 컬럼 매핑: `@Column`
+- 기본 키 매핑: `@Id`
+- 연관관계 매핑: `@ManyToOne`, `@JoinColumn`
+
+##### 객체와 테이블 매핑
+
+- **`@Entity`**
+
+  - JPA가 관리하는 엔티티
+  - **주의사항**
+    - 기본 생성자가 필수(public 혹은 protected)
+    - final 클래스, Enum, Interface Inner 클래스 사용 불가
+    - 저장할 필드에 final 사용 불가
+
+  - 속성: name
+
+    - JPA에서 사용할 엔티티명
+
+    - 기본값은 클래스명
+
+    - ```java
+      @Entity(name = "Member")
+      public class Member {
+      }
+      ```
+
+- **`@Table`**
+
+  - **속성**
+    - name: 매핑할 테이블명
+    - catalog: DB catalog 매핑
+    - schema: schema 매핑
+    - uniqueConstraints(DDL): DDL 생성시에 유니크 제약 조건 생성
+
+
+
+### 데이터베이스 스키마 자동 생성
+
+- JPA는 애플리케이션 로딩 시점에 DDL을 자동 생성
+  - 테이블 중심 개발 -> 객체 중심 개발
+  - 데이터베이스 방언을 활용, DB에 맞는 DDL
+- 개발시에만 사용, 운영에서는 사용 X, 혹은 다듬을 것
+- 속성: `hibernate.hbm2ddl.auto`
+  - persistence.xml에서 `<property name="hibernate.hbm2ddl.auto" value="create-drop"/>` 형태로 사용한다.
+    - create 기존테이블 삭제 후 다시 생성 (DROP + CREATE)
+    - create-drop create와 같으나 종료시점에 테이블 DROP
+      - 테스트 케이스 등에서 사용
+    - update 변경분만 반영(운영DB에는 사용하면 안됨)
+      - drop대신 alter
+      - 삭제는 불가
+    - validate 엔티티와 테이블이 정상 매핑되었는지만 확인
+    - none 사용하지 않음
+      - 관례상 none이라고 작성
+
+- 주의사항
+  - **운영시에는 절대 create, create-drop, update 사용하지 말 것!**
+    - 개발 초기 단계는 create 또는 update
+    - 테스트 서버는 update 또는 validate
+      - 여러 개발자가 사용하는 환경에서 create 사용하면 데이터가 날아가 버리는 문제 발생
+    - 스테이징과 운영 서버는 validate 또는 none
+    - 권장사항: 운영 서버는 당연하고, 개발 서버에서도 **사용하지 않는 것이 제일 낫다!**
+      - 직접 스크립트 짠 것을 로컬에서 시험해 보고 적용하라.
+      - alter table이 갖는 위험성이 크다.
+      - alter나 drop 자체가 안 되게 분리하는 것도 좋다.
+      - 자동 작성된 스크립트를 면밀히 검토해서 넘기는 편이 낫다.
+- DDL 생성 기능
+  - `@Column(Unique = true, length = 10)`
+  - 위 사례에서 unique는 애플리케이션이 아닌 DDL 생성만을 도움: **JPA 실행 로직에는 영향 X**
+
+ㅣㅐ
+
+### 필드와 컬럼 매핑
+
+- @Column 컬럼 매핑
+
+- @Temporal 날짜 타입 매핑
+
+- @Enumerated enum 타입 매핑
+
+- @Lob BLOB, CLOB 매핑
+
+- @Transient 특정 필드를 컬럼에 매핑하지 않음(매핑 무시)
+
+  
+
+#### `@Column` 속성과 기본 값들
+
+- name
+  - 필드와 매핑할 테이블의 컬럼 이름
+  - 기본값: 객체의 필드 이름
+- insertable, updatable
+  - 등록, 변경 가능 여부
+  - 기본값: TRUE
+- nullable(DDL)
+  - null 값의 허용 여부를 설정한다. false로 설정하면 DDL 생성 시에 not null 제약조건이 붙는다.
+- unique(DDL)
+  - @Table의 uniqueConstraints와 같지만 한 컬럼에 간단히 유니크 제 약조건을 걸 때 사용한다.
+  - 그러나 이 경우 제약명이 생성된 것(알아보기 힘든 것)이 되기 때문에 적합하지 않다.
+  - -> unique 제약은 `@Table` 속성으로 걸자!
+- columnDefinition (DDL)
+  - 데이터베이스 컬럼 정보를 직접 줄 수 있다. ex) varchar(100) default ‘EMPTY'
+  - 기본값: 필드의 자바 타입과 방언 정보를 사용해서 적절한 컬럼 타입
+- length(DDL)
+  - 문자 길이 제약조건, String 타입에만 사용한다.
+  - 기본값: 255
+- precision, scale(DDL)
+  - BigDecimal 타입에서 사용한다(BigInteger도 사용할 수 있다). precision은 소수점을 포함한 전체 자 릿수를, scale은 소수의 자릿수 다. 참고로 double, float 타입에는 적용되지 않는다. 아주 큰 숫자나 정 밀한 소수를 다루어야 할 때만 사용한다.
+  - 기본값: precision=19, scale=2 
+
+
+
+#### `@Enumerated`
+
+- EnumType을 매핑할 때 사용
+
+- 속성: value
+  - EnumType.ORDINAL: enum 순서를 데이터베이스에 저장
+    - 기본값, 하지만 **사용하지 말자!**
+      - 나중에 Enum 추가된다면 순서가 바뀌기 때문에 문제!
+  - EnumType.STRING: enum 이름을 데이터베이스에 저장
+
+
+
+#### `@Temporal`
+
+- 날짜 타입(java.util.Date, java.util.Calendar)을 매핑할 때 사용
+
+- 참고: LocalDate, LocalDateTime을 사용할 때는 생략 가능(최신 하이버네이트 지원) 
+
+- 속성: value
+  - TemporalType.DATE: 날짜, 데이터베이스 date 타입과 매핑 (예: 2013–10–11)
+  - TemporalType.TIME: 시간, 데이터베이스 time 타입과 매핑 (예: 11:11:11)
+  - TemporalType.TIMESTAMP: 날짜와 시간, 데이터베이 스 timestamp 타입과 매핑(예: 2013–10–11 11:11:11) 
+
+
+
+#### `@Lob`
+
+- 데이터베이스 BLOB, CLOB 타입과 매핑
+- @Lob에는 지정할 수 있는 속성이 없다. 
+- 매핑하는 필드 타입이 문자면 CLOB 매핑, 나머지는 BLOB 매핑
+  - CLOB: String, char[], java.sql.CLOB
+  - BLOB: byte[], java.sql. BLOB
+
+
+
+#### `@Transient `
+
+- 필드 매핑X
+- 데이터베이스에 저장X, 조회X
+- 주로 메모리상에서만 임시로 어떤 값을 보관하고 싶을 때 사용
+
+```java
+@Transient private Integer temp; 
+```
+
+
+
+### 기본 키 매핑
+
+- `@Id`
+- `@GeneratedValue`
+
+
+
+#### 기본 키 매핑 방법
+
+- 직접 할당: **`@Id`만 사용**
+- 자동 생성(**`@GeneratedValue`**)
+  - `@GeneratedValue(Strategy = GenerationType.AUTO)` AUTO 사용시 해당 DB 방언에 맞는 방식을 자동 선택, 혹은 AUTO 아닌 특정 타입 선택이 가능하다.
+  - **IDENTITY**: 데이터베이스에 위임, MYSQL
+  - **SEQUENCE**: 데이터베이스 시퀀스 오브젝트 사용, ORACLE `@SequenceGenerator` 필요
+  - **TABLE**: 키 생성용 테이블 사용, 모든 DB에서 사용, `@TableGenerator` 필요
+  - **AUTO**: 방언에 따라 자동 지정, 기본값
+
+
+
+#### IDENTITY전략 - 특징
+
+- 기본 키 생성을 데이터베이스에 위임
+- 쿼리상 id는 null로 들어갔음
+- 주로 MySQL, PostgreSQL, SQL Server, DB2에서 사용 (예: MySQL의 AUTO_ INCREMENT)
+- JPA는 보통 트랜잭션 커밋 시점에 INSERT SQL 실행
+- AUTO_ INCREMENT는 데이터베이스에 INSERT SQL을 실행 한 이후에 ID 값을 알 수 있음
+- IDENTITY 전략은 em.persist() 시점에 즉시 INSERT SQL 실행 하고 DB에서 식별자를 조회
+
+
+
+#### SEQUENCE 전략 - 특징
+
+- 데이터베이스 시퀀스는 유일한 값을 순서대로 생성하는 특별한 데이터베이스 오브젝트(예: 오라클 시퀀스)
+- 오라클, PostgreSQL, DB2, H2 데이터베이스에서 사용
 
