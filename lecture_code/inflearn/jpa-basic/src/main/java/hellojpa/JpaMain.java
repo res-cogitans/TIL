@@ -9,8 +9,52 @@ import java.util.List;
 public class JpaMain {
 
     public static void main(String[] args) {
-        create("MembetTErst", 2L);
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("hello");
 
+        EntityManager em = emf.createEntityManager();
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+
+        try {
+
+            Member member = new Member();
+            member.setName("memberMan");
+
+            System.out.println("=========================================================");
+            em.persist(member);
+            System.out.println("=========================================================");
+
+            System.out.println("*********************************************************");
+            em.flush();
+            System.out.println("*********************************************************");
+
+
+//            Team team = new Team();
+//            team.setName("MockTeam");
+//            em.persist(team);
+//
+//            Member member = new Member();
+//            member.setName("TesterOfFlush");
+//            member.setTeam(team);
+//
+//            em.persist(member);
+//
+//            em.flush();
+//            em.clear();
+//
+//            List<Member> members = member.getTeam().getMembers();
+//
+//            for (Member m : members) {
+//                System.out.println("m = " + m);
+//            }
+        } catch (Exception e) {
+            tx.rollback();
+        } finally {
+            em.close();
+        }
+
+        emf.close();
     }
 
     private static void create(String memberName, Long id) {

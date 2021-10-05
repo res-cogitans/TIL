@@ -3,10 +3,10 @@ package hellojpa;
 import javax.persistence.*;
 import java.util.Date;
 
-@Entity(name = "Member")
+@Entity
 public class Member {
 
-    @Id
+    @Id @GeneratedValue
     private Long id;
 
     @Column(name = "name", nullable = false)
@@ -14,6 +14,11 @@ public class Member {
 
     private Integer age;
 
+    @ManyToOne
+    @JoinColumn(name = "TEAM_ID")
+    private Team team;
+
+/*
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
 
@@ -22,9 +27,10 @@ public class Member {
 
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastModifiedDate;
-
-    @Lob
-    private String description;
+*/
+//
+//    @Lob
+//    private String description;
 
     public Long getId() {
         return id;
@@ -40,5 +46,13 @@ public class Member {
 
     public void setName(String name) {
         this.username = name;
+    }
+
+    public Team getTeam() {
+        return team;
+    }
+
+    public void setTeam(Team team) {
+        this.team = team;
     }
 }
