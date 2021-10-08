@@ -52,7 +52,11 @@ public class Member {
         return team;
     }
 
-    public void setTeam(Team team) {
+    /*
+    Setter 를 연관관계 편의 메서드로 만들었다.
+     */
+    public void changeTeam(Team team) {
         this.team = team;
+        team.getMembers().add(this);
     }
 }

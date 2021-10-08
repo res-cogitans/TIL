@@ -17,37 +17,23 @@ public class JpaMain {
         tx.begin();
 
         try {
+            Team team = new Team();
+            team.setName("testerGroup");
+            em.persist(team);
 
             Member member = new Member();
-            member.setName("memberMan");
-
-            System.out.println("=========================================================");
+            member.setName("Tester");
+            member.setTeam(team);
             em.persist(member);
-            System.out.println("=========================================================");
 
-            System.out.println("*********************************************************");
-            em.flush();
-            System.out.println("*********************************************************");
+            System.out.println("start=============================================");
+            System.out.println("member = " + member.getName());
+            System.out.println("member.getTeam() = " + member.getTeam());
+            System.out.println("end=============================================");
 
 
-//            Team team = new Team();
-//            team.setName("MockTeam");
-//            em.persist(team);
-//
-//            Member member = new Member();
-//            member.setName("TesterOfFlush");
-//            member.setTeam(team);
-//
-//            em.persist(member);
-//
-//            em.flush();
-//            em.clear();
-//
-//            List<Member> members = member.getTeam().getMembers();
-//
-//            for (Member m : members) {
-//                System.out.println("m = " + m);
-//            }
+            tx.commit();
+
         } catch (Exception e) {
             tx.rollback();
         } finally {
@@ -57,7 +43,7 @@ public class JpaMain {
         emf.close();
     }
 
-    private static void create(String memberName, Long id) {
+    private static void create(String memberName) {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("hello");
 
         EntityManager em = emf.createEntityManager();
@@ -68,7 +54,6 @@ public class JpaMain {
         try{
             Member member = new Member();
             member.setName(memberName);
-            member.setId(id);
 
             em.persist(member);
 

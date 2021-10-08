@@ -1,6 +1,7 @@
 package logos.jpabasic_example.domain;
 
 import javax.persistence.*;
+import java.util.List;
 
 @Entity
 public class Member {
@@ -8,6 +9,9 @@ public class Member {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "MEMBER_ID")
     private Long id;
+
+    @OneToMany(mappedBy = "member")
+    private List<Order> orders;
 
     private String name;
     private String city;
