@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -1034,4 +1034,178 @@
 
 
 ### Mapped Superclass - 매핑 정보 상속
+
+- 공통 매핑 정보가 필요할 때 사용(id, name)
+
+  - 동일한 속성을 가지는 경우 반복적 작업을 줄일 수 있음(상속과는 무관!)
+
+  - 수정일자 등 공통적으로 사용되는 사항 등에 사용
+
+- 적용되는 엔티티들이 BaseEntity를 상속하게 하고, BaseEntity에는 `@MappedSuperclass`어노테이션을 붙인다.
+
+- 특징
+
+  - 상속관게 매핑이 아니다!
+
+  - 엔티티가 아니며, 따라서 테이블과 매핑되는 것도 아니다!
+
+  - 자식 클래스에 매핑 정보만 제공한다.
+
+  - 조회 및 검색 불가(em.find(BaseEntity) 불가)
+
+  - 추상 클래스 권장: 직접 생성해서 사용할 일이 없기 때문
+
+  - 등록일, 수정일, 등록자, 수정자 등에서 유용
+
+  - `@Entity` 붙은 클래스는 `@Entity` 혹은 `@MappedSuperclass` 붙은 클래스만 상속 가능하다.
+
+    
+
+
+
+## 프록시와 연관관계 관리
+
+### 프록시
+
+- 기초
+  - `em.find()`와 `em.getReference()`
+    - `em.find()`: DB 통해 실제 엔티티 객체를 조회
+    
+    - `em.getReference()`: DB조회를 미루는 가짜(프록시) 엔티티 객체를 조회(DB에 쿼리 안 나감)
+    
+    - 구체적으로 살펴보면,
+    
+      ```java
+      	em.persist(member);
+      
+      	em.flush();
+      	em.clear();
+      
+      	Member findMember = em.find(Member.class, member.getId());
+      ```
+    
+      이 경우 jpa는 **MEMBER 테이블과 연결된 TEAM 테이블을 조인**해서 가지고 온다.
+    
+      
+    
+      반면 다음은
+    
+      ```java
+      	Member findMember = em.getReference(Member.class, member.getId());
+      ```
+    
+      `em.find()`대신 **`em.getReference()`**사용하니, 
+    
+      **SELECT 쿼리 자체가 나가지 않았다.**
+    
+      
+    
+      여기서 다음을 추가한다면
+    
+      ```java
+      	System.out.println("findMember.id = " + findMember.getId());
+      	System.out.println("findMember.name = " + findMember.getName());
+      ```
+    
+      `em.find()` 사용할 때처럼 **조인 쿼리가 나간다.**
+    
+      이는 위 코드의 첫 행을 실행하는 시점이 아니라, 두 번째 행을 실행하는 시점에서 발생한다.
+    
+      id값의 경우 `getReference(Member.class, member.getId());`시에
+
+>Member member = new Member() -> 이 시점에는 id에 값이 없습니다.
+>
+>em.persist(member) -> 이 시점에는 id에 값이 있습니다. em.persist를 하는 순간 각 전략에 따라서 데이터베이스에서 식별자를 받아옵니다. 그리고 내부에서 member.id에 값을 넣어줍니다.
+>
+>이후에는 member는 이미 id에 값이 있기 때문에 그냥 조회할 수 있습니다^^
+>
+>그 다음 질문은 프록시 객체의 getId()에 대한 질문입니다.
+>
+>Long memberId = 100L; -> PK가 100인 회원을 조회하고 싶다고 가정하겠습니다.
+>
+>Member findMember = em.getReference(Member.class, memberId) -> 프록시로 조회합니다.
+>
+>이때 프록시를 만들때 이미 memberId = 100이라는 값을 넘깁니다. 그래서 프록시 객체인 member.id에는 이미 값이 설정이 되어 있는 것입니다.
+>
+>따라서 이미 값이 설정되어 있는 member.getId()를 호출해도 프록시를 초기화 하지 않고, 조회시 넘겨둔 100 값을 반환해줍니다.
+
+
+
+- 의문사항
+
+  앞서 많은 분들이 질문하셨지만, 아직 명확하게 이해가 되지 않아서 질문드립니다.
+
+  10분 40초 부분의 `getReference()` 조회 시, Id 값은 이미 있기 때문에 쿼리가 날아가지 않는다는 것에 대한 의문입니다.
+
+  
+
+1. 의문이 들었던 지점입니다.
+
+
+
+Member 엔티티의 Id를 GeneratedValue 방식 사용하는 상황에서,
+
+```java
+1	em.persist(member) ;
+2	
+3	em.flush();
+4	em.clear();
+5	
+6	em.getReference(Member.class, member.getId());
+7	
+8	System.out.println("findMember.id = " + findMember.getId());
+```
+
+위와 같은 코드를 실행했을 때 상황입니다.
+
+
+
+1) 제가 이해한 위 코드 실행시 발생하는 일을 순서대로 정리해보면:
+
+1행: `em.persist(member);`
+
+1. DB의 전략에 따라 DB에서 ID값을 generate하고, 
+
+2. 생성된 ID값이 1차캐시의 key로 저장된다.
+
+4행: `em.clear();`
+
+	1. 영속성 컨텍스트가 완전히 비워진다: 즉 1차 캐시에 저장된 Id값도 비워진다.
+
+6행: `em.getReference(Member.class, member.getId());`
+
+	1. 1차캐시에서 id값을 찾음
+ 	2. **4행의 1로 인해서 캐시에서 Id 값을 찾을 수 없기에 DB에 SELECT 쿼리를 던지게 된다.**
+
+
+
+2) 때문에 "Id값이 이미 있기 때문에 INSERT 쿼리가 날아가지 않는다"는 것이 이해가 되지 않습니다. 구체적으로 궁금한 것은
+
+(1) 위에서 말하는 저장된 id값이 어떻게 저장되었냐는 것입니다.
+
+(2) id값이 이렇게 저장되는 것은 어느 시점에서 이루어졌냐는 것입니다.
+
+
+
+두 문제에 대한 제 생각은
+
+(1)
+
+영속성 컨텍스트에 저장된 것이 아니고,
+
+member 인스턴스의 변수 member.id가 다른 인스턴스 변수들처럼 관리되어서 저장된 것이다. 
+
+(즉 우리가 비영속 상태의 인스턴스 book에 book.setName("Jpa")하는 식으로 값을 저장할 때처럼 저장되는 것이다)
+
+
+
+(2)
+
+1행의 2, 즉 1차캐시의 key로 저장되는 시점에 저장되었다.
+
+
+
+인데, 이 이해가 적절한 것인지 궁금합니다.
+
+즉, <영속화되는 엔티티의 id값은 DB에서 생성되어, 1차캐시에 저장되는 시점에 인스턴스 변수에 저장된다.> 그리고 <그 id값은 해당 인스턴스와 동일한 생명 주기를 갖는다>가 적절한 이해인지 궁금합니다.
 
