@@ -1,8 +1,6 @@
 package logos.jpabasic_example;
 
-import logos.jpabasic_example.domain.Member;
-import logos.jpabasic_example.domain.Order;
-import logos.jpabasic_example.domain.OrderItem;
+import logos.jpabasic_example.domain.*;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -21,8 +19,10 @@ public class JpaMain {
         tx.begin();
 
         try {
-            Order order = new Order();
-            order.addOrderItem(new OrderItem());
+            Book book = new Book();
+            book.setName("JPA book");
+            book.setAuthor("김영한");
+            em.persist(book);
 
             tx.commit();
         } catch (Exception e) {

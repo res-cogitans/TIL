@@ -9,11 +9,11 @@ public class OrderItem {
     @Column(name = "ORDER_ITEM_ID")
     private Long id;
 
-    @OneToMany
+    @ManyToOne
     @JoinColumn(name = "ORDER_ID")
     private Order order;
 
-    @OneToMany
+    @ManyToOne
     @JoinColumn(name = "ITEM_ID")
     private Item item;
 
