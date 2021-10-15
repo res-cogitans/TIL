@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -1113,99 +1113,156 @@
     
       id값의 경우 `getReference(Member.class, member.getId());`시에
 
->Member member = new Member() -> 이 시점에는 id에 값이 없습니다.
+- 세부사항
+  - `em.getReference()`로 호출한 프록시 객체는 원본 엔티티 객체와는 다른 클래스이다. (JPA에서 생성)
+  - 실제 클래스를 상속 받아서 만들어진다.
+  - 프록시 객체는 실제 객체의 참조(target)를 보관
+  - 프록시 객체를 호출하면 프록시 객체는 실제 객체의 메서드 호출
+
+-  프록시 객체의 초기화
+
+  ```java
+  Member member = em.getReference(Member.class, "id1");
+  member.getName();
+  ```
+
+  1. `getName()`호출
+  2. 초기화 요청: 멤버 프록시에 있는 Member target에 값이 없을 경우 JPA가 영속성 컨텍스트에 요청
+  3. DB조회
+  4. 실제 Entity 생성
+  5. target의 `getName()`이용해서 값을 가져옴
+
+- 프록시의 특징
+  - 프록시 객체는 처음 사용할 때 한 번만 초기화
+  - 프록시 객체를 초기화할 때, 프록시 객체가 실제 엔티티로 바뀌는 것은 아님, 초기화되면 프록시 객체를 통해서 실제 엔티티에 접근 가능
+  - 프록시 객체는 원본 엔티티를 상속받음, 따라서 타입 체크시 주의해야함(==비교가 실패함. 대신 instance of 사용해야 함.)
+    - JPA에서 타입 비교할 때는 그냥 instance of 이용하자.
+  - 영속성 컨텍스트에 찾는 엔티티가 이미 있으면 `em.getReference()`를 호출해도 실제 엔티티 반환
+    - JPA의 동일성 보장으로 인해서 instance == reference는 항진(reference가 instance.getId()로 조회한 것)
+    - 이런 특성으로 인하여 프록시 조회를 한 이후에 find로 조회를 하더라도 동일성은 보장, 이 경우 프록시의 타입으로 둘 다 맞춰진다.
+  - 영속성 컨텍스트의 도움을 받을 수 없는 준영속 상태일 때, 프록시를 초기화하면 문제 발생 (하이버네이트는 **`org.hibernate.LazyInitializationException` **예외를 터트림)
+    - `em.detach()`, `em.clear()`, `em.close()` 모두 그렇다.
+
+- 프록시 확인
+  - 프록시 인스턴스의 초기화 여부 확인
+    - `PersistenceUnitUtil.isLoaded(Object entity)`
+  - 프록시 클래스 확인 방법
+    - `entity.getClass().getName() `출력(..javasist.. or HibernateProxy…) 
+  - 프록시 강제 초기화
+    - `org.hibernate.Hibernate.initialize(entity);`
+    - 참고: JPA 표준은 강제 초기화 없음
+    - 강제 호출: `member.getName()`
+
 >
->em.persist(member) -> 이 시점에는 id에 값이 있습니다. em.persist를 하는 순간 각 전략에 따라서 데이터베이스에서 식별자를 받아옵니다. 그리고 내부에서 member.id에 값을 넣어줍니다.
 >
->이후에는 member는 이미 id에 값이 있기 때문에 그냥 조회할 수 있습니다^^
->
->그 다음 질문은 프록시 객체의 getId()에 대한 질문입니다.
->
->Long memberId = 100L; -> PK가 100인 회원을 조회하고 싶다고 가정하겠습니다.
->
->Member findMember = em.getReference(Member.class, memberId) -> 프록시로 조회합니다.
->
->이때 프록시를 만들때 이미 memberId = 100이라는 값을 넘깁니다. 그래서 프록시 객체인 member.id에는 이미 값이 설정이 되어 있는 것입니다.
->
->따라서 이미 값이 설정되어 있는 member.getId()를 호출해도 프록시를 초기화 하지 않고, 조회시 넘겨둔 100 값을 반환해줍니다.
+
+### 즉시 로딩과 지연 로딩
+
+#### 지연 로딩
+
+- `@ManyToOne(fetch = FetchType.LAZY)`
+- 매핑된 타 테이블은 프록시로 조회한다.
+  - Member에 연결된 Team은 프록시 조회
+- 실제 매핑된 테이블의 값을 사용하는 시점에 초기화(DB조회)
+  - 가령, `team.getName()`
+
+- 만일 연결된 테이블을 자주 같이 조회한다면?
+  - 즉시로딩 EAGER를 사용하라.
 
 
 
-- 의문사항
+#### 즉시 로딩
 
-  앞서 많은 분들이 질문하셨지만, 아직 명확하게 이해가 되지 않아서 질문드립니다.
-
-  10분 40초 부분의 `getReference()` 조회 시, Id 값은 이미 있기 때문에 쿼리가 날아가지 않는다는 것에 대한 의문입니다.
-
-  
-
-1. 의문이 들었던 지점입니다.
+- `FetchType.EAGER`
+- JPA구현체는 가능한 처음부터 둘을 JOIN해서 쿼리 한 번에 조회
 
 
 
-Member 엔티티의 Id를 GeneratedValue 방식 사용하는 상황에서,
+#### 프록시와 즉시 로딩 주의사항!
 
-```java
-1	em.persist(member) ;
-2	
-3	em.flush();
-4	em.clear();
-5	
-6	em.getReference(Member.class, member.getId());
-7	
-8	System.out.println("findMember.id = " + findMember.getId());
-```
+- **가급적 지연 로딩만 사용하라! 실무에선 더욱!**
 
-위와 같은 코드를 실행했을 때 상황입니다.
+- 즉시 로딩을 적용시 예상하지 못한 쿼리 발생
 
+  - 테이블의 수가 많아지면 매우 치명적이다!
 
+- **즉시 로딩은 JPQL에서 N+1 문제를 일으킨다.**
 
-1) 제가 이해한 위 코드 실행시 발생하는 일을 순서대로 정리해보면:
+  ```java
+              List<Member> members = em.createQuery("select m from Member m", Member.class)
+                      .getResultList();
+  ```
 
-1행: `em.persist(member);`
+  - 이 경우 JPQL이 select * From Member; 과 같은 SQL로 번역되어 실행될 것이다.
+  - EAGER이기에 Member의 Team을 구해와야 하기 때문에 조회한 수 만큼 다음과 같은 쿼리가 나갈 것이다:
+    - select * from Team where TEAM_ID = xxx;
+    - 첫 번째 Member를 가지고 오면 해당하는 Team 쿼리를 날림
+    - 최초쿼리 1 + N개의 쿼리가 나가게 됨: N+1문제
 
-1. DB의 전략에 따라 DB에서 ID값을 generate하고, 
+  - 해결
+    - 기본적으로 모두 지연로딩을 사용하고, 추가적으로
+    - fetch join
+      - `"select m from Member m join fetch m.team"`
+    - batch size
 
-2. 생성된 ID값이 1차캐시의 key로 저장된다.
+- 기본값
 
-4행: `em.clear();`
+  - `@ManyToOne`, `@OneToOne`은 즉시 로딩
+    - **LAZY로 수정하라!**
+  - `@OneToMany`, `@ManyToMany`는 기본이 지연 로딩
 
-	1. 영속성 컨텍스트가 완전히 비워진다: 즉 1차 캐시에 저장된 Id값도 비워진다.
-
-6행: `em.getReference(Member.class, member.getId());`
-
-	1. 1차캐시에서 id값을 찾음
- 	2. **4행의 1로 인해서 캐시에서 Id 값을 찾을 수 없기에 DB에 SELECT 쿼리를 던지게 된다.**
-
-
-
-2) 때문에 "Id값이 이미 있기 때문에 INSERT 쿼리가 날아가지 않는다"는 것이 이해가 되지 않습니다. 구체적으로 궁금한 것은
-
-(1) 위에서 말하는 저장된 id값이 어떻게 저장되었냐는 것입니다.
-
-(2) id값이 이렇게 저장되는 것은 어느 시점에서 이루어졌냐는 것입니다.
+- 활용
+  - 모든 연관관계에 지연 로딩을 사용!
+  - 실무에서는 즉시 로딩은 절대 안 된다!
+  - JPQL fetch 조인이나 엔티티 그래프 기능을 사용
+  - 즉시 로딩은 상상하지 못 한 쿼리가 나감
 
 
 
-두 문제에 대한 제 생각은
+### 영속성 전이(CASCADE)와 고아 객체
 
-(1)
+#### 영속성 전이: CASCADE
 
-영속성 컨텍스트에 저장된 것이 아니고,
+- 특정 엔티티를 영속 상태로 만들 때 연관된 엔티티도 함께 영속 상태로 만들고 싶을 경우 사용
 
-member 인스턴스의 변수 member.id가 다른 인스턴스 변수들처럼 관리되어서 저장된 것이다. 
+  - 예: 부모 엔티티를  저장할 때 자식 엔티티도 같이 저장
 
-(즉 우리가 비영속 상태의 인스턴스 book에 book.setName("Jpa")하는 식으로 값을 저장할 때처럼 저장되는 것이다)
+    ```java
+    @Entity
+    public class Parent {
+        ...
+        @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+        private List<Child> children = new ArrayList<>();
+        ...
+    }
+    ```
+
+    - 이 경우 `em.persist(parent)`만으로도 `em.persist(child1)` `em.persist(child2)`까지 실행된다.
+
+- 주의사항
+  - 연속성 전이는 연관관계를 매핑하는 것과 아무 관련이 없음
+  - 엔티티를 영속화할 때 연관된 엔티티도 함께 영속화하는 편리함을 제공할 뿐
+  - 완전히 종속적일 때, 단일 소유자일 때 사용
+    - 특히 ALL의 경우 생명주기가 완전히 동일함을 의미한다.
 
 
 
-(2)
+#### 고아 객체
 
-1행의 2, 즉 1차캐시의 key로 저장되는 시점에 저장되었다.
+- 고아 객체 제거: 부모 엔티티와 연관관계가 끊어진 자식 엔티티를 자동으로 삭제
+- `orphanRemoval = true`
+- 주의
+  - 참조가 제거된 엔티티는 다른 곳에서 참조하지 않는 고아 객체로 보고 삭제하는 기능
+  - **참조하는 곳이 하나일 때 사용해야 함!**
+  - 특정 엔티티가 개인 소유할 때 사용
+  - `@OneToOne`, `@OneToMany`만 가능
+  - 부모를 제거할 시 자식도 함께 사라진다는 점은 `CascadeType.REMOVE`와 똑같이 이해된다.
 
 
 
-인데, 이 이해가 적절한 것인지 궁금합니다.
+#### 영속성 전이 + 고아 객체, 생명 주기
 
-즉, <영속화되는 엔티티의 id값은 DB에서 생성되어, 1차캐시에 저장되는 시점에 인스턴스 변수에 저장된다.> 그리고 <그 id값은 해당 인스턴스와 동일한 생명 주기를 갖는다>가 적절한 이해인지 궁금합니다.
-
+- `CascadeType.ALL + orphanRemoval = true`
+- 스스로 생명주기를 관리하는 엔티티는 `em.persist()`로 영속화, `em.remove()`로 제거
+- 두 옵션을 모두 활성화할 경우 부모 엔티티로 자식의 생명주기를 관리할 수 있다.
+- 도메인 주도 설계(DDD)의 Aggregate Root 개념을 구현할 때 유용
