@@ -19,13 +19,19 @@ public class JpaMain {
         tx.begin();
 
         try {
-            Order order = new Order();
-            Member member = new Member();
+            Member member1 = new Member();
+            Member member2 = new Member();
+            member1.setName("memberA");
+            member2.setName("member2");
 
-            em.persist(order);
+            em.persist(member1);
+            em.persist(member2);
 
             em.flush();
             em.clear();
+
+            List<Member> members = em.createQuery("select m from Member m", Member.class)
+                    .getResultList();
 
             tx.commit();
         } catch (Exception e) {

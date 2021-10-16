@@ -1,9 +1,8 @@
 package logos.jpabasic_example.domain;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
+import javax.persistence.*;
+
+import static javax.persistence.FetchType.*;
 
 @Entity
 public class Delivery {
@@ -11,7 +10,7 @@ public class Delivery {
     @Id @GeneratedValue
     private Long id;
 
-    @OneToOne(mappedBy = "delivery")
+    @OneToOne(mappedBy = "delivery", fetch = LAZY)
     private Order order;
 
     private String city;
