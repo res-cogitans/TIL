@@ -1,3 +1,19 @@
+# InteliJ의 `equals()`와 `hashCode()` 오버라이딩에 대한 안내문
+
+generate equals() and hashCode()
+
+- [ ] Accept subclasses as parameter to equals() method
+
+While generally incompliant to Object.equals() specification accepting subclasses might be nessesary for generated method to work correctly with frameworks, which generate Proxy subclasses like Hibernate.
+
+생성된 메서드가 하이버네이트처럼 프록시 서브클래스들을 만드는 프레임워크들과 호환시키고 싶으시다면,
+일반적인 Object.equals() 규격과 다르게 서브클래스들을 포함시키는 것이 필요할 수 있습니다.
+
+- [x] Use getters during code generation
+- 해당 클래스에 getter 만들지 않으면 당연히 위 옵션을 체크하더라도 getter 메서드 사용하지 않고 구현된다.
+
+
+
 # JavaDocs의 `equals()`
 
 public boolean equals([Object](https://docs.oracle.com/en/java/javase/16/docs/api/java.base/java/lang/Object.html) obj)
@@ -52,7 +68,9 @@ Note that it is generally necessary to override the `hashCode` method whenever t
 
 
 
-# [Secrets of equals() - Part 2](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/Equals-2.html)
+# Secrets of equals() - Part 2
+
+[**원문 링크**](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/Equals-2.html)
 
 How to implement a correct slice comparison in Java
 
@@ -352,6 +370,10 @@ MyClass thisObject = new MyClass();
 MyClass theOtherObject = null;
 ```
 
+
+
+#### Case 1
+
 ![img](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/2.Folie2.JPG)
 
 
@@ -363,6 +385,8 @@ theOtherObject = new MyClass();
 ```
 
 
+
+#### Case 2
 
 ![img](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/2.Folie3.JPG)
 
@@ -376,6 +400,8 @@ theOtherObject = new MySuperClass();
 
 
 
+#### Case 3
+
 ![img](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/2.Folie4.JPG)
 
 
@@ -387,6 +413,8 @@ theOtherObject = new MySubClass_1 ();
 ```
 
 
+
+#### Case 4
 
 ![img](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/2.Folie5.JPG)
 
@@ -462,4 +490,158 @@ In our example of a case 4 situation, `this` is a `MySubClass_1` object and `oth
 
 
 This time `other` *is* an instance of `MyClass` , because `MyClass` happens to be superclass that `this` and `other` have in common. Note, we have not yet checked whether the `other` object has default values for its own subclass-specific fields; in order words, we must still traverse the branch of the class tree from which the `other` objects stems. This can be achieved by switching roles and calling `MySubSubClass._navigateClassHierarchy()` . This happens to be exactly what the `then` -branch does anyway. So far, so good.
+
+이번에는 `other`가 `MyClass`의 인스턴스*이다.* 왜냐면 `MyClass`가 우연히 `this`와 `other`가 공통적으로 가지고 있는 슈퍼클래스가 되었기 때문이다. `other` 오브젝트가 서브클래스 자신에게만 있는 필드들의 기본값을 가지고 있는가를 아직 체크하지 않았음을 유의하라; 달리 말하면, 아직 우리는 `other` 객체 줄기에서 나온 클래스 트리의 branch를 순회해야만 한다는 것이다. 이는 역할을 서로 바꾸고, `MySubSubClass._navigateClassHierarchy()`를 호출함으로써 이루어질 수 있다. 이는 정확히 `then` branch가 수행하는 것이다. 여기까지는 좋다.
+
+
+
+In `MySubSubClass._navigateClassHierarchy()` we will check for default values of the subsubclass-specific fields; we will move up the class tree and will process the subclass-specific fields, until we end up in `MyClass._navigateClassHierarchy()`  again. With the implementation as it is, control flow would now descend down the other branch again, that we already traversed, that is, we will end up in an infinite loop.
+
+`MySubSubClass._navigateClassHierarchy()`에서 우리는 서브클래스에만 있는 필드들을 살펴볼 것이다; 우리는 `MyClass._navigateClassHierarchy()`를 다시 만나 멈출 때 까지, 클래스 트리를 거슬러 올라가서 서브클래스에만 있는 필드들에서 계속 작업을 수행할 것이다. 이 구현에서 제어 흐름은 이제 우리가 이미 순회했던 다른 branch를 향해 내려갈 것이다. 즉, 우리는 무한 루프에 빠지게 될 것이다.
+
+
+
+To break the cycle we need to memorize that we already traversed that other branch of the tree. For this purpose we introduce a boolean flag, which we name `reverseOrder` , to maintain this extra piece of information. Here is the complete implementation of the `_navigateClassHierarchy()` method:
+
+이 순환을 깨기 위해서 트리에서 이미 순회했던 branch를 기억할 필요가 있다. 이 목적을 위해 우리는 `reverseOrder`라는 이름을 가진 부울 값인 플래그 변수를 도입하여, 이 추가적인 정보를 보존할 것이다. 다음은 `_navigateClassHierarchy()`의 완전한 구현 버전이다:
+
+
+
+```java
+public class MyClass extends MySuperClass {
+  ...
+  protected boolean _navigateClassHierarchy(Object other, boolean reverseOrder) {
+    if (other instanceof MyClass && !reverseOrder)
+    { // reverse order
+      return ((MyClass)other)._navigateClassHierarchy(this,true);
+    }
+    else
+    { // compare my fields
+      if(!_compareFields(other)) return false;
+      // pass the buck up
+      return super._navigateClassHierarchy(other,reverseOrder);
+    }
+  }
+}
+```
+
+
+
+Before we switch the roles of `this` and `other` in order to traverse the other branch of the class tree we check whether we did it before. If so, we refrain from doing it again and instead start the normal straight ascent up the hierarchy from here on, since both subbranches have already been traversed. The boolean flag works like a so-called latch: it start with the initial value `false` , flips exactly once, namely when traversal of the other branch starts, and never changes its value again. It is handed from one `_navigateClassHierarchy()` method to the next each of which checks the flag in order to find out whether the other branch has already been traversed or not.
+
+우리가 클래스 트리의 다른 branch를 순회하기 위해서 `this`와 `other`의 역할을 전환하기 전에, 그걸 이전에 한 적이 있었는지 체크한다. 만약 했었다면, 우리는 그걸 다시 수행하는 것을 막고, 대신에 이제부터는 hierarchy를 똑바로 올라가기 시작한다. 왜냐면 두 서브 branches는 이미 순회를 거쳤기 때문이다. 이 부울 값 플래그는 소위 말하는 걸쇠(latch)와 유사하게 작동한다: 이는 초기값 `false`로 시작하여, 단 한번, 즉 다른 branch의 순회가 시작할 때 전환되며, 그 값을 다시는 바꾸지 않는다. 이(플래그)는 `_navigateClassHierarchy()` 메서드에서 다음 각 메서드로 전달되어 다른 branch가 이미 순회되었는지 아닌지를 확인하기 위해 플래그를 확인한다.
+
+
+
+That's it! This is a way of implementing a correct mixed-type comparison. It is certainly not he only conceivable implementation, but no matter how you achieve the goal, it will take more than a simple `instanceof` test to get it right. The complete source code for the root class and one of the subclasses can be found in listings 1 and 2.
+
+그렇다! 이것이 올바로 복합 타입 비교를 구현하는 방법이다. 이는 분명 유일하게 가능한 구현인 것은 아니다. 하지만 어떻게 당신이 그 목적(구현)을 달성하건 간에, 그건 단순하게 `instanceof` 검사를 하여 해결하는 것보다는 더한 무언가다. 루트 클래스와 서브클래스들 중 하나의 완전한 소스 코드는 목록 1과 2에서 볼 수 있다.
+
+
+
+As with all implementations of `equals()` , no matter whether they are of the same-type-comparison-only flavor or of mixed-type-comparison implementations style, any new class in the class hierarchy must join the game and must employ the same mechanism for its implementation of `equals()` . In our case it means that all classes in the hierarchy must override the helper methods `_navigateClassHierarchy()` and `_compareFields()` . The `equals()` method itself is identical in all classes and need only be defined once in the root class.
+
+모든 `equals()`의 구현에서, 그게 단일 타입 비교만을 가능하게 하는 식이건, 복합 타입 비교 구현 식이건, 클래스 hierarchy의 새로운 클래스는 모두 이 과정(play)에 참여해야만 하고, 그 클래스의 `equals()` 구현에서 동일한 메커니즘을 사용해야만 한다. 우리의 사례에서는, 이 hierarchy의 모든 클래스들은 헬퍼 메서드 `_navigateClassHierarchy()`와 `_compareFields()`를 반드시 오버라이드 해야만 한다. `equals()` 메서드는 그 자체로 모든 클래스에서 동일하며, 루트 클래스에서만 한 번 정의될 필요가 있다.
+
+
+
+The implementations of the `_compareFields()` methods are entirely class-specific and fully depend on the number and types of the fields that the respective class adds to the hierarchy. Note, that `_compareFields()` is a private method in our sample implementation. This is intentionally so in order to make sure that the method remains class-specific and cannot be overridden in a subclass. Alternatively we could have implemented a `final` method in each class that has a class-specific name using a naming scheme like `_compare< *classname* >Fields()` .
+
+`_compareFields()` 메서드의 구현들은 전적으로 (해당) 클래스에만 특정되는 것이며, 각각의(respective ) 클래스가 hierarchy에 더하는 필드들의 수와 타입에 전적으로 의존한다. 우리의 샘플 구현에서 `_compareFields()`는 private 메서드임을 기억하라. 이는 이 메서드가 클래스에만 특정되는 것이며 서브클래스에서 오버라이드될 수 없음을 명확히 보이기 위해서 의도적으로 설정한 것이었다. (위 방법을 사용하지 않는다면) 대안적으로 우리는 `_compare< classname >Fields()`  형식의, 클래스에만 특정적인 이름을 사용하는, 구현된 하나의 `final` 메서드를 각각의 클래스에서 사용할 수 있다.
+
+
+
+The implementations of `_navigateClassHierarchy()` are mostly identical. This is really boilerplate code, that you would copy and paste. The few modifications are: the class name in the `instanceof` test and the cast expression must be changed; it is the name of respective class. And each implementation invokes its class's (` private` or `final` ) `_compareFields()` method. As a refinement of our implementation one could factor out the commonalities into a single root-class-version of `_navigateClassHierarchy()` , using reflection to invoke the `_compareFields()` method, so that only the `_compareFields()` methods need to be provided when a new classes that is added to the hierarchy. We leave the refinement as an exercise to the reader since a comprehensive discussion is beyond the scope of this article.
+
+`_navigateClassHierarchy()`의 구현들은 대부분(mostly) 동일하다(identical). 이는 정말로, 복사하고 붙여넣을 수 있는 보일러플레이트 코드라고 할 수 있다. 매우 드문 변경사항들은: `instance of` 테스트에서의 클래스명과 형변환(cast) 표현은 반드시 변경되어야만 한다; 이는 각 클래스명이다. 그리고 각 구현들은 그 클래스의(`private` 혹은 `final`인) `_compareFields()`를 호출한다.
+
+우리의 구현을, `_compareFields()` 메서드를 호출하는 것을 반영하여(using reflection to invoke), `_navigateClassHierarchy()`를 단일한 루트 클래스 버전(single root-class-version)로 추출해낼 수 있다(factor out). 그렇게 해서 새 클래스가 hierarchy에 추가되었을 때 단지 `_compareFields()` 메서드만 제공해도 되게 만들 수 있다. (이에 대한) 포괄적인 논의는 이 글의 영역을 넘어선 것이기에, 그 개선은 독자들에게 연습용으로 남겨두도록 하겠다.
+
+
+
+
+
+### Acknowledgements
+
+The ideas discussed in this article were inspired by comments we received from readers of a preceding article on `equals()` (see /[ KRE](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/Equals-2.html#Kreft) /). These readers were (in the order their emails arrived) Larry Kuenning [larry.kuenning@qhpress.org](mailto:larry.kuenning@qhpress.org) , Mark Davis [mark.davis@us.ibm.com](mailto:mark.davis@us.ibm.com) , and Frank Griswold [griswolf@roguewave.com](mailto:griswolf@roguewave.com) . All three pointed out that there *is* a way of implementing `equals()` so that it performs a transitive mixed-type comparison. From their tentative first ideas and code snippets they sent we derived the solution that we explained in this article. Mark Davis's suggestion are the main foundation of this article; he precisely described the algorithm and provided most of the implementation. If you're interested in reading his article about `equals()` from his "Durable Java" column in Java Report look up his website (see /[ DAV](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/Equals-2.html#Davis) /).
+
+
+
+#### Listing 1: An implementation of a mixed-type comparison for the root of a class hierarchy
+
+**목록1: 클래스 hierachy의 루트에서의 복합 타입 비교 구현**
+
+```java
+public class SubClass extends RootClass {
+    static final int
+        b1Default = 0,
+        b2Default = 0;
+    private int b1 = b1Default;
+    private int b2 = b2Default;
+    protected boolean _navigateClassHierarchy(Object other, boolean reverseOrder) {
+        if (other instanceof SubClass && !reverseOrder) 
+        {  // reverse order 
+           return ((SubClass)other)._navigateClassHierarchy(this,true);
+        }
+        else 
+        {   // compare my fields 
+            if(!_compareFields(other)) return false;
+            // pass the buck up
+            return super._navigateClassHierarchy(other,reverseOrder);
+        }
+    }
+
+    private boolean _compareFields(Object other) {
+        if (other instanceof SubClass) {    // at least my type, check fields
+            SubClass myType = (SubClass)other;
+            if (b1 != myType.b1
+                || b2 != myType.b2) return false;
+        } else {                            // check defaults
+            if (b1 != b1Default
+                || b2 != b2Default) return false;
+        }
+        return true;
+    }
+}
+```
+
+
+
+#### Listing 2: An implementation of a mixed-type comparison for a subclass in a class hierarchy
+
+**목록2: 클래스 hierarchy의 서브클래스에서의 복합 타입 비교 구현**
+
+```java
+public class SubClass extends RootClass {
+    static final int
+        b1Default = 0,
+        b2Default = 0;
+    private int b1 = b1Default;
+    private int b2 = b2Default;
+    protected boolean _navigateClassHierarchy(Object other, boolean reverseOrder) {
+        if (other instanceof SubClass && !reverseOrder) 
+        {  // reverse order 
+           return ((SubClass)other)._navigateClassHierarchy(this,true);
+        }
+        else 
+        {   // compare my fields 
+            if(!_compareFields(other)) return false;
+            // pass the buck up
+            return super._navigateClassHierarchy(other,reverseOrder);
+        }
+    }
+
+    private boolean _compareFields(Object other) {
+        if (other instanceof SubClass) {    // at least my type, check fields
+            SubClass myType = (SubClass)other;
+            if (b1 != myType.b1
+                || b2 != myType.b2) return false;
+        } else {                            // check defaults
+            if (b1 != b1Default
+                || b2 != b2Default) return false;
+        }
+        return true;
+    }
+}
+```
 
