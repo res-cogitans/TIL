@@ -60,6 +60,10 @@ public class Member {
         return name;
     }
 
+    public List<Address> getAddressHistory() {
+        return addressHistory;
+    }
+
     public void setName(String name) {
         this.name = name;
     }
