@@ -1,5 +1,7 @@
 package cogitans.jpa_jpql;
 
+import cogitans.jpa_jpql.example.*;
+
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
@@ -14,6 +16,11 @@ public class Main {
         tx.begin();
 
         try {
+//            BasicGrammar.typeQueryAndResults(em);
+//            Projection.entityProjection(em);
+//            SampleGenerator.generate(em);
+//            Join.leftOuterJoin(em);
+            Join.joinUsingOn(em);
 
             tx.commit();
         } catch(Exception e) {

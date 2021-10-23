@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -1562,3 +1562,427 @@
   - 값 타입은 정말 값 타입이라 판단될 때만 사용
   - 엔티티와 값 타입을 혼동해서 엔티티를 값 타입으로 만들면 안 됨.
   - 식별자가 필요하고, 지속해서 값을 추적, 변경해야 한다면 그것은 값 타입이 아닌 엔티티이다.
+
+
+
+####  `equals()`와 `hashCode()` 오버라이딩에 관하여
+
+- 값 타입은 불변 객체로 사용해야 하기에, 각각 개별 인스턴스로 만들어야 한다.
+
+- 그런데 `remove()`등 사용할 때, 기존 인스턴스와의 동일성을 판단하기 위해서 `equals()`와 `hashCode()`를 재정의해야 한다.
+
+- getter/setter 처럼 generate 단축키(Alt + Ins)를 이용해 간단히 생성 가능하다.
+
+- 주의할 점은 아래의 옵션을 InteliJ에서 체크함이 좋다.
+
+  
+
+generate equals() and hashCode()
+
+- [ ] Accept subclasses as parameter to equals() method
+
+While generally incompliant to Object.equals() specification accepting subclasses might be nessesary for generated method to work correctly with frameworks, which generate Proxy subclasses like Hibernate.
+
+생성된 메서드가 하이버네이트처럼 프록시 서브클래스들을 만드는 프레임워크들과 호환시키고 싶으시다면,
+일반적인 Object.equals() 규격과 다르게 서브클래스들을 포함시키는 것이 필요할 수 있습니다.
+
+- [x] Use getters during code generation
+- 해당 클래스에 getter 만들지 않으면 당연히 위 옵션을 체크하더라도 getter 메서드 사용하지 않고 구현된다.
+
+- 왜 getter를 사용해야 하는가?
+  - getter를 생성, private 하게 만들면 값 타입을 불변 객체로 만들 수 있기 때문이다.
+
+
+
+
+
+## 객체지향 쿼리 언어1 - 기본 문법
+
+### JPA의 다양한 쿼리 방식
+
+- **JPQL**: 표준 문법
+- JPA Criteria: 자바 코드로 짜고, 그것을 generate 해주는 방식(QueryDSL도 마찬가지)
+- **QueryDSL**
+- 네이티브 SQL: 특정 DB에 종속적인 쿼리를 날려야 할 때
+- JDBC API 직접 사용, MyBatis, SpringJdbcTemplate 함께 사용
+
+
+
+#### JPQL
+
+- JPQL의 필요성
+
+  - 가장 단순한 조회 방법
+    - `em.find()`
+    - 객체 그래프 탐색(`a.getB().getC()`)
+    - 그러나 검색은 어떻게?
+  - JPA를 사용하면 엔티티 객체를 중심으로 개발
+    - 검색을 할 때도 **테이블이 아닌 엔티티 객체를 대상으로 검색**
+    - 모든 DB 데이터를 객체로 변환해서 검색하는 것은 불가능
+    - 애플리케이션이 필요한 데이터만 DB에서 불러오려면 결국 검색 조건이 포함된 SQL이 필요
+
+- 특징
+
+  - 테이블이 아닌 객체를 대상으로 검색하는 객체지향 쿼리
+    - SQL은 데이터베이스 테이블을 대상으로 쿼리
+  - JPA는 SQL을 추상화한 JPQL이라는 객체지향 쿼리 언어 제공
+    - 특정 특정 데이터베이스 SQL에 의존하지 않는다.
+  - SQL과 유사한 문법
+    - SELECT, FROM, WHERE, GROUP BY, HAVING, JOIN 지원
+  - 예시
+
+  ```java
+              ...
+              List<Member> resultList = em.createQuery(
+                      "select m From Member m where m.username like '%kim%'",
+                      Member.class
+              ).getResultList();
+              ...
+  ```
+
+
+
+#### Criteria
+
+- JPQL은 사실 단순 String이기에 동적 쿼리를 만들기 어렵다.
+
+  반면, criteria는 동적 쿼리를 만들기 용이하다.
+
+- JPA 공식 기능으로 JPQL 빌더 역할을 수행한다.
+
+- 문자가 아닌 자바 코드이기에 오타 등을 잡아내기 좋다.
+
+- 단점
+
+  - SQL답지 못함
+  - 직관성이 떨어져서 유지보수가 힘듦
+
+- QueryDSL 사용을 권장
+
+- 예시
+
+  ```java
+  //Criteria 사용 준비
+  CriteriaBuilder cb = em.getCriteriaBuilder();
+  CriteriaQuery<Member> query = cb.createQuery(Member.class);
+  
+  //루트 클래스 (조회를 시작할 클래스)
+  Root<Member> m = query.from(Member.class);
+  
+  //쿼리 생성 CriteriaQuery<Member> cq =
+  query.select(m).where(cb.equal(m.get("username"), “kim”));
+  List<Member> resultList = em.createQuery(cq).getResultList();
+  ```
+
+  
+
+#### QueryDSL
+
+- 특징
+
+  - 문자가 아닌 자바코드로 JPQL을 작성할 수 있음
+    - 컴파일 시점에 문법 오류를 찾을 수 있음
+  - JPQL 빌더 역할
+  - 동적 쿼리 작성 편리함
+  - 실무 사용 권장
+  - 예시
+
+  ```java
+          JPAFactoryQuery query = new JPAQueryFactory(em);
+          QMember m = QMember.member;
+          
+          List<Member> list =
+                  query.selectFrom(m)
+                          .where(m.age.gt(18))
+                          .orderBy(m.name.desc())
+                          .fetch();
+  ```
+
+
+
+#### 네이티브 SQL
+
+- SQL을 직접 사용하게끔 JPA가 제공하는 기능
+- JPQL로 해결할 수 없는 특정 데이터베이스에 의존적인 기능
+  - 오라클의 CONNECT BY 처럼 특정 DB만 사용하는 SQL 힌트
+
+- 예시
+
+  ```java
+  String sql =
+   “SELECT ID, AGE, TEAM_ID, NAME FROM MEMBER WHERE NAME = ‘kim’";
+  List<Member> resultList =
+   em.createNativeQuery(sql, Member.class).getResultList();
+  ```
+
+  
+
+#### 기타
+
+- JPA를 사용하면서 JDBC 커넥션을 직접 사용하거나 스프링 JdbcTemplate, MyBatis 등을 함께 사용할 수 있다.
+- 단 영속성 컨텍스트를 적절한 시점에 강제로 플러시할 필요가 있다.
+  - 예) JPA를 우회해서 SQL을 실행하기 직전에 영속성 컨텍스트를 수동 플러시
+
+
+
+### JPQL(Java Persistence Query Language)
+
+#### 기본 문법과 기능
+
+```SQL
+select_문 :: =
+ select_절
+ from_절
+ [where_절]
+ [groupby_절]
+ [having_절]
+ [orderby_절]
+ 
+update_문 :: = update_절 [where_절]
+delete_문 :: = delete_절 [where_절]
+```
+
+- 기본 문법
+  - 엔티티와 속성은 대소문자를 구분한다. (Member, age)
+  - JPQL 키워드는 대소문자를 구분하지 않는다. (SELECT, From, where)
+  - **엔티티 이름을 사용함, 테이블 이름 아님!**
+  - **별칭은 필수** (as는 생략 가능)
+
+- 집합과 정렬
+
+  ```SQL
+  select
+   COUNT(m), //회원수
+   SUM(m.age), //나이 합
+   AVG(m.age), //평균 나이
+   MAX(m.age), //최대 나이
+   MIN(m.age) //최소 나이
+  from Member m
+  ```
+
+  - GROUP BY, HAVING, ORDER BY도 마찬가지
+
+
+##### TypeQuery/Query
+
+- TypeQuery: 반환 타입이 명확할 때 사용
+- Query: 반환 타입이 명확하지 않을 때 사용
+
+##### 결과 조회 API
+
+- `query.getResultList()`
+  - 결과가 **하나 이상**일 때, 리스트 반환
+  - 결과가 없으면 빈 리스트 반환 (Exception 발생 안 함)
+- `query.getSingleResult()`
+  - 결과가 **정확히 하나**, 단일 객체 반환
+  - 결과가 없을 경우 `javax.persistence.NoResultException`
+  - 결과가 둘 이상일 경우 `javax.persistence.NonUniqueResultException`
+  - Spring Data JPA에서는, 위와 달리 이를 추상화하여, 결과가 없을 경우 null이나 Optional(신버전)로 반환한다.
+
+##### 파라미터 바인딩 - 이름 기준, 위치 기준
+
+- 이름 기준
+
+```java
+em.createQuery("select m from Member m where m.username = :username", Member.class);
+        boundParameterQuery.setParameter("username", "member2");      
+```
+
+- 위치 기준
+
+```java
+em.createQuery(
+                "select m from Member m where m.username=?1", Member.class)
+                .setParameter(1, "member1");
+```
+
+위치 기준은 사용을 권장하지 않는다. 순서가 밀릴 수 있기 때문이다.
+
+
+
+#### 프로젝션
+
+- SELECT절에 조회할 대상을 지정하는 것
+- 프로젝션 대상: 엔티티, 임베디드 타입, 스칼라 타입(숫자, 문자 등 기본 데이터 타입)
+  - RDB는 스칼라 타입만 선택 가능
+
+- 예시
+
+  - 엔티티 프로젝션
+    - `SELECT m FROM Member m`
+    - `SELECT m.team FROM Member m`
+
+  - 임베디드 타입 프로젝션: `SELECT m.address FROM Member m`
+  - 스칼라 타입 프로젝션: `SELECT m.username, m.age FROM Member m`
+
+- DISTINCT로 중복 제거(`SELECT DISTINCT`)
+
+
+
+##### 프로젝션의 종류
+
+- **엔티티 프로젝션**
+  - **SELECT절의 대상(아래에서 result의 Member)들은 모두 영속성 컨텍스트에 의해 관리되는 대상이다.**
+
+  ```java
+          List<Member> result = em.createQuery("SELECT m FROM Member m", Member.class)
+                  .getResultList();
+  
+          Member foundMember = result.get(1);
+          foundMember.setAge(50);
+  ```
+
+  때문에 foundMember의 변경에 대해서 UPDATE 쿼리가 나간다.
+
+  - **묵시적 조인과 명시적 조인**
+
+    - 조인이 필요한 경우, 실제 쿼리에서는 조인이 나간다. (**묵시적 조인**)
+
+    ```java
+            List<Team> teamList = em.createQuery("SELECT  m.team FROM Member m", Team.class).getResultList();
+    ```
+
+    조인은 성능 문제와 연관이 깊고, 튜닝할 경우도 많기에 다음을 권장한다: (**명시적 조인**)
+
+    ```java
+            List<Team> teamList = em.createQuery("SELECT t FROM Member m join m.team t", Team.class).getResultList();
+    
+    ```
+
+    이렇게 되야 코드를 보고 조인 쿼리가 나간다는 것을 분명히 예상할 수 있다.
+
+- **임베디드 타입 프로젝션**
+
+```java
+        List<Address> result = em.createQuery("select o.address from Order o", Address.class).getResultList();
+```
+
+임베디드 타입 프로젝션의 경우 값 타입의 특성상 특정 엔티티에 소속해있을수밖에 없기에 `o.address`식으로 엔티티 소속을 표현해줘야 한다.
+
+- **스칼라 타입 프로젝션**
+
+```java
+        List result = em.createQuery("SELECT DISTINCT m.username, m.age FROM Member m").getResultList();
+```
+
+
+
+##### 여러 값을 조회하는 방법
+
+1. Query 타입으로 조회
+
+   ```java
+       public static void multipleValueProjection(EntityManager em) {
+           List result = em.createQuery("SELECT DISTINCT m.username, m.age FROM Member m").getResultList();
+   
+           Object o1 = result.get(0);   // username
+           Object o2 = result.get(1);   // age
+       }
+   ```
+
+   
+
+2. Object[] 타입으로 조회
+
+   ```java
+            List<Object[]> result = em.createQuery("SELECT DISTINCT m.username, m.age FROM Member m").getResultList();
+   ```
+
+3. new 명령어로 조회
+
+   ```java
+   public class MemberDTO {
+       
+       private String username;
+       private Integer age;
+   }
+   ```
+
+   를 사용하여
+
+   ```java
+           List<MemberDTO> resultList = em.createQuery(
+                   "SELECT new cogitans.jpa_jpql.MemberDTO(m.username, m.age) FROM Member m", MemberDTO.class)
+                   .getResultList();
+   ```
+
+   형태로 조회 가능하다. (생성자 사용과 유사)
+
+   - 단순 값을 DTO로 바로 조회
+   - 패키지명을 포함한 전체 클래스명 입력
+   - 순서와 타입이 일치하는 생성자가 필요
+
+
+
+#### 페이징 API
+
+- JPA가 페이징을 추상화한 두 API
+  - `setFirstResult(int startPositon)`: 조회 시작 위치(0부터 시작)
+  - `setMaxResults(int maxResult)`: 조회할 데이터 수
+
+- 예시
+
+  ```java
+          List<Member> result = em.createQuery("SELECT m FROM Member m ORDER BY m.age DESC", Member.class)
+                  .setFirstResult(0)
+                  .setMaxResults(15)
+                  .getResultList();
+  ```
+
+- 방언에 따라 서로 다른 전략
+
+
+
+#### 조인
+
+- SQL조인과 실행 자체는 동일하지만, 객체 스타일이다.
+- 내부 조인: `SELECT m FROM Member m [INNER] JOIN m.team t`
+- 외부 조인: `SELECT m FROM Member m LEFT [OUTER] JOIN m.team t`
+- 세타 조인: `select count(m) from Member m, Team t where m.username = t.name`
+  - 연관관계가 없는 것을 비교하고 싶을 때
+
+- ON 절
+
+  - ON절을 활용한 조인(JPA 2.1부터 지원)
+
+    1. 조인 대상 필터링
+
+       - 예시) 회원과 팀을 조인하면서 팀 이름이 A인 팀만 조인
+
+         - JPQL
+
+           ```SQL
+           SELECT m FROM Member m LEFT JOIN m.team t ON t.name ='A'
+           ```
+
+         - SQL
+
+           ```sql
+           SELECT m.*, t.* FROM
+           Member m LEFT JOIN Team t ON m.TEAM_ID=t.id AND t.name='A'
+           ```
+
+           
+
+    2. 연관관계 없는 엔티티 외부 조인(하이버네이트 5.1부터)
+
+       - 예시) 회원의 이름과 팀의 이름이 같은 대상 외부 조인
+
+         - JPQL
+
+           ```SQL
+           SELECT m FROM
+           Member m LEFT JOIN Team t ON m.username = t.name
+           ```
+
+         - SQL
+
+           ```sql
+           SELECT m.*, t.* FROM
+           Member m LEFT JOIN Team t ON m.username = t.name
+           ```
+
+
+
+#### 서브쿼리
+
