@@ -20,7 +20,10 @@ public class Main {
 //            Projection.entityProjection(em);
 //            SampleGenerator.generate(em);
 //            Join.leftOuterJoin(em);
-            Join.joinUsingOn(em);
+//            Join.joinUsingOn(em);
+//            JpqlTypeExpression.types(em);
+//            Conditional.caseConditional(em);
+            JpqlFunction.customFunction(em);
 
             tx.commit();
         } catch(Exception e) {

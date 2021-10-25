@@ -20,6 +20,9 @@ public class Member extends BaseEntity{
     @OneToMany(mappedBy = "member")
     private List<Order> order = new ArrayList<>();
 
+    @Enumerated(EnumType.STRING)
+    private MemberType type;
+
     public void changeTeam(Team team) {
         this.team= team;
         team.getMembers().add(this);
