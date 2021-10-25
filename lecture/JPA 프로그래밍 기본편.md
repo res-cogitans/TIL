@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -1985,4 +1985,197 @@ em.createQuery(
 
 
 #### 서브쿼리
+
+- 예시
+
+  - 나이가 평균보다 많은 회원
+
+    ```SQL
+    SELECT m FROM Member m
+    WHERE m.age > (SELECT AVG(m2.age) FROM Member m2)
+    ```
+
+    메인쿼리와 서브쿼리의 대상이 따로, 이렇게 해야 성능이 나음
+
+  - 한 건이라도 주문한 고객
+
+    ```sQL
+    SELECT m FROM Member m
+    WHERE (SELECT COUNT(o) FROM Order o WHERE m = o.member) > 0
+    ```
+
+    서브쿼리에서 다른 엔티티를 끌어 들여옴, 성능상 불리함
+
+##### 서브쿼리 지원 함수
+
+- `[NOT] EXISTS (subquery)`: 서브쿼리에 결과가 존재하면 참
+  - `{ALL|ANY|SOME} (subquery)`
+  - `ALL` 모두 만족시 / `ANY = SOME`: 조건 중 하나를 만족
+
+- `[NOT] IN (subquery)`: 서브쿼리의 결과 중 하나라도 같은 것이 있으면 참
+
+- JPA 서브쿼리 한계
+  - JPA는 WHERE, HAVING 절에서만 서브 쿼리 사용 가능
+  - SELECT 절도 가능 (하이버네이트에서만 지원)
+  - **FROM 절의 서브쿼리는 현재 JPQL에서 불가능**
+    - **조인으로 풀 수 있으면 풀어서 해결**
+
+
+
+#### JPQL 타입 표현
+
+- 문자: 'HELLO', 'She''s'
+
+- 숫자: 10L(Long), 10D(Double), 10F(Float)
+
+- Boolean: TRUE, FALSE
+
+- `cogitans.jpa_jpql.domain.MemberType.ADMIN` **(패키지명을 포함해야!)**
+
+  - 단 파라미터 바인딩을 이용해서 좀 더 단순하게 사용 가능:
+
+    ```java
+            String query = "SELECT m.username, 'HELLO', true FROM Member m" +
+                    "WHERE m.type = :userType";
+    
+            List<Object[]> result = em.createQuery(query)
+                    .setParameter("userType", MemberType.ADMIN)
+    ```
+
+- 엔티티 타입: TYPE(m) = Member (상속 관계에서 사용)
+
+  ```SQL
+          em.createQuery("SELECT i FROM Item i WHERE TYPE(i) = Book", Item.class);
+  ```
+
+
+
+#### JPQL 기타
+
+- SQL과 문법이 같은 식
+  - EXIST, IN
+  - AND, OR, NOT
+  - =, >, >=, <=, <>
+  - BETWEEN, LIKE, IS NULL
+
+
+
+#### 조건식 - CASE 식
+
+- 기본 CASE 식
+
+  ```sql
+  SELECT
+  	CASE WHEN m.age <= 10 then '학생요금'
+  		 WHEN m.age >= 60 then '경로요금'
+           ELSE '일반요금'
+      END
+  FROM Member m
+  ```
+
+- 단순 CASE 식
+
+  ```sql
+  SELECT
+  	CASE t.name
+  		WHEN '팀A' then '인센티브110%'
+  		WHEN '팀B' then '인센티브120%'
+  		ELSE '인센티브105%'
+  	END
+  FROM Team t
+  ```
+
+- COALESCE: 하나씩 조회해서 null이 아니면 반환
+
+  - 예시: 사용자 이름이 없으면 이름 없는 회원을 반환
+
+    ```SQL
+    SELECT COALESCE(m.username, '이름 없는 회원' AS username FROM Member m
+    ```
+
+- NULLIF: 두 값이 같으면 null 반환, 다르면 첫 번째 값 반환
+
+  - 예시; 사용자 이름이 '관리자'면 null을 반환하고 나머지는 본인의 이름을 반환
+
+    ```sql
+    SELECT NULLIF(m.username, '관리자') AS username FROM Member m
+    ```
+
+
+
+#### JPQL 기본함수
+
+- JPQL 표준 함수: DB에 무관하게 그냥 사용하면 된다.
+  - CONCAT
+
+    ```sql
+            String query = "SELECT 'a' || 'b' FROM Member m";
+            String query = "SELECT CONCAT('a', 'b') FROM Member m";
+    ```
+
+    `s = ab` 출력
+
+    '||'을 사용하는 방식은 하이버네이트에서만,
+
+    CONCAT은 표준 함수
+
+  - SUBSTRING
+
+  - TRIM
+
+  - LOWER, UPPER
+
+  - LENGTH
+
+  - LOCATE
+
+    ```sql
+    SELECT LOCATE('de', 'abcdefg') FROM Member m
+    ```
+
+  - ABS, SQRT, MOD
+
+  - SIZE, INDEX(JPA 용도)
+
+    - SIZE
+
+      ```sql
+      SELECT SIZE(t.members) FROM Member m
+      ```
+
+      컬렉션의 크기
+
+    - INDEX
+
+- 사용자 정의 함수
+
+  - 하이버네이트는 사용 전 방언에 추가해야 한다.
+
+    - 사용하는 DB 방언을 상속받고, 사용자 정의 함수를 등록한다.
+
+      ```java
+      public class CustomH2Dialect extends H2Dialect {
+      
+          public CustomH2Dialect() {
+              registerFunction("group_concat", new StandardSQLFunction("group_concat", StandardBasicTypes.STRING));
+          }
+      ```
+
+    - `persistence.xml`에 위를 등록한다
+
+    - 다음과 같이 사용한다.
+
+      ```sql
+      SELECT FUNCTION('group_concat', m.username) FROM Member m
+      ```
+
+      출력결과: `s = `member0,member1,member2,member3,member4`
+
+    - 하이버네이트의 경우 다음과 같이 표현 가능하다.
+
+      ```sql
+      SELECT group_concat(m.username) FROM Member m
+      ```
+
+      
 
