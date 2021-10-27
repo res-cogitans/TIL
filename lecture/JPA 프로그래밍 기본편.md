@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -2178,4 +2178,71 @@ em.createQuery(
       ```
 
       
+
+#### 경로 표현식
+
+- '.'을 이용하여 객체 그래프를 탐색
+
+  ```sql
+  SELECT m.username   -> 상태 필드
+  	FROM Member m
+  	JOIN m.team t   -> 단일 값 연관 필드
+  	JOIN m.orders o -> 컬렉션 값 연관 필드
+  WHERE t. name = '팀A'
+  ```
+
+- 용어 정리
+  - 상태 필드(state field): 단순히 값을 저장하기 위한 필드 (ex: m.username)
+  - 연관 필드(association field): 연관관계를 위한 필드
+    - 단일 값 연관 필드: `@ManyToOne`, `@OneToOne`, 대상이 엔티티 (ex: m.team)
+    - 컬렉션 값 연관 필드: `@OneToMany`, `@ManyToMany`, 대상이 컬렉션 (ex: m.orders)
+
+- 특징
+  - 상태 필드: 경로 탐색의 끝으로, 더 이상 탐색 불가
+
+  - 단일 값 연관 경로: 묵시적 내부 조인(INNER JOIN) 발생, 탐색 가능
+
+    - 객체와 다르게 DB는 조인을 해야 그 값에 접근할 수 있기 때문
+    - 조인 발생 -> 성능에 큰 영향 미침, 튜닝과 연관
+    - 묵시적 조인이 발생하지 않게, 명확하게 SQL을 작성하는 편이 성능 튜닝 등에 있어서 낫다.
+
+  - 컬렉션 값 연관 경로: 묵시적 내부 조인 발생, 탐색 불가
+    - FROM 절에서 명시적 조인을 통해 별칭을 얻으면 별칭을 통해 탐색 가능
+
+      ```sql
+              String query = "SELECT m.username FROM Team t join t.members m";
+      ```
+
+      ```sql
+      		SELECT m.username FROM Team t JOIN t.members m
+      ```
+
+      
+
+- 명시적 조인, 묵시적 조인
+
+  - 명시적 조인: JOIN 키워드를 직접 사용
+
+    ```SQL
+    SELECT m FROM Member m JOIN m.team t
+    ```
+
+  - 묵시적 조인: 경로 표현식에 의해 묵시적으로 SQL 조인 발생(내부 조인만 가능)
+
+    ```SQL
+    SELECT m.team FROM Member m
+    ```
+
+- 주의사항
+
+  - 항상 내부 조인!
+  - 컬렉션은 경로 탐색의 끝으로, 명시적 조인을 통해 별칭을 얻어야 추가 탐색 가능
+
+  - 경로 탐색은 주로 SELECT, WHERE 절에서 사용하지만 묵시적 조인으로 인해 SQL의 FROM (JOIN) 절에 영향을 준다.
+
+- 결론
+
+  - 명시적 조인 사용
+  - 조인은 SQL 튜닝의 주요 포인트
+  - 묵시적 조인은 조인 발생 상황 파악 어려움
 
