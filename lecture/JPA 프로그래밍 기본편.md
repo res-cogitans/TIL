@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편(김영한)
 - JPA - Java Persistence API
 - JDBC나 MyBatis, JdbcTemplate보다 진보
 - SQL을 직접 작성할 필요가 없기 때문에 생산성 및 유지보수성 상승
@@ -7,8 +7,6 @@
 		- 실무에서는 많은 객체와 테이블을 복잡하게 사용하게 되기에 문제
 	2. JPA의 내부 동작 방식에 대한 이해 결여
 		- 장애 상황에서 대응 못 함
-
-
 
 
 
@@ -1186,6 +1184,8 @@
 
   - 테이블의 수가 많아지면 매우 치명적이다!
 
+##### N+1 문제
+
 - **즉시 로딩은 JPQL에서 N+1 문제를 일으킨다.**
 
   ```java
@@ -1201,7 +1201,7 @@
 
   - 해결
     - 기본적으로 모두 지연로딩을 사용하고, 추가적으로
-    - fetch join
+    - **fetch join (주로 사용)**
       - `"select m from Member m join fetch m.team"`
     - batch size
 
@@ -2246,3 +2246,328 @@ em.createQuery(
   - 조인은 SQL 튜닝의 주요 포인트
   - 묵시적 조인은 조인 발생 상황 파악 어려움
 
+
+
+#### 페치 조인(fetch join)
+
+- SQL 조인 종류가 아니다!
+
+- JPQL에서 성능 최적화를 위해 제공하는 전용기능
+- 연관된 엔티티나 컬렉션을 SQL 한 번에 조회하는 기능
+- JOIN FETCH 명령어 사용
+- `[ LEFT [OUTER] | INNER] JOIN FETCH 조인 경로`
+
+- 엔티티 페치 조인
+
+  ```java
+          String query = "SELECT m FROM Member m JOIN FETCH m.team";
+          List<Member> resultList = em.createQuery(query, Member.class).getResultList();
+  ```
+
+  - SELECT 프로젝션에 m만 적었음에도 실제 실행된 SQL에서는 m, t를 조인해서 받아옴
+  - EAGER 로딩과 같지만, 이 경우에는 직접 조인해서 가져오는 시점을 정할 수 있다는 차이점
+
+- 컬렉션 페치 조인
+
+  - 일대다 관계, 컬렉션일 경우
+
+    ```sql
+    SELECT t
+    FROM Team t JOIN FETCH t.members
+    WHERE t.name = '팀A'
+    ```
+
+    - 만일 팀 A에 속한 Member가 2명 이상일 경우
+
+      JOIN이기 때문에 name이 팀A인 row가(즉, ID값/주소값 동일한) 소속 Member 수만큼 중복으로 출력되게 된다!
+
+- 페치 조인과 DISTINCT (일대다 관계일 때)
+  - SQL의 DISTINCT
+    - 중복된 결과를 제거하는 명령
+    - 그러나  이것만으로는 중복을 모두 제거하는 것은 불가: 완전히 동일한 row일때만 제거하기 때문
+  - JPQL의 DISTINCT
+    - SQL에 DISTINCT를 추가
+    - 추가적으로 애플리케이션에서 엔티티 중복 제거
+      - 위의 경우에는 같은 식별자를 가진 Team 엔티티를 제거
+
+- 페치 조인과 일반 조인의 차이
+  - 일반 조인 실행시 연관된 엔티티를 함께 조회하지 않음
+  - JPQL은 결과를 반환할 때 연관관계 고려 X
+  - 단지 SELECT 절에 지정한 엔티티만 조회할 뿐
+  - 페치 조인을 사용할 때만 연관된 엔티티도 함께 조회(즉시 로딩 EAGER)
+  - 페치 조인은 객체 그래프를 SQL 한 번에 조회하는 개념
+
+- 특징과 한계
+  - 페치 조인 대상에는 별칭을 줄 수 없다.
+
+    - 하이버네이트에선 가능하지만, 가급적 사용하지 말자.
+    - WHERE 이용해서 별칭 가진 대상의 값을 기준으로 걸러낸다면, 결과에서 그 대상들 전체에 접근 가능한 것이 아니라 WHERE 기준에 맞는 것만 조회 가능해지는 문제가 발생한다.
+
+  - 둘 이상의 컬렉션은 페치 조인 할 수 없다.
+
+  - 컬렉션을 페치 조인하면 페이징 API(`setFirstResult, setMaxResult`)를 사용할 수 없다.
+
+    - 일대일, 다대일 같은 단일 값 연관 필드들은 페치 조인해도 페이징 가능하다.
+
+    - 하이버네이트는 경고 로그를 남기면서 (모든 건을 가져와) 메모리에서 페이징한다. (매우 위험!)
+
+    - 해결
+
+      1. 관계를 뒤집어서, 일대일/다대일 관계 기반으로 페치 조인한다.
+
+      2. `SELECT t FROM Team t` 처럼 페치 조인을 사용하지 않되,
+
+         N+1 문제를 피하기 위해서 `@BatchSize`를 이용한다.
+
+         ```java
+         @Entity
+         public class Team extends BaseEntity {
+         	@BatchSize(size = 100)
+         	@OneToMany(mappedBy = "team")
+         	private List<Member> members = new ArrayList<>();
+         }
+         ```
+
+         BatchSize를 개별적으로 설정하지 않고, 전체적으로 설정 가능하다:
+
+         `persistence.xml`에서
+
+         ```java
+                     <property name="hibernate.default_batch_fetch_size" value="100"/>
+         ```
+
+         설정해주면 된다.
+
+  - 연관된 엔티티들을 SQL 한 번으로 조회 - 성능 최적화
+
+  - 엔티티에 직접 적용하는 글로벌 로딩 전략보다 우선함
+
+    - 글로벌 로딩 전략: `@ManyToOne`(fetch = FetchType.LAZY)
+
+  - 실무에서 글로벌 로딩 전략은 모두 지연 로딩
+
+  - 최적화가 필요한 곳은 페치 조인 적용
+
+- 정리
+
+  - 모든 것을 페치 조인으로 해결할 수는 없음
+  - 페치 조인은 객체 그래프를 유지할 때 사용하면 효과적
+  - 여러 테이블을 조인해서 엔티티가 가진 모양이 아닌 전혀 다른 결과를 내야 하면,
+    페치 조인보다는 일반 조인을 사용하고 필요한 데이터들만 조회해서 DTO로 반환하는 것이 효과적
+
+
+
+#### 다형성 쿼리
+
+- TYPE
+
+  - 조회 대상을 특정 자식으로 한정
+
+    - JPQL
+
+      ```sql
+      SELECT i FROM Item i
+      WHERE TYPE(i) IN (Book, Movie)
+      ```
+
+    - SQL
+
+      ```sql
+      SELECT i FROM Item i
+      WHERE i.DTYPE IN ('B', 'M')
+      ```
+
+- TREAT(JPA 2.1)
+
+  - 자바의 타입 캐스팅과 유사
+
+  - 상속 구조에서 부모 타입을 특정 자식 타입으로 다룰 때 사용
+
+  - FROM, WHERE, SELECT(하이버네이트 지원) 사용
+
+  - 예시
+
+    - JPQL
+
+      ```sql
+      SELECT i FROM Item i
+      WHERE TREAT(i as Book).author = 'kim'
+      ```
+
+    - SQL(구현 전략에 따라 구체적인 SQL 쿼리는 달라질 수 있음)
+
+      ```sql
+      SELECT i.* FROM Item i
+      WHERE i.DTYPE = 'B' and i.author = 'kim'
+      ```
+
+      
+
+#### 엔티티 직접 사용
+
+##### 기본키 값의 경우
+
+- JPQL에서 엔티티를 직접 사용하면 SQL에서 해당 엔티티의 기본키 값을 사용
+
+- 엔티티를 식별할 수 있는 것은 기본키이기에 SQL에서는 엔티티 직접 식별이 아니라 기본키를 통한 식별을 한다.
+
+  - JPQL
+
+    ```SQL
+    SELECT COUNT(m.id) FROM Member m
+    ```
+
+    엔티티의 아이디를 사용
+
+    ```sql
+    SELECT COUNT(m) FROM Member m
+    ```
+
+    엔티티를 직접 사용
+
+  - SQL (위의 두 경우 모두 동일한 다음 SQL을 실행한다)
+
+    ```sql
+    SELECT COUNT(m.id) AS cnt FROM Member m
+    ```
+
+- 엔티티를 파라미터로 넘기는 경우도 그렇다:
+
+  - 엔티티를 파라미터로 전달하는 경우
+
+    ```java
+    String jpql = "SELECT m FROM Member m WHERE m = :member";
+    List resultList = em.createQuery(jpql)
+        				.setParameter("member", member)
+        				.getResultList();
+    ```
+
+  - 식별자를 직접 전달하는 경우
+
+    ```java
+    String jpql = "SELECT m FROM Member m WHERE m.id = :memberId";
+    List resultList = em.createQuery(jpql)
+        				.setParameter("member", memberId)
+        				.getResultList(); 
+    ```
+
+  - 두 경우 모두 동일한 SQL이 실행됨:
+
+    ```sql
+    SELECT m.* FROM Member m WHERE m.id=?
+    ```
+
+##### 외래키 값의 경우
+
+```java
+Team team = em.find(Team.class, 1L);
+
+String queryString = "SELECT m FROM Member m WHERE m.team = :team";
+List resultList = em.createQuery(queryString)
+    				.setParameter("team", team)
+    				.getResultList();
+```
+
+```java
+String queryString = "SELECT m FROM Member m WHERE m.team.id = :teamId";
+List resultList = em.createQuery(queryString)
+    				.setParameter("team", teamId)
+    				.getResultList();
+```
+
+위 두 경우 모두 다음과 같이 동일한 SQL을 실행한다:
+
+```sql
+SELECT m.* FROM Member m WHERE m.team_id=?
+```
+
+
+
+#### Named 쿼리
+
+- 개념
+  - 미리 정의해서 이름을 부여해두고 사용하는 JPQL
+  - 정적 쿼리
+  - 어노테이션, XML에 정의
+  - 애플리케이션 로딩 시점에 초기화 후 재사용
+  - 애플리케이션 로딩 시점에 쿼리를 검증
+
+- 어노테이션
+
+  ```java
+  @Entity
+  @NamedQuery(
+          name = "Member.findByUsername",
+          query = "SELECT m FROM Member m WHERE m.username = :username"
+  )
+  public class Member extends BaseEntity{
+  ...
+  }
+  ```
+
+  그리고
+
+  ```java
+          List<Member> resultList = em.createNamedQuery("Member.findByUsername", Member.class)
+                  .setParameter("username", "member1")
+                  .getResultList();
+  
+          for (Member member : resultList) {
+              System.out.println("member = " + member);
+          }
+  ```
+
+- XML에 정의 가능
+
+- Named 쿼리 환경에 따른 설정
+  - XML이 항상 우선권을 가짐
+  - 애플리케이션 운영 상황에 따라 다른 XML을 배포할 수 있음
+
+- 스프링 데이터 JPA에서는 `@Query` 어노테이션 이용 가능
+
+
+
+#### 벌크 연산
+
+- PK를 통해 단건만 UPDATE, DELETE하는 것을 제외한 나머지 모든 UPDATE, DELETE
+
+- 필요
+
+  - 예시) 재고가 10개 미만인 모든 상품의 가격을 10%인상하기
+  - JPA의 변경 감지 기능으로 위를 수행하려면 SQL이 너무 많이 실행됨
+    	1. 재고가 10개 미만인 상품을 리스트로 조회
+     	2. 상품 엔티티의 가격을 10% 증가
+     	3. 트랜잭션 커밋 시점에 변경감지가 동작
+
+  - 변경된 데이터가 100건이라면 100번의 UPDATE SQL문 실행됨
+
+- 예제
+
+  - 쿼리 한 번으로 여러 테이블 로우 변경(엔티티)
+
+  - ` executeUpdate()`의 결과는 영향받은 엔티티 수 반환
+
+  - UPDATE, DELETE 지원
+
+  - INSERT(INSERT INTO ... SELECT, 하이버네이트 지원)
+
+    ```java
+            int resultCount = em.createQuery("UPDATE Member m SET m.age = 20")
+                    .executeUpdate();
+    
+            System.out.println("resultCount = " + resultCount);
+    ```
+
+- 주의사항
+
+  - 벌크 연산은 영속성 컨텍스트를 무시하고 DB에 직접 쿼리
+
+  - 해결법
+
+    1. 벌크 연산을 먼저 실행 (영속성 컨텍스트에 값을 넣기 전에)
+
+    2. 벌크 연산 수행 후 영속성 컨텍스트 초기화 (영속성 컨텍스트에 값이 있다면)
+       - 벌크 연산도 수행시에는 `flush()` 발생(JPQL이니까), 따라서 변경사항은 이미 반영되었기에 `clear()`
+       - 벌크 연산 수행 후에는 이전에 받은 객체 값들은 사용하지 않고, 영속성 컨텍스트 초기화 이후에 `em.find()` 등 DB 접근 이용하여 다시 엔티티/값을 받아와야 한다.
+
+- 스프링 데이터 JPA의 ModifyingQueries를 참고. 이를 편리하게 바꾼 버전임

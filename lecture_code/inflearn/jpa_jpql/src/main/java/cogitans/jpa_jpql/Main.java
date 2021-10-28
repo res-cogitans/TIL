@@ -23,7 +23,10 @@ public class Main {
 //            Join.joinUsingOn(em);
 //            JpqlTypeExpression.types(em);
 //            Conditional.caseConditional(em);
-            JpqlFunction.customFunction(em);
+//            JpqlFunction.customFunction(em);
+//            FetchJoin.entityFetchJoin(em);
+//            NamedQuery.namedQuery(em);
+            BulkOperation.bulk(em);
 
             tx.commit();
         } catch(Exception e) {

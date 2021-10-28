@@ -8,6 +8,10 @@ import java.util.List;
 import static javax.persistence.FetchType.*;
 
 @Entity
+@NamedQuery(
+        name = "Member.findByUsername",
+        query = "SELECT m FROM Member m WHERE m.username = :username"
+)
 public class Member extends BaseEntity{
 
     private String username;
@@ -17,11 +21,11 @@ public class Member extends BaseEntity{
     @JoinColumn(name = "TEAM_ID")
     private Team team;
 
-    @OneToMany(mappedBy = "member")
-    private List<Order> order = new ArrayList<>();
+//    @OneToMany(mappedBy = "member")
+//    private List<Order> order = new ArrayList<>();
 
-    @Enumerated(EnumType.STRING)
-    private MemberType type;
+//    @Enumerated(EnumType.STRING)
+//    private MemberType type;
 
     public void changeTeam(Team team) {
         this.team= team;
@@ -50,9 +54,9 @@ public class Member extends BaseEntity{
         return team;
     }
 
-    public List<Order> getOrder() {
-        return order;
-    }
+//    public List<Order> getOrder() {
+//        return order;
+//    }
 
     public void setUsername(String username) {
         this.username = username;

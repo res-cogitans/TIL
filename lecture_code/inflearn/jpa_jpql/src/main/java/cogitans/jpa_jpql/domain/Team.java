@@ -1,5 +1,7 @@
 package cogitans.jpa_jpql.domain;
 
+import org.hibernate.annotations.BatchSize;
+
 import javax.persistence.Entity;
 import javax.persistence.OneToMany;
 import java.util.ArrayList;
@@ -10,6 +12,7 @@ public class Team extends BaseEntity {
 
     private String name;
 
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "team")
     private List<Member> members = new ArrayList<>();
 
