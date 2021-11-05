@@ -105,3 +105,34 @@
 
   선언한 태그 안에서만 사용 가능하다는 점에 주의하라!
 
+
+
+### 기본 객체들
+
+- 타임리프가 제공하는 기본 객체들:
+  - ${#request}
+  - ${#response}
+  - ${#session}
+  - ${#servletContext}
+  - ${#locale}
+- 그런데 #request 는 HttpServletRequest 객체가 그대로 제공되기 때문에 데이터를 조회하려면 `request.getParameter("data") `처럼 불편하게 접근해야 한다.
+-  이런 점을 해결하기 위해 편의 객체도 제공한다. 
+  - HTTP 요청 파라미터 접근: `param`
+    -  예) `${param.paramData}`
+  - HTTP 세션 접근: `session` 
+    - 예) `${session.sessionData} `
+    - 세션은 유저가 웹 브라우저를 종료할 때까지는 데이터를 보존한다.
+  - 스프링 빈 접근: `@`
+    -  예)` ${@helloBean.hello('Spring!')}`
+- 출력 결과
+  - 식 기본 객체 (Expression Basic Objects)
+    - request = org.apache.catalina.connector.RequestFacade@56f4464
+    - response = org.apache.catalina.connector.ResponseFacade@4aec6e59
+    - session = org.apache.catalina.session.StandardSessionFacade@7cbfb90c
+    - servletContext = org.apache.catalina.core.ApplicationContextFacade@359323a6
+    - locale = ko_KR
+  - 편의 객체
+    - Request Parameter = HelloParam
+    - session = Hello, Session!
+    - spring bean = HelloSpring!
+
