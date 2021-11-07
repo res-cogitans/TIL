@@ -3,7 +3,6 @@ package cogitans.jpashop.service;
 import cogitans.jpashop.domain.Member;
 import cogitans.jpashop.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +46,12 @@ public class MemberService {
     }
 
     public Member findOne(Long memberId) {
-        return findOne(memberId);
+        return memberRepository.findOne(memberId);
+    }
+
+    @Transactional
+    public void update(Long id, String name) {
+        Member member = memberRepository.findOne(id);
+        member.setName(name);
     }
 }
