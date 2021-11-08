@@ -126,3 +126,77 @@ public class MemberApiController {
 
 ### 회원 조회 API
 
+- ddl-auto 옵션을 none으로 변경했다. 조회 테스트를 위해서, 한 번 들어간 데이터를 계속 쓸 수 있게 하기 위함이다.
+
+#### V1
+
+```java
+    @GetMapping("/api/v1/members")
+    public List<Member> membersV1() {
+        return memberService.findMembers();
+    }
+```
+
+- 엔티티를 직접 노출했기에, 엔티티에 있는 정보 전체가 노출되게 됨
+
+```java
+public class Member {
+    ...
+	@JsonIgnore
+    @OneToMany(mappedBy = "member")
+    private List<Order> orders = new ArrayList<>();
+}
+
+```
+
+- 위와 같이 Member를 수정해 준다면 orders는 빼고 데이터를 가져오게 됨.
+- 그러나 이런 방식으로도 해결되지 않는 문제점들이 많다: 특히 회원조회와 관련된 API는 매우 다양할 것이며, 요구 데이터의 종류가 매우 많을 것이기 때문에
+  - 엔티티에 그 사항을 일일히 반영하는 것은 힘들며
+  - 엔티티에 화면(프레젠테이션 계층)에 관련된 로직이 들어가버렸다.
+  - 또한 변경이 발생되면 API 스펙이 변경된다는 문제점이 있다.
+  - 컬렉션을 직접 반환하면 향후 API 스펙을 변경하기 어렵다.
+
+- 따라서 DTO를 이용하는 편이 낫다.
+
+
+
+#### V2
+
+```java
+    @GetMapping("/api/v2/members")
+    public Result memberV2() {
+        List<Member> findMembers = memberService.findMembers();
+        List<MemberDTO> collect = findMembers.stream()
+                .map(m -> new MemberDTO(m.getName()))
+                .collect(Collectors.toList());
+        
+        return new Result(collect);
+    }
+```
+
+```java
+    @Data
+    @AllArgsConstructor
+    static class Result<T> {
+        private T data;
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class MemberDTO {
+        private String name;
+    }
+```
+
+- 엔티티의 변경이 API 스펙에 영향을 주지 않는다.
+- API 스펙과 노출할 데이터(DTO)가 1:1 대응한다. 
+- 어떤 데이터를 쓰는지 명확하게 드러난다.
+- 유지보수가 용이하다.
+
+
+
+## API 개발 고급 - 준비
+
+- 등록과 수정은 보통 성능 문제가 발생하지 않는다.
+
+- 주로 문제가 되는 것은 조회다.
