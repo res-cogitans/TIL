@@ -288,3 +288,117 @@ public class Member {
 
 - 대안: 페치 조인 사용하기
 
+
+
+### 간단한 주문 조회  V3: 페치 조인 최적화
+
+```java
+public class OrderRepository {
+    ...
+        public List<Order> findAllWithMemberAndDelivery() {
+        return em.createQuery(
+                "SELECT o FROM Order o" +
+                        " JOIN FETCH o.member m" +
+                        " JOIN FETCH o.delivery d", Order.class
+        ).getResultList();
+    }
+}
+```
+
+- 조회 방법을 바꾼 것 만으로 쿼리 횟수가 5회 -> 1회로 줄어든다.
+
+- 페치 조인으로인해 order->member, order->delivery 이미 조회된 상태이기에 지연로딩이 발생하지 않는다.
+
+
+
+### 간단한 주문 조회 V4: JPA에서 DTO로 바로 조회
+
+```java
+package cogitans.jpashop.repository;
+
+...
+
+@Data
+public class OrderSimpleQueryDto {
+    private Long orderId;
+    private String name;
+    private LocalDateTime orderDate;
+    private OrderStatus orderStatus;
+    private Address address;
+
+    public OrderSimpleQueryDto(Long orderId,
+                               String name,
+                               LocalDateTime orderDate,
+                               OrderStatus orderStatus,
+                               Address address) {
+        this.orderId = orderId;
+        this.name = name;
+        this.orderDate = orderDate;
+        this.orderStatus = orderStatus;
+        this.address = address;
+    }
+}
+```
+
+- 별도의 DTO를 repo 패키지에 만들어 뒀다.
+
+  - 만약에 Controller 클래스에 있는 Dto Inner 클래스를 사용한다면
+
+    OrderRepository가(Repo 계층) Controller 계층을 바라보는 문제 상황이 발생하기 때문이다.
+
+- JPQL문에서는 객체를 바로 인자값으로 넘겨줄 수 없기 때문에 직접 값 하나씩 넘겨줘야 한다. (Address와 같은 값 객체는 가능하다)
+  - JPA는 엔티티나 Value Object(`@Embeddable`)만 반환 가능하다.
+
+```java
+    public List<OrderSimpleQueryDto> findOrderDtos() {
+        return em.createQuery(
+                "SELECT new cogitans.jpashop.repository.OrderSimpleQueryDto(o.id, m.name, o.status, d.address)" +
+                        " FROM Order o" +
+                        " JOIN o.member m" +
+                        " JOIN o.delivery d", OrderSimpleQueryDto.class)
+                .getResultList();
+    }
+```
+
+- new 명령어를 사용하여 JPQL의 결과를 DTO로 즉시 변환했다.
+- 따라서 위와 같은 방식으로 값을 받아서 반환한다.
+
+```java
+    @GetMapping("/api/v4/simple-orders")
+    public Result ordersV4() {
+        return new Result(orderRepository.findOrderDtos());
+    }
+```
+
+- 이 경우에는 V3의 페치 조인과 달리 엔티티의 모든 데이터를 가지고 오지 않고, 필요한 정보만 SELECT 한다. (일반적인 SQL 사용할 때처럼)
+
+- 정리
+  - SELECT할 데이터를 직접 선택하므로 성능 최적화(DB -> 어플리케이션 네트워크 용량, 하지만 크지 않은 차이)
+    - 성능 차이는 SELECT의 필드 수보다도 FROM 절이나 JOIN 절 등에서 발생하는 일이 많다.
+    - 물론 트래픽이 정말 크다면 고민해봐야 할 문제다.
+  - 리포지토리 재사용성이 떨어짐, API 스펙에 맞춘 코드가 리포지토리에 들어가는 난점
+    - 리포지토리는 엔티티/엔티티의 객체 그래프를 탐색하는 역할인데, 직접 DTO에 반환하는 경우(V4)는 API 스펙에 맞춘 코드
+    - 물리적으로는 계층이 분리되어 있지만, 논리적으로는 그렇지 않다!
+
+- 대안
+
+  - repo 하위에 성능 최적화를 위한 계층(simpleQuery)용 패키지를 따로 만들고
+
+    SimpleQuery용 Repository 만들고, 거기에 `findOrderDtos()` 메서드나
+
+    OrderSimpleQueryDto 클래스를 몰아둔다.
+
+  - 이렇게 하면 Repository를 깨끗하게 유지할 수 있으며, 이 부분의 특수성을 강조할 수 있다.
+
+- **결론: 쿼리 방식 선택 권장 순서**
+  1. 엔티티를 DTO로 변환하는 방법을 선택
+  2. 필요하다면 페치 조인 사용 -> 대부분의 성능 이슈 해결
+  3. 그래도 안 되면 DTO로 직접 조회
+  4. 최후의 방법으로 JPA의 네이티브 SQL이나 스프링 JDBC Template을 사용하여 SQL 작성한다.
+
+
+
+## API 개발 고급 - 컬렉션 조회 최적화
+
+### 주문 조회 V1: 엔티티 직접 노출
+

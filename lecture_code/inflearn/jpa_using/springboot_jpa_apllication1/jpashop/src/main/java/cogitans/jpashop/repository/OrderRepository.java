@@ -86,4 +86,22 @@ public class OrderRepository {
         }
         return query.getResultList();
     }
+
+    public List<Order> findAllWithMemberAndDelivery() {
+        return em.createQuery(
+                "SELECT o FROM Order o" +
+                        " JOIN FETCH o.member m" +
+                        " JOIN FETCH o.delivery d", Order.class)
+                .getResultList();
+    }
+
+    public List<OrderSimpleQueryDto> findOrderDtos() {
+        return em.createQuery(
+                "SELECT new cogitans.jpashop.repository.OrderSimpleQueryDto" +
+                        "(o.id, m.name, o.orderDate, o.status, d.address)" +
+                        " FROM Order o" +
+                        " JOIN o.member m" +
+                        " JOIN o.delivery d", OrderSimpleQueryDto.class)
+                .getResultList();
+    }
 }

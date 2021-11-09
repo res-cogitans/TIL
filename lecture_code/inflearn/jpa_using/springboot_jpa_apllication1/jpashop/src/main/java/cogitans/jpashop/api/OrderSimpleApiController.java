@@ -5,6 +5,7 @@ import cogitans.jpashop.domain.Order;
 import cogitans.jpashop.domain.OrderStatus;
 import cogitans.jpashop.repository.OrderRepository;
 import cogitans.jpashop.repository.OrderSearch;
+import cogitans.jpashop.repository.OrderSimpleQueryDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,21 @@ public class OrderSimpleApiController {
                         .map(o -> new SimpleOrderDto(o))
                         .collect(Collectors.toList())
         );
+    }
+
+    @GetMapping("/api/v3/simple-orders")
+    public Result ordersV3() {
+        return new Result(
+                orderRepository.findAllWithMemberAndDelivery()
+                        .stream()
+                        .map(o -> new SimpleOrderDto(o))
+                        .collect(Collectors.toList())
+        );
+    }
+
+    @GetMapping("/api/v4/simple-orders")
+    public Result ordersV4() {
+        return new Result(orderRepository.findOrderDtos());
     }
 
     @Data
