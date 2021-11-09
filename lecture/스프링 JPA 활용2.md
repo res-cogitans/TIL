@@ -195,8 +195,96 @@ public class Member {
 
 
 
-## API 개발 고급 - 준비
+## API 개발 고급 - 지연 로딩과 조회 성능 최적화
 
 - 등록과 수정은 보통 성능 문제가 발생하지 않는다.
 
 - 주로 문제가 되는 것은 조회다.
+
+
+
+### 간단한 주문 조회 V1: 엔티티를 직접 노출
+
+```java
+    @GetMapping("/api/v1/simple-orders")
+    public List<Order> ordersV1() {
+        List<Order> all = orderRepository.findAllByString(new OrderSearch());
+        return all;
+    }
+```
+
+- 양방향 연관관계 사이에서 무한 참조가 발생: StackOverFlow
+
+  - Order에서 Member를 찾고, 그 Member에서 다시 Order를 찾는 반복이 발생한다.
+
+  - 1차적 해결: 양방향 중 한 쪽에는 `@JsonIgnore`어노테이션을 붙인다.
+
+- 그럼에도, Type definition error 발생
+
+  - `[simple type, class org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor]`
+  - 위는 Order의 member 필드가 LAZY 로딩으로 되어 있기에 생성된 프록시 객체 관련된 것이다.
+  - Json으로 Member 타입의 객체를 뽑아내려고 하는데, 실제 타입은 Member의 프록시 객체이기 때문에 문제가 발생한 것이다.
+
+- 해결: Hibernate5Module을 라이브러리에 등록, 빈에 등록해서 사용하면 된다.
+
+  - 하지만 위와 같이 엔티티를 직접 보내는 것 자체를 사용하지 않는 편이 낫다. 엔티티를 직접 API로 보내기 때문에 엔티티 변경이 API 스펙을 변경시키기 때문이다.
+  - 특히 Hibernate5Module에서 FORCE_LAZY_LOADING은 더욱 사용하면 안 된다! 쓰지 않는 필드까지 모조리 로딩해버리기 때문이다.
+  - 해결: 필요에 따라 프록시를`getName()`등으로 강제 초기화시킨다.
+
+- 실제 API 개발에서는 엔티티를 위와 같이 전체 노출하지 않는다. 따라서 필요한 정보만 보낸다.
+  - Hibernate5Module 쓰지 말고, DTO 반환하라!
+  - 여전히, 연 로딩을 피하기 위해서 즉시 로딩을 사용해서는 안 된다!
+    - 연관관계가 필요 없는 경우에도 데이터를 모조리 조회해서 성능 문제 발생
+    - 성능 튜닝이 매우 어려워진다.
+    - 성능 최적화가 필요할 경우 페치 조인을 사용하라!
+
+
+
+### 간단한 주문 조회V2: 엔티티를 DTO로 반환
+
+```java
+    @GetMapping("/api/v2/simple-orders")
+    public Result ordersV2() {
+        return new Result(
+                orderRepository.findAllByString(new OrderSearch())
+                        .stream()
+                        .map(o -> new SimpleOrderDto(o))
+                        .collect(Collectors.toList())
+        );
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class Result<T> {
+        private T data;
+    }
+
+    @Data
+    static class SimpleOrderDto {
+        private Long orderId;
+        private String name;
+        private LocalDateTime orderDate;
+        private OrderStatus orderStatus;
+        private Address address;
+
+        public SimpleOrderDto(Order order) {
+            orderId = order.getId();
+            name = order.getMember().getName(); //LAZY 초기화
+            orderDate = order.getOrderDate();
+            orderStatus = order.getStatus();
+            address = order.getDelivery().getAddress(); // LAZY 초기화
+        }
+    }
+```
+
+- 필요한 정보만 뽑아낸다.
+- 하지만 지연 로딩으로 인해 지나치게 많은 쿼리가 날아간다는 단점은 V1과 같다.
+  - 처음 쿼리로 ORDER 2개 가지고 옴
+  - 각 ORDER마다 회원정보, 배송 조회 쿼리 나감
+  - 1(첫 쿼리) + N(주문 수: 2) + N -> 5개의 쿼리가 나감!: N+1 문제
+    - N+1은 최악의 상황을 가정한 것(영속성 컨텍스트를 뒤져서 값이 존재하는 경우 N+1보다는 작을 것이기 때문)
+    - 하지만 무시할 문제 절대 아니며, 실제로 저런 경우는 적다.
+  - EAGER를 쓴다고 해서 이 문제가 해결되는 것도 아니며, EAGER 사용 안 할 이유는 충분히 많음
+
+- 대안: 페치 조인 사용하기
+
