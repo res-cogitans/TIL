@@ -227,6 +227,16 @@ public class Member {
 
 - 해결: Hibernate5Module을 라이브러리에 등록, 빈에 등록해서 사용하면 된다.
 
+  ```java
+      @Bean
+      Hibernate5Module hibernate5Module() {
+          Hibernate5Module hibernate5Module = new Hibernate5Module();
+  //        hibernate5Module.configure(Hibernate5Module.Feature.FORCE_LAZY_LOADING, true);
+          return hibernate5Module;
+      }
+  ```
+
+  - 정상적으로 프록시가 초기화된 엔티티들만 반환하게 한다.
   - 하지만 위와 같이 엔티티를 직접 보내는 것 자체를 사용하지 않는 편이 낫다. 엔티티를 직접 API로 보내기 때문에 엔티티 변경이 API 스펙을 변경시키기 때문이다.
   - 특히 Hibernate5Module에서 FORCE_LAZY_LOADING은 더욱 사용하면 안 된다! 쓰지 않는 필드까지 모조리 로딩해버리기 때문이다.
   - 해결: 필요에 따라 프록시를`getName()`등으로 강제 초기화시킨다.
@@ -401,4 +411,91 @@ public class OrderSimpleQueryDto {
 ## API 개발 고급 - 컬렉션 조회 최적화
 
 ### 주문 조회 V1: 엔티티 직접 노출
+
+```java
+    @GetMapping("/api/v1/orders")
+    public List<Order> ordersV1() {
+        List<Order> all = orderRepository.findAllByString(new OrderSearch());
+        for (Order order : all) {
+            order.getMember().getName();
+            order.getDelivery().getAddress();
+            List<OrderItem> orderItems = order.getOrderItems();// 새로이 문제되는 컬렉션 조회 부분!
+            orderItems.stream().forEach(o -> o.getItem().getName());
+        }
+        return all;
+    }
+```
+
+- 강제초기화 한 이유: Hibernate5Module의 기본 설정상 프록시 엔티티의 데이터는 뿌리지 않음.
+  - 일부러 초기화하여 데이터 뿌리게 하였음.
+  - 별개로, 양방향 연관관계의 경우 `@JsonIgnore`잊지 말자.
+
+- 엔티티를 직접 노출하기에 지양해야 하는 방식.
+
+
+
+### 주문 조회 V2: 엔티티를 DTO로 변환
+
+```java
+    @GetMapping("/api/v2/orders")
+    public List<OrderDto> ordersV2() {
+        List<Order> orders = orderRepository.findAllByString(new OrderSearch());
+        return orders.stream()
+                .map(o -> new OrderDto(o))
+                .collect(Collectors.toList());
+    }
+
+    @Data
+    static class OrderDto {
+
+        private Long orderId;
+        private String name;
+        private LocalDateTime orderDate;
+        private OrderStatus orderStatus;
+        private Address address;
+        private List<OrderItemDto> orderItems;
+
+        public OrderDto(Order order) {
+            orderId = order.getId();
+            name = order.getMember().getName();
+            orderDate = order.getOrderDate();
+            orderStatus = order.getStatus();
+            address = order.getDelivery().getAddress();
+            orderItems = order.getOrderItems().stream()
+                    .map(orderItem -> new OrderItemDto(orderItem))
+                    .collect(Collectors.toList());
+        }
+    }
+
+    @Getter
+    static class OrderItemDto {
+
+        private String itemName;
+        private int orderPrice;
+        private int count;
+
+        public OrderItemDto(OrderItem orderItem) {
+            itemName = orderItem.getItem().getName();
+            orderPrice = orderItem.getOrderPrice();
+            count = orderItem.getCount();
+        }
+    }
+```
+
+- DTO에 @Data 붙일지, @Getter만 붙여줄지 고민해보자.
+
+- orderItems 필드는 null로 조회되었다. (지연 로딩)
+  - 이를 해결하는 가장 무식한 방법: V1처럼 컬렉션의 각 원소들마다 stream.forEach 등 이용하여 강제 초기화해주면 된다.
+
+- DTO로 반환하라는 지침의 명확한 의미는
+  - 단순히 엔티티를 DTO로 Wrapping 하라는 뜻이 아니다!
+  - DTO 안에 엔티티도 없어야 맞다.
+  - DTO에 단순히 Wrapping만 하는 정도로는 엔티티 외부 노출을 막을 수 없다.
+  - 완전히 엔티티에 대한 의존을 끊어야 한다!
+
+- 이 방법은 너무 많은 쿼리를 날린다 -> 성능 문제!
+
+
+
+### 주문 조회 V3: 엔티티를 DTO로 변환   - 페치 조인 최적화
 
