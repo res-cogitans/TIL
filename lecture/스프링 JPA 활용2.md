@@ -497,5 +497,73 @@ public class OrderSimpleQueryDto {
 
 
 
-### 주문 조회 V3: 엔티티를 DTO로 변환   - 페치 조인 최적화
+### 주문 조회 V3: 엔티티를 DTO로 변환 
 
+#### 페치 조인 최적화
+
+```java
+public List<Order> findAllWithItem() {
+    return em.createQuery(
+            "SELECT o FROM Order o" +
+                    " JOIN FETCH o.member m" +
+                    " JOIN FETCH o.delivery d" +
+                    " JOIN FETCH o.orderItems oi" +
+                    " JOIN FETCH oi.item i", Order.class )
+            .getResultList();
+}
+```
+
+- ORDER가 2개가 아니라 4개가 나오게 된다.
+- 얻은 값은 중복 PK를 가지게 된다. (즉 컬렉션이 동일 객체를 2개 갖게 된다.)
+
+```java
+public List<Order> findAllWithItem() {
+    return em.createQuery(
+            "SELECT DISTINCT o FROM Order o" +
+                    " JOIN FETCH o.member m" +
+                    " JOIN FETCH o.delivery d" +
+                    " JOIN FETCH o.orderItems oi" +
+                    " JOIN FETCH oi.item i", Order.class )
+            .getResultList();
+}
+```
+
+- DISTINCT를 붙인다 해도 DB에서 가져온 결과 자체는 같다.
+- 하지만 DISTINCT가 있을 경우 JPA가 자체적으로 (루트 엔티티의) 중복 값을 제거하고 담아 준다.
+
+- V3의 경우 패치 조인 사용으로 바꾸었기 때문에, 결과적으로 쿼리가 단 한번만 나간다.
+
+- 하지만 컬렉션 패치 조인의 경우 페이징이 불가능함에 유의하라!
+  - 페이징 설정을 한다고 하더라도 실제 쿼리에서는 LIMIT나 OFFSET같은 페이징 관련 쿼리가 나가지 않는다.
+  - 하이버네이트의 경우 메모리에서 페이징 처리를 하게 되는데, 데이터 양이 많다면 당연히 문제가 발생한다.
+  - ?:N 관계의 경우 데이터 양이 N쪽에 맞게 늘어나게 되어 적절한 페이징이 불가하기에 페이징 쿼리를 보낼 수 없으며, 그 상황에서 어떻게든 페이징을 하기 위해서 하이버네이트의 경우 이런 방법을 택하는 것이다.
+
+- 컬렉션 페치 조인은 단 하나만 사용 가능하다! 둘 이상에 사용하지 말 것, 데이터 정합성을 깨서 조회할 확률이 높다.
+
+
+
+#### 페이징과 한계 돌파
+
+- 컬렉션 엔티티 조회 + 페이징을 위한 방법(V3.1)
+
+ 	1. 먼저 ToOne 관계를 모두 페치 조인
+ 	2. 컬렉션은 지연 로딩으로 조회
+ 	3. 지연 로딩 성능 최적화를 위해 `hibernate.default_batch_fetch_size`, `@BatchSize`를 적용한다.
+     - `hibernate.default_batch_fetch_size`: 글로벌 설정
+     - `@BatchSize`: 개별 최적화
+     - 컬렉션이나 프록시 객체를 한꺼번에 설정한 size만큼 IN 쿼리로 조회한다.
+
+- hibernate.default_batch_fetch_size를 설정하자, 필요한 정보를 IN 쿼리를 이용하여 한 번에 가져온다.
+  - 1 + N + N번의 쿼리가 1 + 1 + 1번의 쿼리로 줄어드는 것!
+
+- V3의 경우 쿼리가 한 번에 나가지만 중복된 데이터까지 모두 DB에서 애플리케이션으로 나가게 된다.
+  - V3.1의 경우 데이터 자체가 중복 없게 최적화되어 전달된다. (V3보다 쿼리 호출 수는 증가하지만 DB 데이터 전송량은 감소)
+  - 데이터 수가 많은 경우 V3.1의 방식이 나을 확률이 높다.
+  - V3와 달리 페이징도 가능하다.
+
+- hibernate.default_batch_fetch_size
+  - 100~1000개 사이가 좋다.
+  - 최소제한은 없지만 DB에 따라 1000으로 IN 파라미터를 제한하기도 한다.
+  - 사이즈가 클 수록 DB에 순간 부하가 크게 증가할 수 있다.
+  - 메모리의 경우 WAS 입장에서 100개든 1000개든 최종적으로 로딩해야 하는 양 자체는 동일하다.
+  - DB나 애플리케이션이나 최대한 견딜 수 있는 부하를 고려하여 사용한다. 높게 설정할 수 있을 수록 좋다.
