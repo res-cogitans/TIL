@@ -1,4 +1,4 @@
-package cogitans.jpashop.repository;
+package cogitans.jpashop.repository.order.simplequery;
 
 import cogitans.jpashop.domain.Address;
 import cogitans.jpashop.domain.Order;

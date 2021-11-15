@@ -2,6 +2,7 @@ package cogitans.jpashop.repository;
 
 import cogitans.jpashop.domain.Member;
 import cogitans.jpashop.domain.Order;
+import cogitans.jpashop.repository.order.simplequery.OrderSimpleQueryDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -10,7 +11,6 @@ import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Repository
@@ -98,7 +98,7 @@ public class OrderRepository {
 
     public List<OrderSimpleQueryDto> findOrderDtos() {
         return em.createQuery(
-                "SELECT new cogitans.jpashop.repository.OrderSimpleQueryDto" +
+                "SELECT new cogitans.jpashop.repository.order.simplequery.OrderSimpleQueryDto" +
                         "(o.id, m.name, o.orderDate, o.status, d.address)" +
                         " FROM Order o" +
                         " JOIN o.member m" +

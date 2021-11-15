@@ -5,7 +5,6 @@ import cogitans.jpashop.domain.Order;
 import cogitans.jpashop.domain.OrderStatus;
 import cogitans.jpashop.repository.OrderRepository;
 import cogitans.jpashop.repository.OrderSearch;
-import cogitans.jpashop.repository.OrderSimpleQueryDto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;

@@ -549,9 +549,9 @@ public List<Order> findAllWithItem() {
  	1. 먼저 ToOne 관계를 모두 페치 조인
  	2. 컬렉션은 지연 로딩으로 조회
  	3. 지연 로딩 성능 최적화를 위해 `hibernate.default_batch_fetch_size`, `@BatchSize`를 적용한다.
-     - `hibernate.default_batch_fetch_size`: 글로벌 설정
-     - `@BatchSize`: 개별 최적화
-     - 컬렉션이나 프록시 객체를 한꺼번에 설정한 size만큼 IN 쿼리로 조회한다.
+ 	 - `hibernate.default_batch_fetch_size`: 글로벌 설정
+ 	 - `@BatchSize`: 개별 최적화
+ 	 - 컬렉션이나 프록시 객체를 한꺼번에 설정한 size만큼 IN 쿼리로 조회한다.
 
 - hibernate.default_batch_fetch_size를 설정하자, 필요한 정보를 IN 쿼리를 이용하여 한 번에 가져온다.
   - 1 + N + N번의 쿼리가 1 + 1 + 1번의 쿼리로 줄어드는 것!
@@ -567,3 +567,98 @@ public List<Order> findAllWithItem() {
   - 사이즈가 클 수록 DB에 순간 부하가 크게 증가할 수 있다.
   - 메모리의 경우 WAS 입장에서 100개든 1000개든 최종적으로 로딩해야 하는 양 자체는 동일하다.
   - DB나 애플리케이션이나 최대한 견딜 수 있는 부하를 고려하여 사용한다. 높게 설정할 수 있을 수록 좋다.
+
+
+
+### 주문조회 V4: JPA에서 DTO 직접 조회
+
+```java
+@Repository
+@RequiredArgsConstructor
+public class OrderQueryRepository {
+
+    private final EntityManager em;
+
+    public List<OrderQueryDto> findOrderQueryDtos() {
+        List<OrderQueryDto> result = findOrders();
+
+        result.forEach(o -> {
+            List<OrderItemQueryDto> orderItems = findOrderItems(o.getOrderId());
+            o.setOrderItems(orderItems);
+        });
+
+        return result;
+    }
+
+    private List<OrderItemQueryDto> findOrderItems(Long orderId) {
+        return em.createQuery(
+                "SELECT new cogitans.jpashop.repository.order.query.OrderItemQueryDto(oi.order.id, i.name, oi.orderPrice, oi.count)" +
+                        " FROM OrderItem oi" +
+                        " JOIN oi.item i" +
+                        " WHERE oi.order.id = :orderId", OrderItemQueryDto.class)
+                .setParameter("orderId", orderId)
+                .getResultList();
+    }
+
+    private List<OrderQueryDto> findOrders() {
+        return em.createQuery(
+                "SELECT new cogitans.jpashop.repository.order.query.OrderQueryDto(o.id, m.name, o.orderDate, o.status, d.address)" +
+                        " FROM Order o" +
+                        " JOIN o.member m" +
+                        " JOIN o.delivery d", OrderQueryDto.class)
+                .getResultList();
+    }
+}
+```
+
+```java
+@Data
+public class OrderQueryDto {
+
+    private Long orderId;
+    private String name;
+    private LocalDateTime orderDate;
+    private OrderStatus orderStatus;
+    private Address address;
+    private List<OrderItemQueryDto> orderItems;
+
+    public OrderQueryDto(Long orderId, String name, LocalDateTime orderDate, OrderStatus orderStatus, Address address) {
+        this.orderId = orderId;
+        this.name = name;
+        this.orderDate = orderDate;
+        this.orderStatus = orderStatus;
+        this.address = address;
+    }
+}
+```
+
+```java
+@Data
+public class OrderItemQueryDto {
+
+    @JsonIgnore
+    private Long orderId;
+
+    private String itemName;
+    private int orderPrice;
+    private int count;
+
+    public OrderItemQueryDto(Long orderId, String itemName, int orderPrice, int count) {
+        this.orderId = orderId;
+        this.itemName = itemName;
+        this.orderPrice = orderPrice;
+        this.count = count;
+    }
+}
+```
+
+- 쿼리: 루트(최초 쿼리) 1번 + 컬렉션 N번 실행: N+1 문제
+- ToOne 관계들을 먼저 조회하고, ToMany 관계는 각각 별개로 처리한다.
+  - ToOne의 경우 조인 최적화가 쉽기에 한 번에 조회
+  - ToMany의 경우 최적화가 어려우므로 `findOrderItems()`같은 별도의 메서드로 조회
+    - orderItem 입장에서 order는 ToOne 관계이므로 조회해도 문제 없다.
+
+
+
+### 주문조회 V5: JPA에서 DTO 직접 조회 - 컬렉션 조회 최적화
+
