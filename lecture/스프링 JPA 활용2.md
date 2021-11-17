@@ -807,5 +807,131 @@ public List<OrderQueryDto> ordersV6() {
   - 반면에 DTO를 직접 조회하는 방식은 성능을 최적화 하거나 그 방식을 변경할 때 많은 코드 변경이 필요하다.
 
   - 또 DTO 조회를 해야 할 정도의 트래픽 상태의 경우 캐시 조회 등의 방식을 고려하는 편이 낫다.
-  - 엔티티는 캐시하지 말 것! 반드시 DTO를 캐시할 것!
+  - 반드시 엔티티는 캐시하지 말 것! 대신에 DTO를 캐시할 것!
+
+
+
+## API 개발 고급 - 실무 필수 최적화
+
+### OSIV와 성능 최적화
+
+- 명칭
+
+  - Open Session In View: 하이버네이트
+
+  - Open EntityManager In View: JPA
+
+    (관례상 OSIV)
+
+  - `spring.jpa.open-in-view`: 기본값은 true
+
+> 2021-11-17 19:41:03.563  WARN 26512 --- [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : 
+>
+> spring.jpa.open-in-view is enabled by default. 
+>
+> Therefore, database queries may be performed during view rendering. 
+>
+> Explicitly configure spring.jpa.open-in-view to disable this warning
+
+- 애플리케이션 시작시에 남기는 WARN 로그
+
+- JPA가 DB 커넥션을 가지고 오는 / 돌려 주는 시점?
+
+  - DB 트랜잭션이 시작할 때 JPA 영속성 컨텍스트가 DB 커넥션을 가지고 온다.
+
+    - ```java
+      public class MemberService {
+          ...
+          @Transactional
+          public Long join(Member member) {
+              validateDuplicateMember(member);
+      
+              memberRepository.save(member);
+              return member.getId();
+          }
+          ...
+      }
+      ```
+
+      보통 서비스에서 트랜잭션이 시작하는데, JPA는 트랜잭션이 시작할 때 setAutoCommit(false)이 나가면서 DB 커넥션을 가져와서, 트랜잭션이 시작함을 DB에 알림
+
+  - OSIV 여부에 따라서 DB에 커넥션을 돌려주는 시점이 달라지는데,
+
+    - OSIV true일 때
+      -  작업을 마치고 `@Transactional` 메서드를 다 하고 밖으로 나가서도(컨트롤러 계층) 반환하지 않는다.
+      - 트랜잭션 이전(영속 상태, 수정 가능) -> 트랜잭션 이후(영속 상태, 수정 불가능), 하지만 영속성 컨텍스트는 트랜잭션 종료와 별개로 유지 
+      - 지연 로딩의 경우 트랜잭션이 끝난 이후에도 프록시 객체의 초기화가 일어날 수 있기에 영속성 컨텍스트의 DB 커넥션은 유지되어야 하는 것이다.
+      - 때문에 OSIV전략은, API의 경우 유저에게 반환이 될 때까지 / 화면의 경우 뷰 템플릿으로 렌더링 할 때까지 이 연결을 계속 유지하는 것이다. (즉 연결이 response가 나가는 끝까지 살아있다는 것)
+      - 이런 까닭으로 뷰 템플릿이나 API 컨트롤러에서 지연 로딩이 가능했던 것이다.
+    - OSIV false일 때
+      - 트랜잭션을 종료할 때 영속성 컨텍스트를 닫고, 데이터베이스 커넥션도 반환한다.
+      - 트랜잭션 이전(영속 상태) -> 트랜잭션 이후(준영속 상태), 트랜잭션 종료와 함께 영속성 컨텍스트 생존 X
+
+- 장점
+
+  - 지연 로딩은 영속성 컨텍스트가 살아 있어야 가능하고, 영속성 컨텍스트는 기본적으로 데이터베이스 커넥션을 유지한다는 점 자체다.
+  - 컨트롤러나 뷰에서 엔티티의 지연로딩을 활용 가능
+
+- 단점
+
+  - 너무 오랜 시간동안 데이터베이스 커넥션 리소스를 사용하기 때문에, 실시간 트래픽이 중요한 애플리케이션에서 커넥션이 모자랄 수 있다. (= 커넥션이 말라 버린다.) -> 장애 발생
+    - 예시) 컨트롤러에서 외부 API 호출 시, 외부 API 대기 시간 만큼 커넥션 리소스를 반환하지 못하고 유지해야 한다.
+
+- 반대로 OSIV를 사용하지 않을 경우
+  - 커넥션 리소스를 낭비하지 않지만
+  - 모든 지연 로딩을 트랜잭션 안에서 처리해야 한다.
+
+- 예시
+
+```java
+@GetMapping("/api/v1/orders")
+public List<Order> ordersV1() {
+    List<Order> all = orderRepository.findAllByString(new OrderSearch());
+    for (Order order : all) {
+        order.getMember().getName();
+        order.getDelivery().getAddress();
+        List<OrderItem> orderItems = order.getOrderItems();
+        orderItems.stream().forEach(o -> o.getItem().getName());
+    }
+    return all;
+}
+```
+
+위와 같은 V1을 
+
+```java
+jpa:
+  open-in-view: false
+```
+
+로 설정하고 실행하면
+
+> org.hibernate.LazyInitializationException: could not initialize proxy [cogitans.jpashop.domain.Member#1
+
+발생한다.
+
+- 해결
+  - OSIV 켜기
+  - 트랜잭션 안에서 작업하기: Transactional(readOnly = true)인 OrderQueryService 클래스 등에 분리하는 방식 등을, 아키텍처에 따라 분리해서 사용
+  - 패치 조인 사용하기
+
+
+
+#### 커맨드와 쿼리 분리
+
+- OSIV를 끈 상태로 복잡성을 관리하는 방식
+
+- 비즈니스 로직의 경우 보통 특정 엔티티 몇 개의 등록 혹은 수정 수준이므로 성능 문제가 발생하지 않지만
+
+  복잡한 화면을 출력하기 위한 쿼리는 화면에 맞추어 성능을 최적화 하는 것이 중요하다.
+
+- 두 관심사를 명확하게 분리하는 것이 유지보수상으로 의미 있다.
+
+- 예시
+  - OrderService: 핵심 비즈니스 로직
+  - OrderQueryService: 화면이나 API에 맞춘 서비스 (주로 읽기 전용 트랜잭션 사용)
+
+- 일반적으로 서비스 계층에서 트랜잭션을 유지하기에 두 서비스 모두 트랜잭션을 유지하면서 지연 로딩 사용 가능.
+
+- 실시간 API 서비스 등 트래픽이 많으면 OSIV를 끄고, ADMIN 처럼 커넥션을 많이 사용하지 않는 곳에서는 OSIV를 켠다.
 
