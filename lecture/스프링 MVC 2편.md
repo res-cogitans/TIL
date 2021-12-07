@@ -136,3 +136,72 @@
     - session = Hello, Session!
     - spring bean = HelloSpring!
 
+
+
+### 유틸리티 객체와 날짜
+
+#### 타임리프 유틸리티 객체들
+
+- 목록
+
+  - #message : 메시지, 국제화 처리 
+
+  - #uris : URI 이스케이프 지원 
+
+  - #dates : java.util.Date 서식 지원 
+
+  - #calendars : java.util.Calendar 서식 지원 
+
+  - #temporals : 자바8 날짜 서식 지원 
+
+  - #numbers : 숫자 서식 지원 #strings : 문자 관련 편의 기능 
+
+  - #objects : 객체 관련 기능 제공 #bools : boolean 관련 기능 제공 
+
+  - #arrays : 배열 관련 기능 제공 
+
+  - #lists , #sets , #maps : 컬렉션 관련 기능 제공 
+
+  - #ids : 아이디 처리 관련 기능 제공, 뒤에서 설명
+
+- 링크
+  - 타임리프 유틸리티 객체 https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#expression-utilityobjects 
+  - 유틸리티 객체 예시 https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#appendix-b-expressionutility-objects
+
+- 자바8 날짜
+
+  - 타임리프에서 자바8 날짜인 LocalDate , LocalDateTime , Instant 를 사용하려면 추가 라이브러리가 필요하다.
+
+    스프링 부트 타임리프를 사용하면 해당 라이브러리가 자동으로 추가되고 통합된다.
+
+  - 타임리프 자바8 날짜 지원 라이브러리: `thymeleaf-extras-java8time`
+
+  - 자바8 날짜용 유틸리티 객체 #temporals 사용 예시
+
+    ```html
+    <span th:text="${#temporals.format(localDateTime, 'yyyy-MM-dd HH:mm:ss')}"></span>
+    ```
+
+
+
+### URL 링크
+
+- 단순한 URL
+  - @{/hello}
+  - /hello
+- 쿼리 파라미터
+  - @{/hello(param1=${param1}, param2=${param2})}
+  - /hello?param1=data1&param2=data
+  -  () 에 있는 부분은 쿼리 파라미터로 처리된다.
+- 경로 변수 @{/hello/{param1}/{param2}(param1=${param1}, param2=${param2})}
+  - /hello/data1/data2
+  - URL 경로상에 변수가 있으면 () 부분은 경로 변수로 처리된다.
+- 경로 변수 + 쿼리 파라미터
+  - @{/hello/{param1}(param1=${param1}, param2=${param2})}
+  - /hello/data1?param2=data2
+  - 경로 변수와 쿼리 파라미터를 함께 사용할 수 있다.
+
+- 상대경로, 절대경로, 프로토콜 기준을 표현할 수 도 있다.
+  - /hello : 절대 경로
+  - hello : 상대 경로
+  - 참고: https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#link-urls
