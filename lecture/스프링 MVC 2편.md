@@ -205,3 +205,85 @@
   - /hello : 절대 경로
   - hello : 상대 경로
   - 참고: https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#link-urls
+
+
+
+### 리터럴
+
+- 타임리프의 리터럴
+  - 문자: 'hello'
+  - 숫자: 10
+  - 불린: true , false
+  - null: null
+- 타임리프에서 문자 리터럴은 항상 ' (작은 따옴표)로 감싸야 한다. 
+- 공백 없이 쭉 이어진다면 하나의 의미있는 토큰으로 인지해서 다음과 같이 작은 따옴표를 생략할 수 있다. 
+  -  A-Z , a-z , 0-9 , [] , . , - , _
+- 오류
+  - `<span th:text="hello world!"></span>`
+  - 문자 리터럴은 원칙상 ' 로 감싸야 한다. 중간에 공백이 있어서 하나의 의미있는 토큰으로도 인식되지 않는다.
+  - 수정
+    - `<span th:text="'hello world!'"></span>`
+    - 이렇게 ' 로 감싸면 정상 동작한다.
+
+- 리터럴 대체(Literal substitutions)
+  - `<span th:text="|hello ${data}|">`
+
+
+
+### 연산
+
+- 비교연산: HTML 엔티티를 사용해야 하는 부분을 주의
+- No-Operation: _ 인 경우 마치 타임리프가 실행되지 않는 것 처럼 동작한다. 이것을 잘 사용하면 HTML 의 내용 그대로 활용할 수 있다.
+
+
+
+### 속성 값 설정
+
+- 속성 설정
+  - th:
+  - `*`속성을 지정하면 타임리프는 기존 속성을 th:* 로 지정한 속성으로 대체한다. 기존 속성이 없다면 새로 만든다.
+- 속성 추가
+  - th:attrappend : 속성 값의 뒤에 값을 추가한다.
+  - th:attrprepend : 속성 값의 앞에 값을 추가한다.
+  - th:classappend : class 속성에 자연스럽게 추가한다.
+- checked 처리
+  - 타임리프의 th:checked 는 값이 false 인 경우 checked 속성 자체를 제거한다.
+
+
+
+### 반복
+
+- th:each
+
+- 반복
+
+  `<tr th:each="user : ${users}">`
+
+  - 오른쪽 컬렉션의 값을 하나씩 꺼내서 왼쪽 변수에 담고, 태그 반복 실행
+  - Iterable, Enumeration 구현한 것들 모두 사용 가능, Map의 경우 Map.Entry가 변수에 담김
+
+- 반복 상태 유지
+  - `<tr th:each="user, userStat : ${users}">`
+  - 두 번째 파라미터는 반복의 상태를 보여준다.
+  - 두 번째 파라미터는 생략 가능하며, 생략시에는 지정 변수명 + Stat이 된다.
+  - 기능
+    - index : 0부터 시작하는 값
+    - count : 1부터 시작하는 값
+    - size : 전체 사이즈
+    - even , odd : 홀수, 짝수 여부( boolean )
+    - first , last :처음, 마지막 여부( boolean )
+    - current : 현재 객체
+
+
+
+### 조건부 평가
+
+- if, unless(if의 반대)
+  - 조건을 충족하지 않으면 태그 자체가 사라지게 된다.
+- switch ~ case
+  - *은 default
+
+
+
+### 주석
+
