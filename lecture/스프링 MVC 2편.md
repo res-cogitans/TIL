@@ -287,3 +287,115 @@
 
 ### 주석
 
+1. 표준 HTML 주석
+
+2. 타임리프 파서 주석
+
+   - 렌더링시 제거된다.
+
+3. 타임리프 프로토타입 주석
+
+   - 서버사이드에서 타임리프 렌더링을 거칠 경우 정상 렌더링된다.
+
+   
+
+### 블록
+
+- `th:block`: 타임리프의 유일한 자체 태그 (HTML 태그 아님!)
+- 타임리프는 태그 내 속성으로 사용되는데, 이로 인해서 생기는 문제를 해결해줌
+- 예를 들어, `th:each` 반복 한 바퀴당 두 가지 출력을 하고 싶은 경우, 블록 단위로 묶는 것이 간단하게 문제를 해결해 준다.
+
+
+
+### 자바스크립트 인라인
+
+- 인라인 사용 시 문법적인 불편함을 해소해 준다. (텍스트 렌더링)
+  - `var username = [[${user.username}]];`의 username부분에 ""를 붙여 준다. (문자)
+  - 또한 자바스크립트에서 문제가 될 수 있는 문자가 포함되어 있을 경우 이스케이프 처리해 준다.
+  - 인라인 사용 안 하고 `<script>` 태그 이용할 경우, 일일히 자료형에 맞게 ""을 붙이거나, 빼거나 하면서 조절해줘야 했다.
+
+- 자바스크립트 네추럴 템플릿
+  - `var username2 = /*[[${user.username}]]*/ "test username";`
+  - 변수 할당 부분에 주석 /* */ 을 붙여주면, 렌더링 되지 않았을 때의 값("test username") 기본값으로 할당하면서, 렌더링 될 경우 그 값이 지워지는 방식으로 사용 가능하다.
+  - 실제 HTML 파일 실행해도 기본 값 넣은 형태로 볼 수 있다.
+
+- 객체
+  - var user = [[${user}]];
+  - 객체를 Json으로 마셜링 해서 사용 가능
+
+- 자바스크립트 인라인 each
+
+  ```javascript
+  <!-- 자바스크립트 인라인 each -->
+  <script th:inline="javascript">
+  
+      [# th:each="user, stat : ${users}"]
+      var user[[${stat.count}]] = [[${user}]];
+      [/]
+      
+  </script>
+  ```
+
+
+
+
+### 템플릿 조각
+
+- 상, 하단 영역, 좌측 카테고리 등 공통 영역 재사용을 위한 기능: 템플릿 조각, 레이아웃
+
+- `template/fragment/footer :: copy` : `template/fragment/footer.html` 템플릿에 있는 `th:fragment="copy`" 라는 부분을 템플릿 조각으로 가져와서 사용한다는 의미이다.
+  - 마치 메서드를 호출해 사용하듯이, 특정 태그를 반복적으로 호출해 사용할 수 있다.
+
+- **th:insert** 를 사용하면 현재 태그( div ) 내부에 추가한다.
+- **th:replace**는 현재 태그를 교체한다.
+  - 단순한 경우에는 '~' 없이 간단하게 사용 가능하다. (단순 표현식)
+
+- 파라미터 사용
+
+  - 파라미터를 사용해서 동적으로 렌더링이 가능하다.
+
+    ```html
+    <div th:replace="~{template/fragment/footer :: copyParam ('데이터1', '데이터2')}"></
+    div>
+    ```
+
+  - 다음의 copyParam을 호출한 것이다:
+
+    ```html
+    <footer th:fragment="copyParam (param1, param2)">
+     <p>파라미터 자리 입니다.</p>
+     <p th:text="${param1}"></p>
+     <p th:text="${param2}"></p>
+    </footer>
+    ```
+
+    
+
+### 템플릿 레이아웃
+
+- 템플릿 조각을 레이아웃에 넘겨 사용하는 방식
+
+- `common_header(~{::title},~{::link})` 이 부분이 핵심이다.
+  - `::title` 은 현재 페이지의 title 태그들을 전달한다.
+  - `::link` 는 현재 페이지의 link 태그들을 전달한다.
+
+- 전달한 title/link가 교체되었고, 공통 부분이 유지되었다.
+
+
+
+#### 템플릿 레이아웃 확장
+
+- 위의 템플릿 레이아웃을 단순히 `<head>`에만이 아니라 `<html>` 전체에 거쳐 적용하는 것이 가능하다.
+
+- 레이아웃을 이용하여 페이지 전체 스타일을 설정한다:
+
+  - 템플릿 조각을 이용하여 컨텐츠 부분을 인자처럼 전달한다.
+
+    `th:fragment="layout (title, content)`에 `th:replace="~{template/layoutExtend/layoutFile :: layout(~{::title},~{::section})}"`을 전달하는 방식
+
+- `layoutExtendMain.html` 는 현재 페이지인데,  자체를 `th:replace` 를 사용해서 변경하는 것을 확인할 수 있다. 결국 `layoutFile.html` 에 필요한 내용을 전달하면서  자체를 `layoutFile.html` 로 변경한다
+
+
+
+## 타임리프 - 스프링 통합과 폼
+
