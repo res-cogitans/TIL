@@ -399,3 +399,125 @@
 
 ## 타임리프 - 스프링 통합과 폼
 
+### 타임리프 스프링 통합
+
+- 기본 메뉴얼: https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html
+
+- 스프링 통합 메뉴얼: https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html
+- 설정 방법
+  - 타임리프 템플릿 엔진을 스프링 빈에 등록하고, 타임리프용 뷰 리졸버를 스프링 빈으로 등록하는 방법
+    - https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html#the-springstandarddialect
+    - https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html#views-and-viewresolvers
+  - 스프링 부트의 경우, build.gradle에 `implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'`추가로 충분하다.
+
+- 타임리프 설정 변경
+
+  - https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html#application-properties.templating
+
+    에서 thymeleaf 검색
+
+
+
+### 입력 폼 처리
+
+- th:object : 커맨드 객체를 지정한다.
+- *{...} 
+  - 선택 변수 식이라 한다.
+  - th:object 에서 선택한 객체에 접근한다.
+- th:field: HTML 태그의 id , name , value 속성을 자동으로 처리해준다.
+
+- 특히 이는 검증에서 더 유용!
+
+
+
+### 체크박스
+
+#### 체크박스 - 단일
+
+- 체크박스의 한계 -> 체크가 안 되어 있으면 서버로 데이터 자체를 보내지 않음
+
+- `이를 application.properties`의 `logging.level.org.apache.coyote.http11=debug`로 확인해보면
+
+  - 체크박스에 체크했을 경우
+
+    `itemName=itemWithOpenOption&price=15000&quantity=20&open=on]`라고 open 값이 전달되지만
+
+  - 체크하지 않았을 경우,
+
+    `itemName=noOpenItem&price=1000&quantity=50]`처럼 open 값 자체가 전달되지 않는다.
+
+  - 로그로 item.open 여부를 찾아 볼 경우 null이 나온다.
+
+    - 다만, Boolean이 아니라 boolean 사용할 경우 false 나온다(기본값): 헷갈리지 말 것
+
+      `2022-01-14 04:20:33.911  INFO 23480 --- [io-8080-exec-10] h.i.web.form.FormItemController          : item.open=false`
+
+    - boolean을 사용한다고 해도 문제가 되는 점은
+      - 만일 체크박스를 해제하고 변경사항을 서버로 보낸다고 하더라도 전달이 안 된다는 점이다.
+
+- 이를 해결하기 위한 방법: 히든 필드
+
+  ```html
+  <input type="hidden" name="_open" value="on"/>
+  ```
+
+  - _open 값이 넘어가게 한다. _open 값이 넘어갔을 경우 스프링 MVC가 open의 값이 체크되지 않았음을 인식한다.
+  - null이 아니라 false로 인식하는 것을 확인할 수 있음 -> 문제 해결
+
+https://docs.spring.io/spring-framework/docs/3.2.x/spring-framework-reference/html/view.html 의 checkbox 부분
+
+https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/servlet/tags/form/CheckboxTag.html
+
+
+
+#### 타임리프의 체크박스
+
+- `<input type="checkbox" id="open" th:field="*{open}" class="form-check-input">`
+
+  - 이 상태로 html 렌더링 해보면, 히든 필드를 알아서 추가해 줬다.
+
+  - 소스코드를 보면 아래와 같이 checked가 들어가있다: 원래는 이 html에 checked를 개발자가 붙여줘야 한다.
+
+    `<input type="checkbox" id="open" class="form-check-input" disabled name="open" value="true" checked="checked">`
+
+- 그런데, editForm을 같은 방식으로 편집하고 테스트 해보면, 변경사항이 반영되지 않음을 알 수 있다:
+  - 이런 상황에는 컨트롤러, 서비스, repo 단까지 차근차근 내려가면서 무엇이 반영되지 않아서 문제인가를 살펴야 한다.
+  - 이 상황에는 repo의 update에 open 속성 변경이 반영되지 않아서이니 이를 수정해준다.
+
+
+
+#### 체크박스 - 멀티
+
+- 지역 값을 저장해준다.
+
+  - ```java
+    Map<String, String> regions = new LinkedHashMap<>();
+    regions.put("SEOUL", "서울");
+    regions.put("BUSAN", "부산");
+    regions.put("JEJU", "제주");
+    model.addAttribute("regions", regions);
+    ```
+
+  - `LinkedHashMap` 사용한 이유: 순서 보장을 위함
+
+  - 하지만 위 코드를 등록, 조회 등 여러 곳에 중복해서 사용하게 된다.
+
+  - 중복을 줄이기 위해
+
+    ```java
+        @ModelAttribute("region")
+        public Map<String, String> regions() {
+            Map<String, String> regions = new LinkedHashMap<>();
+            regions.put("SEOUL", "서울");
+            regions.put("BUSAN", "부산");
+            regions.put("JEJU", "제주");
+            return regions;
+        }
+    
+    ```
+
+    - 이 경우 이 컨트롤러가 호출될 때마다 위를 Model에 담는다.
+    - 이는 지금까지 사용했던 `ModelAttribute`와는 다른 기능임에 주의하라.
+      - `@ModelAttribute`는 컨트롤러에 있는 별도에 메서드에 적용하여 위와 같이 사용할 수 있다!
+      - 반복적으로 사용해야 하는 데이터가 있을 때 중복을 줄이기 위한 방법이다.
+
