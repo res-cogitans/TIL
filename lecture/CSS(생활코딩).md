@@ -155,6 +155,56 @@
 
 #### font-size
 - 단위(unit)개념과 연관
-	- px
-	- em
-	- rem
+	- 고정(절대) 크기: px
+	- 가변(상대) 크기
+		- em
+		- **rem: 현재는 이걸 사용한다고 생각**
+	```html
+	<style>
+	#px {
+		font-size:16px;`
+	}
+	#rem {
+		font-size:1rem;
+	}
+	</style>
+	```
+	- chrome 개발자 도구의 html -> computed의 폰트 사이즈를 변경해서 위를 테스트 가능
+
+#### color
+- 색상을 지정하는 3가지 방식
+	- color name
+	- hex
+	- rgb
+- 단순히 글자에만 해당하는 것이 아니라 웹에서 색상을 표현하는 경우 모두 적용됨
+
+#### text-align
+- 정렬
+- text-align:
+	- left
+	- right
+	- center
+	- justify: 적합한 간격 맞춰서 채우는 방식
+
+#### font
+- font-family: arial, verdana, "Helvetica Neue" sans-serif;
+	- 앞의 폰트가 없을 경우 뒤의 폰트를 적용함
+	- 띄어쓰기가 있는 폰트 이름의 경우 ""으로 꼭 묶어줄 것!
+	- 마지막 폰트는 포괄적인 폰트로 지정한다.
+		- serif: 장식이 있음
+		- sans-serif: 장식이 없음
+		- cursive: 흘림체
+		- fantasy
+		- monospace: 고정폭
+- font-weight: bold;
+- line-height: 1.2(기본값)
+	- 줄 간격
+	- 120px처럼 픽셀 같은 고정값도 사용은 가능(권장하지 않음)
+- font: 폰트와 관련된 여러 속성을 축약형으로 표현
+
+##### web font
+- 사용자가 폰트를 가지고 있지 않을 경우 브라우저에 다운로드하여 사용하는 방식
+	- 용량 문제를 유의
+	- 특히 한글의 경우 영문 폰트와 달리 용량이 큼
+
+### 상속
