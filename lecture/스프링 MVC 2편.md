@@ -521,3 +521,74 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
       - `@ModelAttribute`는 컨트롤러에 있는 별도에 메서드에 적용하여 위와 같이 사용할 수 있다!
       - 반복적으로 사용해야 하는 데이터가 있을 때 중복을 줄이기 위한 방법이다.
 
+- id문제
+
+  ```html
+  th:for="${#ids.prev('regions')}" 
+  ```
+
+  - 멀티 체크박스는 같은 이름의 여러 체크박스를 만들 수 있다.
+  - 그런데 문제는 이렇게 반복해서 HTML 태그를 생성할 때, 생성된 HTML 태그 속성에서 name 은 같아도 되지만, id 는 모두 달라야 한다.
+  - 따라서 타임리프는 체크박스를 each 루프 안에서 반복해서 만들 때 임의로 1 , 2 , 3 숫자를 뒤에 붙여준다.
+
+- addItem 말고 item.html에도 적용할 때는
+  - `<input type="checkbox" th:field="${item.regions}" th:value="${region.key}" class="form-check-input">` 로 변경한다.
+  - item.html의 경우 th:object 안 썼기 때문
+
+
+
+### 라디오버튼
+
+```html
+        <!-- radio button -->
+        <div>
+            <div>상품 종류</div>
+            <div th:each="type : ${itemTypes}" class="form-check form-check-inline">
+                <input type="radio" th:field="*{itemType}" th:value="${type.name()}" class="form-check-input">
+                <label th:for="${#ids.prev('itemType')}" th:text="${type.description}" class="form-check-label">
+                    BOOK
+                </label>
+            </div>
+        </div>
+```
+
+
+
+- 체크박스와 달리 라디오버튼은 히든 필드를 갖지 않는다.
+  - 라디오 버튼의 특성상 한 번 체크한 이후 변경한다 하더라도 특정 값이 들어가게 될 테니까 그렇다.
+
+
+
+#### 타임리프의 ENUM 직접 접근
+
+```html
+            <div th:each="type : ${T(hello.itemservice.domain.item.ItemType).values()}" class="form-check form-check-inline">
+```
+
+위와 같은 방식으로 변경도 가능하다.
+
+- 이 방식을 사용할 경우 모델에 담지 않아도 되지만,
+
+  타임리프에서 절대경로까지 모두 접근해야 하기 때문에 매우 너저분하다.
+
+
+
+### 셀렉트 박스
+
+```html
+        <!-- SELECT -->
+        <div>
+            <div>배송 방식</div>
+            <select th:field="*{deliveryCode}" class="form-select">
+                <option value="">==배송 방식 선택==</option>
+                <option th:each="deliveryCode : ${deliveryCodes}" th:value="${deliveryCode.code}"
+                        th:text="${deliveryCode.displayName}">FAST</option>
+            </select>
+        </div>
+
+```
+
+
+
+## 메시지, 국제화
+
