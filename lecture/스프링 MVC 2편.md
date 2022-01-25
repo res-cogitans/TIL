@@ -11,7 +11,7 @@
 
 #### 특징
 
-- 서버사이드 HTML 렌더링(SSR)
+- EHf서버사이드 HTML 렌더링(SSR)
 - 네츄럴 템플릿(natural templates)
   - 순수 HTML을 최대한 유지
   - 파일 직접 접근 시에도 내용 확인 가능
@@ -591,4 +591,113 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 
 
 ## 메시지, 국제화
+
+- 사례: "상품명" -> "상품 이름"으로 변경하라는 요구사항이 주어질 경우?
+  - HTML 파일에 하드코딩된 "상품명" 메시지가 하드코딩되어 있기 때문에 일일히 변경해줘야 한다.
+  - -> 다양한 메시지를 한 곳에서 관리하도록 하는 **메세지**  관리 기능이 필요
+
+- **국제화**
+  - 메시지 파일(`messages.properties`)을 국가 별로 관리하는 것
+  - `messages_en`과 `messages_ko` 두 버전을 관리하는 방식
+  - HTTP의 `accept-language` 헤더를 이용하거나, 사용자의 직접 설정으로 국가 정보를 인식, 쿠키 등을 이용하여 처리한다.
+  - 스프링은 메시지, 국제화 기능을 제공하며, 타임리프는 스프링의 메시지, 국제화 기능을 통합 제공한다.
+
+
+
+### 스프링 메시지 소스 설정
+
+- `MessageSource`를 스프링 빈으로 등록하여 사용
+
+- `MessageSource`는 인터페이스이기에 구현체인 `ResourceBundleMessageSource`를 빈에 등록하라. (가장 기본적인 구현체)
+
+- 등록 예시
+
+  - 직접 등록
+
+    ```java
+    	@Bean
+    	public MessageSource messageSource() {
+    		ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+    		messageSource.setBasenames("messages", "errors");
+    		messageSource.setDefaultEncoding("utf-8");
+    		return messageSource;
+    	}
+    ```
+
+  - 스프링부트 사용
+
+    - 스프링부트를 사용할 경우 `MessageSource` 자동등록됨
+    - 메시지 소스 설정 방법
+      - `application.properties`에서 `spring.messages.basename=messages,config.i18n.messages`
+      - 단 기본값은  `spring.messages.basename=messages`이다.
+        - 국제화 적용시 `messages_en.properties , messages_ko.properties , messages.properties`이 자동적으로 등록됨
+
+    - 구체적인 설정 변경의 경우 스프링부트 메뉴얼의 application.properties 관련 내용을 찾아 보면 된다.
+
+
+
+### 스프링 메시지 소스 사용
+
+- `messageSource.getMessage(code, args, locale)`
+- `messageSource.getMessage(code, args, defaultMessage, locale)`
+
+- 지정한 메시지 코드가 없을 경우 `NoSuchMessageException`이 발생
+
+  ```java
+      @Test
+      void notFoundMessageCode() {
+          assertThatThrownBy( () -> ms.getMessage("no_code", null, null))
+                  .isInstanceOf(NoSuchMessageException.class);
+      }
+  ```
+
+- 위의 예외를 예방하기 위해 기본 메시지를 줄 수 있다.
+
+  ```java
+          String result = ms.getMessage("no_code", null, "기본 메시지", null);
+  ```
+
+- 인자를 사용하는 경우
+
+  ```java
+          String result = ms.getMessage("hello.name", new Object[]{"spring"}, null);
+  ```
+
+- 로케일 설정을 이용한 국제화
+
+  ```java
+          assertThat(ms.getMessage("hello", null, null)).isEqualTo("안녕");
+          assertThat(ms.getMessage("hello", null, Locale.FRANCE)).isEqualTo("안녕");	// 프랑스어 국제화 메시지 소스가 없기 때문에 기본값
+          assertThat(ms.getMessage("hello", null, Locale.ENGLISH)).isEqualTo("hello");
+  ```
+
+
+
+### 웹 어플리케이션에 적용하기
+
+#### 메시지 적용
+
+- 타임리프 메시지 적용
+  - `#{...}`
+  - 예시: `#{label.item}`
+
+- 파라미터 용례
+  - `hello.name=안녕 {0}`
+  - `<p th:text="#{hello.name(${item.itemName})}"></p>`
+
+
+
+#### 국제화 적용
+
+- 크롬 설정에서 언어 변경을 통해 테스트 가능 (accept-language 변경)
+
+- Locale에 따라 스프링에서 메시지 선택됨 (ms.getMessage 참고)
+
+- Locale 선택방식에는 `LocaleResolver` 인터페이스가 관여
+  - 스프링 부트는 기본적으로 Accept-Language를 활용하는 `AcceptHeaderLocaleResolver`를 사용한다.
+  - 쿠키나 세션 기반으로 Locale 선택방식을 바꾸고 싶다면 이를 손대면 된다.
+
+
+
+## 검증 - Validation
 
