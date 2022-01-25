@@ -206,5 +206,112 @@
 - 사용자가 폰트를 가지고 있지 않을 경우 브라우저에 다운로드하여 사용하는 방식
 	- 용량 문제를 유의
 	- 특히 한글의 경우 영문 폰트와 달리 용량이 큼
+	
+	
 
 ### 상속
+- 특정 엘리먼트의 하위 엘리먼트도 상위 엘리먼트의 속성을 물려받는 것
+	```html
+	<html>
+		<head>
+			<style>
+				html{color: red;}
+				#select{color:black;}
+				body{border:1px solid red;}
+				/*
+				li{color:red;}
+				h1{color:red;}
+				*/
+			</style>
+		</head>
+		<body>
+			<h1>학습 내용</h1>
+			<ul>
+				<li>html</li>
+				<li>css</li>
+				<l1 id="select">javascript</li>
+			</ul>
+		</body>
+	</html>
+	```
+	- 각주 안의 내용처럼 h1와 li에 적용할 내용이 있는데 반복하는 것은 비효율적이다.
+	- 둘을 포함하는 상위 태그에 해당 속성을 규정한다면 상속으로 하위 두 개 모두에 적용되서 더 경제적이다.
+	- 크롬 개발자 도구의 Styles에 있는 Inherited from에서 상속 정보를 살펴볼 수 있다.
+	- border의 경우 `<h1>`과 `<li>`의 상위 태그임에도 불구하고 이 하위 태그들에 속성이 상속되지 않음을 볼 수 있다: 상속되고, 되지 않는 속성이 따로 존재한다.
+	
+	
+
+### Cascading
+- CSS; **Cascading** Style Sheet
+	- 브라우저, 사용자, 저자들에게 맞는 디자인을 적용하기 위함, 가령 접근성 등
+	- 디자인 적용의 우선순위를 명확히 하는 것이 필요하다: 동일한 태그에 여러 CSS 속성이 적용된다면 어떻게 되야 하는가?
+	- 웹 브라우저 < 사용자 < 저자
+		- 단, 사용자의 경우 웹 페이지 디자인에 영향을 주는 일 자체가 적음
+```html
+<html>
+	<head>
+		<style>
+			li{color:red;}
+			#idsel{color:blue;}
+			.classsel{color:green;}
+		</style>
+	</head>
+	<body>
+		<ul>
+			<li>html</li>
+			<li id="idsel" class="classsel" style="color:powderblue">css</li>
+			<li>javascript</li>
+		</ul>
+	</body>
+</html>
+```
+- 위와 같은 중첩된 상황에서 다음과 같은 우선 순위를 가진다.
+	1. style attribute
+	2. id selector
+	3. class selector
+	4. tag selector
+	
+- 구체적인 것일수록 우선 순위 높음, 폭넓은 것일수록 우선 순위 낮음
+
+- `!important`는 우선순위에 있어서 지상신서이다.
+	- `li{color:red !important;}`
+	- 하지만 important를 사용하지 않고 적절히 우선순위를 이용하는 것이 최선이다.
+	
+	
+
+### inline과 block
+```html
+<html>
+	<head>
+		<meta charset="utf-8">
+		<style>
+			h1, a{border:1px solid red;}
+		</style>
+	</head>
+	<body>
+		<h1>Hello, world!</h1>
+		반갑습니다. <a href="https://res-cogitans.github.io">깃헙 링크</a> 달아놨습니다.
+	</body>
+</html>
+```
+- 위의 예시에서, 왜 "반갑습니다"는 해당 줄에 있건, 그 위에 줄에 있건 간에 `<h1>` 부분에서 줄바꿈이 되고, "달아놨습니다"는 줄바꿈이 안 되는 것일까?
+- 동일한 border 태그를 달아줬음에도 `<h1>`은 그 줄 전체를 영역으로 삼지만, `<a>`는 그렇지 않다.
+- block element와 inline element
+	- `<h1>`처럼 화면 영역을 쭉 담는 것을 block level element
+	- `<a>`와 같은 영역을 차지하는 것을 inline element
+- inline인지 block인지를 강제할 수 있다.
+	```html
+	<style>
+		h1{display: inline;}
+		a{display:block;}
+	</style>
+	```
+
+
+
+### 박스 모델
+
+- 거리 조절: padding, margin(엘리먼트 사이의 간격!)
+- width: block level element의 가로 길이도 제약 가능
+- `<a>` 태그에도 위와 같은 박스 모델의 값이 적용되지만 width, height 값은 무시된다.
+	- **inline의 경우 width, height는 무시됨!**
