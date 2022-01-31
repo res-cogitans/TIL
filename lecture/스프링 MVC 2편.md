@@ -711,3 +711,61 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
   - 둘을 적절히 섞어서 사용하며, 최종적으로 서버 검증을 필수적으로 한다.
   - API 방식일 경우 API 스펙을 잘 정의하여, 검증 오류를 API 응답 결과에 잘 넘겨줘야 한다.
 
+
+
+#### 검증 직접 처리
+
+- Map에 어떤 검증에서 어떤 오류가 발생했는지 담아둔다.
+
+  ```java
+          Map<String, String> errors = new HashMap<>();
+  
+          // 검증 로직
+          if (!StringUtils.hasText(item.getItemName())) {
+              errors.put("itemName", "상품 이름은 필수입니다.");
+          }
+  ```
+
+- 뷰에서 위를 사용하여 필드별/혹은 글로벌 에러를 출력한다.
+
+  ```html
+          <div>
+              <label for="itemName" th:text="#{label.item.itemName}">상품명</label>
+              <input type="text" id="itemName" th:field="*{itemName}"
+                     th:class="${errors?.containsKey('itemName')} ? 'form-control field-error' : 'form-control'"
+                     class="form-control" placeholder="이름을 입력하세요">
+              <div class="field-error" th:if="${errors?.containsKey('itemName')}" th:text="${errors['itemName']}">
+                  상품명 오류
+              </div>
+          </div>
+  ```
+
+  - 에러 메시지를 더 명확히 드러내기 위해서 해당 필드에 에러가 존재할 경우 `field-error`와 같은 에러 전용 클래스로 분류, CSS를 별도 적용한다(구체적인 CSS는 이 정리에서는 생략하였다).
+  - **Safe Navigation Operator**
+    - Spring EL 문법
+    - errors가 null인 경우를 감안
+      - 만일 null일 경우 `.containsKey` 호출시 NPE
+    - `errors?.`는 null일 경우 NPE 발생 안 시키고 그냥 null을 반환하게 한다.
+
+- 필드 오류 처리
+
+  - 방법1-`th:class`
+
+    ```html
+                <input type="text" id="itemName" th:field="*{itemName}"
+                       th:class="${errors?.containsKey('itemName')} ? 'form-control field-error' : 'form-control'"
+                       class="form-control" placeholder="이름을 입력하세요">
+    ```
+
+    `th:class`에 ? 연산자를 사용하여 오류용 강조 클래스로 설정할 것인지, 일반적인 폼 클래스로 설정할 것인지를 결정
+
+  - 방법2-`th:classappend`
+
+    ```html
+    <input type="text" th:classappend="${errors?.containsKey('itemName')} ? 'field-error' :  _"
+           class="form-control">
+    ```
+
+    `th:append`이용하여 위와 같이 보다 간소하게 표현할 수 있음
+
+    값이 없을 경우 '_' 연산자를 이용해서 아무 것도 하지 않는다.
