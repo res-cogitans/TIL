@@ -935,3 +935,30 @@ jpa:
 
 - 실시간 API 서비스 등 트래픽이 많으면 OSIV를 끄고, ADMIN 처럼 커넥션을 많이 사용하지 않는 곳에서는 OSIV를 켠다.
 
+
+
+## 추가
+
+### 스프링 데이터 JPA 소개
+
+```java
+public interface MemberRepositoryWithSpringDataJpa extends JpaRepository<Member, Long> {
+    
+        List<Member> findByName(String name);
+}
+```
+
+- 스프링 데이터 JPA는 `JpaRepository` 인터페이스를 제공, 여기에 기본적인 CRUD 모두 포함되어 있다.
+- 구현체는 스프링 데이터 JPA가 애플리케이션 시작 시점에 주입해준다.
+- `findByName()`: 시그니처만 보고 "SELECT m FROM Member m WHERE m. name = :name" 식으로 쿼리를 알아서 짜 준다.
+
+- JPA를 기반으로 구현, 따라서 JPA 자체를 이해하는 것이 중요
+
+- 스프링 데이터 JPA는 편리하지만 그 한계를 이해하고 사용하는 것이 중요, 이해 없이 사용하면 오히려 코드를 다 갈아야 하는 등의 문제가 오히려 생길 수 있음에 주의해야 한다!
+
+
+
+### QueryDSL 소개
+
+- JPQL을 자바 코드로 작성할 수 있게 해줌
+- 동적쿼리 처리

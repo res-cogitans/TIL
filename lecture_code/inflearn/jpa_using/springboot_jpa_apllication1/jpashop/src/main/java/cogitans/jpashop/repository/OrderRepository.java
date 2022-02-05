@@ -88,6 +88,7 @@ public class OrderRepository {
         return query.getResultList();
     }
 
+
     public List<Order> findAllWithMemberAndDelivery() {
         return em.createQuery(
                 "SELECT o FROM Order o" +
