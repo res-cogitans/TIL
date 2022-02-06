@@ -1,4 +1,4 @@
-﻿# InteliJ 단축키
+﻿﻿﻿﻿# InteliJ 단축키
 - Alt + Enter = Show context actions / static import
 - Ctrl Ctrl = run anything
 - Ctrl + Shift + Enter = 구문완성: 세미콜론, 반복, 조건문 등
@@ -15,6 +15,13 @@
 - Shift + Ctrl + Alt + L: 정리
 - Ctrl + Alt + P: 변수를 파라미터로 보냄
 - Ctrl + E: 최근 사용 검색
+- Ctrl + Ctrl + ↓: 멀티 포커스 (Clone Caret Below)
+- Ctrl + R = 바꾸기
+  - (폴더를 강조한 후에) Ctrl + Shift + R = 폴더 단위로 바꾸기
+- Ctrl + P = 파라미터 확인
+
+
+
 
 ## 설정(Settings)
 - Editor/Live template에서 축약어 규정 가능: psvm sout 같은 것들
