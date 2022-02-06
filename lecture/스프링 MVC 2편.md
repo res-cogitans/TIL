@@ -11,7 +11,7 @@
 
 #### 특징
 
-- EHf서버사이드 HTML 렌더링(SSR)
+- 서버사이드 HTML 렌더링(SSR)
 - 네츄럴 템플릿(natural templates)
   - 순수 HTML을 최대한 유지
   - 파일 직접 접근 시에도 내용 확인 가능
@@ -713,7 +713,12 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 
 
 
-#### 검증 직접 처리
+### V1: 검증 직접 처리
+
+- 구현 방식 정리
+  - 검증 오류가 발생할 경우 입력 폼을 다시 보여준다.
+  - 검증 오류에 대해 고객에게 안내하여 재입력할 수 있게 한다.
+  - 검증 오류가 발생해도 이미 입력한 데이터가 유지된다.
 
 - Map에 어떤 검증에서 어떤 오류가 발생했는지 담아둔다.
 
@@ -769,3 +774,68 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
     `th:append`이용하여 위와 같이 보다 간소하게 표현할 수 있음
 
     값이 없을 경우 '_' 연산자를 이용해서 아무 것도 하지 않는다.
+
+#### 문제점
+
+- 뷰 템플릿에 중복이 너무 많음
+- 타입 오류 처리가 필요함
+  - Integer에 Long이나 문자가 들어오면 오류 발생
+  - 스프링 MVC 컨트롤러에 진입하기도 전에 예외가 발생하기에 컨트롤러 호출도 없이 400에러가 발생하여 고객에게 오류 페이지를 띄운다.
+- 위의 이유로 타입 오류 발생해도 입력한 것이 남지 않는다.
+  - 컨트롤러가 호출된다 하더라도 타입 불일치로 인해 값을 보관하지 못한다
+  - 이로 인해 고객이 오류가 발생한 지점을 파악하지 못 한다.
+
+
+
+### V2: 스프링이 제공하는 방식
+
+#### BindingResult
+
+- BindingResult로 V1의 errors 대체
+  - `bindingResult.addError(new FieldError())`
+  - 필드 에러의 경우 `FieldError`, 글로벌 에러의 경우 `ObjectError`
+
+- `@ModelAttribute`와 `BindingResult`의 순서
+
+  ```java
+  public String addItemV1(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+      ...
+  }
+  ```
+
+  - **`bindingResult`는 검증할 대상 바로 다음에 와야 한다.**
+
+- FieldError
+  - `extends ObjectError`
+  - `FieldError(String objectName, String field, String defaultMessage)`
+    - `objectName`: `@ModelAttribute` 이름
+    - `field`: 오류가 발생한 필드 이름
+    - `defaultMessage`: 오류 기본 메시지
+
+
+
+##### 타임리프 스프링 검증 오류 통합 기능
+
+- 타임리프는 스프링의 `BindingResult`를 이용, 검증 오류를 간편하게 표현하는 기능 제공
+- `#fields`: `BindingResult`가 제공하는 검증 오류에 접근 가능
+- `th:errors`: 해당 필드에 오류가 있는 경우에 태그를 출력
+- `th:errorclass`: `th:field`에서 지정한 필드에 오류가 있으면 `class` 정보를 추가한다.
+
+
+
+#### BindingResult: 세부사항
+
+- 스프링이 제공하는 검증 오류를 보관하는 객체
+- `BindingResult` 있을 경우, `@ModelAttribute`에 데이터 바인딩 시 오류 발생해도 컨트롤러가 호출된다.
+  - 기존 직접 구현 방식의 경우 타입 오류가 발생하는 경우 컨트롤러로 넘어가지 않고 400 오류가 발생했음
+
+- **`BindingResult`에 검증 오류를 적용하는 3가지 방법**
+  1. 바인딩 실패 시에 스프링이 `FieldError` 생성하여 `BindingResult`에 넣어주는 방식
+  2. 개발자가 직접 넣음
+  3. `Validator` 사용
+
+- `BindingResult`는 모델에 자동 포함된다.
+
+- `BindingResult`는 `Errors`를 상속
+  - `BindingResult`는 `Errors`보다 많은 기능 제공
+  - 둘 다 인터페이스로, 실제로는 `BeanPropertyBindingResult`가 구현
