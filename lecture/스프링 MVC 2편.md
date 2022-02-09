@@ -808,7 +808,7 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 - FieldError
   - `extends ObjectError`
   - `FieldError(String objectName, String field, String defaultMessage)`
-    - `objectName`: `@ModelAttribute` 이름
+    - `objectName`: `@ModelAttribute` 이름: 오류가 발생한 객체 이름
     - `field`: 오류가 발생한 필드 이름
     - `defaultMessage`: 오류 기본 메시지
 
@@ -839,3 +839,109 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 - `BindingResult`는 `Errors`를 상속
   - `BindingResult`는 `Errors`보다 많은 기능 제공
   - 둘 다 인터페이스로, 실제로는 `BeanPropertyBindingResult`가 구현
+
+
+
+### FieldError, ObjectError
+
+- 현 방식에서는 잘못된 입력 값이 날아가버리는데, 이를 수정해본다.
+
+  ```java
+  bindingResult.addError(new FieldError(
+          "item", "itemName", item.getItemName(),
+          false, null, null,  "상품 이름은 필수입니다."));
+  ```
+
+- FieldError 생성자
+
+  ```java 
+  public FieldError(String objectName, String field, String defaultMessage)
+  public FieldError(String objectName, String field, @Nullable Object rejectedValue,
+                    boolean bindingFailure, @nullable String[] codes, 
+                    @Nullable Object[] arguments, @Nullable String defaultMessage)
+  ```
+
+  - `rejectedValue`: 사용자가 입력한, 거절된 값
+  - `bindingFailure`: 타입 오류 같은 바인딩 실패인지, 검증 실패인지를 구별
+  - `codes`: 메시지 코드
+  - `arguments`: 메시지에서 사용하는 인자
+
+- 입력 데이터가 컨트롤러에 `@ModelAttribute`에 바인딩되는 시점에 오류 발생시 입력 값을 보관하기 위한 수단이다. (Integer 필드에 String 값이 들어오는 등) 
+  - 컨트롤러(의 `@ModelAttribute`)에 값을 넘기는 중에 문제 발생시 `FieldError`가 생성
+
+- 타임리프의 `th:field`의 경우
+  - 정상 상황에는 모델 객체의 값을 사용하지만
+  - 오류가 발생하면 `FieldError`에서 보관한 값을 사용하여 값을 출력한다.
+
+- 스프링의 바인딩 오류 처리
+  - 타입 오류로 바인딩에 실패할 경우
+  - `FieldError` 생성, 값을 넣어두고 이 오류를 `BindingResult`에 담아서 컨트롤러를 호출한다.
+  - 따라서 타입 오류 시에도 400 에러 페이지로 넘어가지 않고 오류 메시지에 대한 설명을 띄울 수 있음.
+
+
+
+### 오류 코드와 메시지 처리
+
+- 오류 이름도 일관성을 갖는 것이 좋음 -> 메시지
+
+- 기존의 messages로도 오류 코드에 메시지를 적용할 수는 있으나, 오류 코드 메시지와 구별을 위하여 별도의 `errors.properties` 파일을 만드는 것이 권장된다.
+
+  - 기본 설정 파일인 `messages.properties`외에 추가적으로 `errors.properties`를 포함시키기 위해서 `application.properties`에 다음을 추가한다:
+
+    `spring.messages.basename=messages,errors`
+
+  - `errors.properties`
+
+    ```java
+    required.item.itemName=상품 이름은 필수입니다.
+    range.item.price=가격은 {0} ~ {1} 까지 허용합니다.
+    max.item.quantity=수량은 최대 {0} 까지 허용합니다.
+    totalPriceMin=가격 * 수량의 합은 {0}원 이상이어야 합니다. 현재 값 = {1}원
+    ```
+
+- 오류 생성자의 `codes`에 메시지를 `arguments`에 인자를 넘기는 방식이다.
+
+  - `codes`는 `String[]`이며 `arguments`는 `Object[]`임에 유의하라:
+
+    ```java
+    new FieldError("item", "price", item.getPrice(),
+                    false, new String[]{"range.item.price"}, new Object[]{1000, 1000000}, null));
+    ```
+
+#### ObjectError 사용하지 않는 방식
+
+- `FieldError` 및 `ObjectError` 생성자는 너무 많은 인자를 요구하기에 다루기 까탈스러움
+- 컨트롤러의 `BindingResult`의 경우 검증 대상이 되는 객체인 `target` 바로 다음에 옴.
+  - 즉, `BindingResult`는 본인이 검증해야 할 객체(`target`)을 알고 있음
+
+##### `rejectValue()`, `reject()` (`BindingResult`의 메서드)
+
+- 파라미터 없는 코드 갖는 필드
+
+  ```java
+              bindingResult.rejectValue("itemName", "required");
+  ```
+
+- 파라미터 있는 코드 갖는 필드
+
+  ```java
+  bindingResult.rejectValue("price", "range", new Object[]{1000, 1000000}, null);
+  ```
+
+- 파라미터 있는 글로벌
+
+  ```java
+  bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+  ```
+
+- `rejectValue()`
+
+  ```java
+  void rejectValue(@Nullable String field, String errorCode,
+                  @Nullable Object[] errorArgs, @Nullable String defaultMessage);
+  ```
+
+  - `field`: 오류 필드명
+  - `errorCode`: 오류 코드(메시지에 등록한 코드가 아닌, messageResolver를 위한 코드)
+  - `errorArgs`: 오류 메시지에서 `{0}`를 치환하기 위한 값
+  - `defaultMessage`
