@@ -945,3 +945,143 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
   - `errorCode`: 오류 코드(메시지에 등록한 코드가 아닌, messageResolver를 위한 코드)
   - `errorArgs`: 오류 메시지에서 `{0}`를 치환하기 위한 값
   - `defaultMessage`
+
+
+
+#### 오류 코드의 설계/단계
+
+- 두 `errors.properties` 를 보라:
+
+  1. ```java
+     required.item.itemName=상품 이름은 필수입니다.
+     range.item.price=가격은 {0} ~ {1} 까지 허용합니다.
+     max.item.quantity=수량은 최대 {0} 까지 허용합니다.
+     ```
+
+  2. ```java
+     required=필수 값 입니다.
+     range=범위는 {0} ~ {1} 까지 허용합니다.
+     max=최대 {0} 까지 허용합니다.
+     ```
+
+- 1과 같은 구체적인 메시지는 명확하게 정보를 전달하는 반면, 2에 비해 범용성이 떨어진다.
+
+- **기본적으로는 2와 같이 범용성을 갖는 방식을 사용하지만, 구체적인 설명이 필요한 경우에는 1과 같이 더 세밀하게 작성하는 것이 좋다.**
+
+  **즉 구체성에 따라 메시지 단계를 나눠 사용함이 좋다!**
+
+- 예를 들어 `required.item.itemName`이라는 가장 구체적인 코드를 먼저 찾고, 그게 없을 경우에 `required`라는 덜 구체적인 메시지를 찾는 식으로 단계별 적용이 가능하게 개발한다면 변경 및 단계별 적용에 용이할 것이다: `MessageCodesResolver`
+
+
+
+#### MessageCodesResolver
+
+- 검증 오류 코드로 메시지 코드들을 생성한다.
+
+- `MessageCodesResolver`는 인터페이스, `DefaultMessageCodesResolver`가 그 구현체
+
+- 예시 코드
+
+  ```java
+  public class MessageCodesResolverTest {
+  
+      MessageCodesResolver codesResolver = new DefaultMessageCodesResolver();
+  
+      @Test
+      void messageCodesResolverObject() {
+          String[] messageCodes = codesResolver.resolveMessageCodes("required", "item");
+          for (String messageCode : messageCodes) {
+              System.out.println("messageCode = " + messageCode);
+          }
+          assertThat(messageCodes).containsExactly("required.item", "required");
+      }
+  
+      @Test
+      void messageCodesResolverField() {
+          String[] messageCodes = codesResolver.resolveMessageCodes("required", "item", "itemName", String.class);
+          for (String messageCode : messageCodes) {
+              System.out.println("messageCode = " + messageCode);
+          }
+          assertThat(messageCodes).containsExactly(
+                  "required.item.itemName",
+                  "required.itemName",
+                  "required.java.lang.String",
+                  "required"
+          );
+      }
+  }
+  
+  ```
+
+  - `rejectValue` 메서드 등은 내부적으로  `MessageCodesResolver` 사용하여 위와 같은 `String[]` (우선순위 순서: 구체적인 것부터) 정렬된 메시지 코드 배열을 얻는 것이다.
+
+  
+
+##### `DefaultMessageCodesResolver`의 기본 메시지 생성 규칙
+
+- **`ObjectError`**: 규칙(예시) 
+  1. `code.objectName (required.item)`
+  2. `code (required)`
+
+- **`FieldError`**: 규칙(예시)
+  1. `code.objectName.field (typeMismatch.user.age)`
+  2. `code.field (typeMismatch.age)`
+  3. `code.fieldType (typeMismatch.int)`
+  4. `code (typeMismatch)`
+
+
+
+##### 동작 방식
+
+- `rejectValue()`나 `reject()`는 `MessageCodesResolver`를 내부적으로 사용하여 메시지 코드를 생성
+
+- `MessageCodesResolver`를 통해 생성된 우선 순위대로 오류 코드들을 보관
+
+  (`FieldError`와 `ObjectError`의 생성자를 보면 `codes`는 `String[]`타입, 즉 여러 값을 받는다.)
+
+
+
+#### ValidationUtils
+
+- 아래 두 코드는 동일한 기능을 수행한다:
+
+  - ```java
+    if (!StringUtils.hasText(item.getItemName())) {
+        bindingResult.rejectValue("itemName", "required");
+    }
+    ```
+
+  - ```java
+    ValidationUtils.rejectIfEmptyOrWhitespace(bindingResult, "itemName", "required");
+    ```
+
+- 간단한 공백 등을 검사할 때 유용하게 사용 가능: 자주 쓰이는 if문 등을 미리 정의해두었음.
+
+
+
+#### 바인딩 오류
+
+- 검증 오류 코드의 두 종류
+  1. 개발자가 직접 설정한 오류 코드: `rejectValue()`를 직접 호출
+  2. 스프링이 직접 검증 오류에 추가한 경우(주로 타입 불일치)
+
+- 잘못된 타입의 값을 폼에 입력해보면:
+
+  - ```
+    Field error in object 'item' on field 'price': rejected value [qqq]; 
+    codes [typeMismatch.item.price,typeMismatch.price,typeMismatch.java.lang.Integer,typeMismatch]; 
+    arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [item.price,price]; arguments [];
+    default message [price]]; default message [Failed to convert property value of type 'java.lang.String' to required type 'java.lang.Integer' for property 'price'; nested exception is java.lang.NumberFormatException: For input string: "qqq"]
+    ```
+
+  - `codes`
+
+    - `typeMismatch.item.price`
+    - `typeMismatch.price`
+    - `typeMismatch.java.lang.Integer`
+    - `typeMismatch`
+
+  - 위의 codes에 해당하는 메시지가 없기 때문에 `defaultMessage`가 나온 것
+  - 따라서 `errors.properties`에 해당 코드에 맞는 메시지를 추가하면된다.
+
+- 의문점: 현재 입력 값을 메시지에 어떻게 넣을 것인지?
