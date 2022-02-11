@@ -1085,3 +1085,182 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
   - 따라서 `errors.properties`에 해당 코드에 맞는 메시지를 추가하면된다.
 
 - 의문점: 현재 입력 값을 메시지에 어떻게 넣을 것인지?
+
+
+
+### Validator 분리
+
+- 지금까지 사용했던 컨트롤러 코드를 보자:
+
+  ````java
+      @PostMapping("/add")
+      public String addItemV4(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+  
+          log.info("objectName={}", bindingResult.getObjectName());
+          log.info("target={}", bindingResult.getTarget());
+  
+          // 검증 로직
+          ValidationUtils.rejectIfEmptyOrWhitespace(bindingResult, "itemName", "required");
+  /*
+          if (!StringUtils.hasText(item.getItemName())) {
+              bindingResult.rejectValue("itemName", "required");
+          }
+  */
+  
+          if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() >1000000) {
+              bindingResult.rejectValue("price", "range", new Object[]{1000, 1000000}, null);
+          }
+          if (item.getQuantity() == null || item.getQuantity() >= 9999) {
+              bindingResult.rejectValue("quantity", "max", new Object[]{9999}, null);
+          }
+  
+          // 특정 필드가 아닌 복합 룰 검증
+          if (item.getPrice() != null && item.getQuantity() != null) {
+              int resultPrice = item.getPrice() * item.getQuantity();
+              if (resultPrice < 10000) {
+                  bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+              }
+          }
+  
+          // 검증에 실패하면 다시 입력 폼으로
+          if (bindingResult.hasErrors()) { // 가독성을 위해 이중 부정을 없앴다.
+              log.info("errors = {} ", bindingResult);
+              return "validation/v2/addForm";
+          }
+  
+          // 성공 로직
+          Item savedItem = itemRepository.save(item);
+          redirectAttributes.addAttribute("itemId", savedItem.getId());
+          redirectAttributes.addAttribute("status", true);
+          return "redirect:/validation/v2/items/{itemId}";
+      }
+  ````
+
+  - 짧은 성공 로직에 비해 매우 긴 검증 로직을 가지고 있다.
+
+  - 컨트롤러가 너무 많은 일을 하고 있다.
+  - 검증 작업을 담당하는 `Validator`의 필요성 : 컨트롤러의 역할을 분리하며, 코드 가독성 높임
+
+- `Validator` 사용하여 분리하면
+
+  - `ItemValidator`
+
+    ```java
+    @Component
+    public class ItemValidator implements Validator {
+    
+        @Override
+        public boolean supports(Class<?> clazz) {
+            return Item.class.isAssignableFrom(clazz);
+        }
+    
+        @Override
+        public void validate(Object target, Errors errors) {
+            Item item = (Item) target;
+    
+            ValidationUtils.rejectIfEmptyOrWhitespace(errors, "itemName", "required");
+    
+            if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() >1000000) {
+                errors.rejectValue("price", "range", new Object[]{1000, 1000000}, null);
+            }
+            if (item.getQuantity() == null || item.getQuantity() >= 9999) {
+                errors.rejectValue("quantity", "max", new Object[]{9999}, null);
+            }
+    
+            // 특정 필드가 아닌 복합 룰 검증
+            if (item.getPrice() != null && item.getQuantity() != null) {
+                int resultPrice = item.getPrice() * item.getQuantity();
+                if (resultPrice < 10000) {
+                    errors.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+                }
+            }
+        }
+    }
+    ```
+
+  - 컨트롤러
+
+    ```java
+    @PostMapping("/add")
+    public String addItemV4(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+    
+        if(itemValidator.supports(item.getClass())) {
+            itemValidator.validate(item, bindingResult);
+        }
+    
+        // 검증에 실패하면 다시 입력 폼으로
+        if (bindingResult.hasErrors()) { // 가독성을 위해 이중 부정을 없앴다.
+            log.info("errors = {} ", bindingResult);
+            return "validation/v2/addForm";
+        }
+    
+        // 성공 로직
+        Item savedItem = itemRepository.save(item);
+        redirectAttributes.addAttribute("itemId", savedItem.getId());
+        redirectAttributes.addAttribute("status", true);
+        return "redirect:/validation/v2/items/{itemId}";
+    }
+    ```
+
+  - 하지만, 현 시점에서 `ItemValidator`가 굳이 `Validator` 인터페이스를 구현할 필요도 없고, 컴포넌트로 등록해서 사용할 필요도 없다. 
+
+- isAssinableFrom 추가
+  - == 사용하는 것보다 나음
+- clazz 추가
+
+
+
+#### 스프링 Validator
+
+- `org.springframework.validation.Validator`
+
+- **`WebDataBinder`**
+
+  - 스프링의 파라미터 바인딩
+
+  - 검증 기능도 가능: `WebDataBinder` 사용하여 `Validator`사용가능
+
+  - 예시 코드
+
+    ```java
+    public class ValidationItemControllerV2 {
+    
+        private final ItemRepository itemRepository;
+        private final ItemValidator itemValidator;
+    
+        @InitBinder
+        public void init(WebDataBinder dataBinder) {
+            dataBinder.addValidators(itemValidator);
+        }
+        
+        ...
+    }
+    ```
+
+    - 해당 컨트롤러 호출 될 때마다 새로 `WebDataBinder` 생성됨
+
+  - ```java
+    @PostMapping("/add")
+    public String addItemV6(@Validated @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+    ```
+
+  - `@Validated` 어노테이션만으로 해결.
+
+    - 만약 검증기가 여럿일 경우 `Validator`의 `supports()` 메서드로 구별한다.
+
+- 글로벌 설정
+
+  ```java
+  @SpringBootApplication
+  public class ItemServiceApplication implements WebMvcConfigurer {
+  	public static void main(String[] args) {
+  		SpringApplication.run(ItemServiceApplication.class, args);
+  	}
+   	@Override
+   	public Validator getValidator() {
+   		return new ItemValidator();
+   	}
+  }
+  ```
+
+  
