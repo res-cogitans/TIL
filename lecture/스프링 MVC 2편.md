@@ -1263,4 +1263,103 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
   }
   ```
 
+
+
+## 검증 - Bean Validation
+
+- 필드 검증 로직은 정형화되어 있다:
+  - 빈 값인가
+  - 특정 값 영역에 들어와 있는가
+
+- 이런 공통적인 검증 로직을 일일히 작성하는 것은 반복적이며 번거롭다!
+  - 표준화된 검증 로직: **Bean Validaion**
+
+
+
+#### Bean Validaion
+
+- 구현체가 아니라 기술 표준: Bean Validation 2.0(JSR-380)
+
+- 일반적으로 사용하는 구현체는 Hibernate Validator (단 Hibernate ORM과는 무관)
+
+
+
+##### 스프링과 무관하게 사용하는 순수 Bean Validation
+
+- 라이브러리 추가
+
+  ```java
+  dependencies {
+  	...
+     implementation 'org.springframework.boot:spring-boot-starter-web'
+  }
+  ```
+
+- 표준 기술인지, `hibernate.validator` 구현체인지
+
+  ```java
+  import org.hibernate.validator.constraints.Range;
   
+  import javax.validation.constraints.NotBlank;
+  import javax.validation.constraints.NotNull;
+  ```
+
+  - `NotBlank`와 `NotNull`과 달리 `Range`와 같은 것들은 `hibernate.validator` 구현체임에 유의
+  - 단 실무에서 대부분 `hibernate.validator` 사용한다.
+
+- `Item` 엔티티에 적용한 모습
+
+  ```java
+  @Data
+  public class Item {
+  
+      private Long id;
+  
+      @NotBlank(message = "공백X")
+      private String itemName;
+  
+      @NotNull
+      @Range(min = 1000, max = 1000000)
+      private Integer price;
+  
+      @NotNull
+      @Max(9999)
+      private Integer quantity;
+  ```
+
+- 용례
+
+  ```java
+  void beanValidation() {
+      ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+      Validator validator = validatorFactory.getValidator();
+  
+      Item item = new Item();
+      item.setItemName(" "); // 공백
+      item.setPrice(0);
+      item.setQuantity(10000);
+  
+      Set<ConstraintViolation<Item>> violations = validator.validate(item);
+      for (ConstraintViolation<Item> violation : violations) {
+          System.out.println("violation = " + violation);
+          System.out.println("violation.getMessage() = " + violation.getMessage());
+      }
+  }
+  ```
+
+  - 단, 위와 같이 validator 직접 만드는 일은 스프링 통합 사용시에는 없다.
+
+  - 출력 결과
+
+    ```java
+    violation = ConstraintViolationImpl{interpolatedMessage='1000에서 1000000 사이여야 합니다', propertyPath=price, rootBeanClass=class hello.itemservice.domain.item.Item, messageTemplate='{org.hibernate.validator.constraints.Range.message}'}
+    violation.getMessage() = 1000에서 1000000 사이여야 합니다
+    violation = ConstraintViolationImpl{interpolatedMessage='9999 이하여야 합니다', propertyPath=quantity, rootBeanClass=class hello.itemservice.domain.item.Item, messageTemplate='{javax.validation.constraints.Max.message}'}
+    violation.getMessage() = 9999 이하여야 합니다
+    violation = ConstraintViolationImpl{interpolatedMessage='공백일 수 없습니다', propertyPath=itemName, rootBeanClass=class hello.itemservice.domain.item.Item, messageTemplate='{javax.validation.constraints.NotBlank.message}'}
+    violation.getMessage() = 공백X
+    ```
+
+#### 스프링 통합 사용
+
+- 스프링은 빈 검증기를 통합 지원하고 있다.
