@@ -1276,7 +1276,7 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 
 
 
-#### Bean Validaion
+### Bean Validaion
 
 - 구현체가 아니라 기술 표준: Bean Validation 2.0(JSR-380)
 
@@ -1360,6 +1360,82 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
     violation.getMessage() = 공백X
     ```
 
-#### 스프링 통합 사용
+
+
+### 스프링 통합 사용
 
 - 스프링은 빈 검증기를 통합 지원하고 있다.
+  - 컨트롤러에서 `validator` 사용 안 하게 하더라도, `BeanValidation` 동작함을 볼 수 있다.
+  - 라이브러리에 `spring-boot-starter-validation` 넣으면 스프링 부트가 자동적으로 Bean Validator 인식, 통합함
+  - `LocalValidatorFactoryBean`을 글로벌 `Validator`로 등록
+    - **주의: 직접 글로벌 `Validator` 적용할 경우 스프링 부트가 글로벌 `Validator` 등록하지 않음 -> 애노테이션 기반 검증 작동 안 함!**
+  - `Validator`는 어노테이션을 바탕으로 검증
+  - 검증 오류 발생 시, `FieldError`, `ObjectError` 생성하여 `BindingResult`에 담음 
+
+- `@Validated`는 스프링, `@Valid`는 자바 표준
+
+  - 단 `@Valid`는 의존관계 추가 필요
+
+    - `implementation 'org.springframework.boot:spring-boot-starter-validation'`
+
+    - 단, `@Validated`는 groups 기능을 포함
+
+- 검증 순서
+  - `@ModelAttribute` 각 필드에 타입 변환 시도
+    - 성공할 경우 진행
+    - 실패할 경우 `typeMismatch`로 `FieldError` 추가
+  - `Validator` 적용
+
+- 바인딩 성공한 필드만 Bean Validation 적용된다.
+
+  
+
+### Bean Validation - 에러 코드
+
+- 기본 제공 오류 메시지
+
+  ```java
+  Field error in object 'item' on field 'itemName': rejected value [];
+  codes [NotBlank.item.itemName,NotBlank.itemName,NotBlank.java.lang.String,NotBlank];
+  arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [item.itemName,itemName];
+  arguments []; default message [itemName]];
+  default message [공백일 수 없습니다] 
+  ```
+
+  - `@NotBlank`의 경우: `NotBlank` 오류 코드 기반으로 `MessageCodesResolver`를 통해 메시지 코드가 순서대로 생성됨
+    - `NotBlank.item.itemName
+    - `NotBlank.itemName`
+    - `NotBlank.java.lang.String`
+    - `NotBlank`
+
+- 위의 내용을 메시지에 등록하기만 하면 기본 제공 오류 메시지를 바꿀 수 있다.
+
+  - `errors.properties`
+
+    ```java
+    ...
+    # Bean Validation 추가
+    NotBlank={0} 공백X
+    Range={0}, {2} ~{1} 허용
+    Max={0}, 최대 {1}
+    ```
+
+  - 메시지가 다음과 같이 변경된다. ({0}은 해당 필드명)
+
+    ```
+    itemName 공백X
+    price, 1,000 ~1,000,000 허용
+    quantity, 최대 9,999
+    ```
+
+  - `NotBlank.item.itemName=상품 이름을 적어주세요.`을 추가한다면
+
+    에러 메시지는 `상품 이름을 적어주세요.`로 출력된다: 단계별 적용도 가능
+
+- `BeanValidation`메시지 찾는 순서
+
+  1. 생성된 메시지 코드 순서대로
+  2. 애노테이션의 `message` 속성
+  3. 라이브러리가 제공하는 기본 값
+
+  
