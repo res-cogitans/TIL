@@ -1438,4 +1438,36 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
   2. 애노테이션의 `message` 속성
   3. 라이브러리가 제공하는 기본 값
 
-  
+
+
+
+### Bean Validation - 오브젝트 오류
+
+- 특정 필드가 아닌 오류를 처리하는 방식(`ObjectError`): `@ScriptAssert`
+
+  ```java
+  ...
+  @ScriptAssert(lang = "javascript", script = "_this.price * _this.quantity >= 10000", message = "총합이 10,000 원 넘게 입력해 주세요.")
+  public class Item {
+  ...
+  }
+  ```
+
+- 문제점
+
+  - 실 사용시에는 제약이 많고 복잡하다.
+  - 특히 당 객체의 범위를 넘어서는 검증의 경우 대응이 어렵다.
+  - 대안: 오브젝트 오류 관련 부분만 (기존 방식으로) 자바 코드로 작성하는 것을 권장!
+
+
+
+### Bean Validation  - 한계
+
+- 위의 예제에서 동일한 `Item` 객체에 대해 등록 / 수정 검증 요구사항이 서로 다르다고 생각해보자. 
+- 애노테이션 기반인 Bean Validation의 경우 두 요구사항이 충돌할 경우 해결이 불가능하다.
+  - 가령 수정시에만 Id값이 널이 아니게끔 한다면 등록 자체가 불가능해질 것이며(등록한 후에야 id 값이 생기기에)
+  - 등록 시와 수정 시에 수량 범위 값이 다를 경우에도 동일 애노테이션으로 다루기 때문에 둘 중 하나만 선택 가능하다.
+
+
+
+### Bean Validation - groups

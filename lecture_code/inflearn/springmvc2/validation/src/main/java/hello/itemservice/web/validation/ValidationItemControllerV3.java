@@ -44,6 +44,9 @@ public class ValidationItemControllerV3 {
     @PostMapping("/add")
     public String addItem(@Validated @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
 
+        // 특정 필드가 아닌 복합 룰 검증
+        globalValidate(item, bindingResult);
+
         // 검증에 실패하면 다시 입력 폼으로
         if (bindingResult.hasErrors()) { // 가독성을 위해 이중 부정을 없앴다.
             log.info("errors = {} ", bindingResult);
@@ -57,6 +60,15 @@ public class ValidationItemControllerV3 {
         return "redirect:/validation/v3/items/{itemId}";
     }
 
+    private void globalValidate(Item item, BindingResult bindingResult) {
+        if (item.getPrice() != null && item.getQuantity() != null) {
+            int resultPrice = item.getPrice() * item.getQuantity();
+            if (resultPrice < 10000) {
+                bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+            }
+        }
+    }
+
     @GetMapping("/{itemId}/edit")
     public String editForm(@PathVariable Long itemId, Model model) {
         Item item = itemRepository.findById(itemId);
@@ -64,10 +76,27 @@ public class ValidationItemControllerV3 {
         return "validation/v3/editForm";
     }
 
-    @PostMapping("/{itemId}/edit")
-    public String edit(@PathVariable Long itemId, @ModelAttribute Item item) {
+//    @PostMapping("/{itemId}/edit")
+    public String editV1(@PathVariable Long itemId, @ModelAttribute Item item) {
         itemRepository.update(itemId, item);
         return "redirect:/validation/v3/items/{itemId}";
     }
+
+    @PostMapping("/{itemId}/edit")
+    public String editV2(@PathVariable Long itemId, @Validated @ModelAttribute Item item,
+                         BindingResult bindingResult) {
+
+        globalValidate(item, bindingResult);
+
+        if (bindingResult.hasErrors()) {
+            log.info("errors={}", bindingResult);
+            return "validation/v3/editForm";
+        }
+
+        itemRepository.update(itemId, item);
+
+        return "redirect:/validation/v3/items/{itemId}";
+    }
+
 
 }
