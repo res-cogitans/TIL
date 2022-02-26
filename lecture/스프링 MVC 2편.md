@@ -1276,7 +1276,7 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 
 
 
-### Bean Validaion
+### Bean Validaion: V3
 
 - 구현체가 아니라 기술 표준: Bean Validation 2.0(JSR-380)
 
@@ -1468,6 +1468,134 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
   - 가령 수정시에만 Id값이 널이 아니게끔 한다면 등록 자체가 불가능해질 것이며(등록한 후에야 id 값이 생기기에)
   - 등록 시와 수정 시에 수량 범위 값이 다를 경우에도 동일 애노테이션으로 다루기 때문에 둘 중 하나만 선택 가능하다.
 
+- **왜 id 값을 검증하는가?**
+  - 수정 시 id 값이 항상 들어있게 로직이 구성되어 있지만,
+  - 악의적인 HTTP 요청이 올 수 있기 때문에 항시 검증이 필요하다.
+
+- Bean Validation 충돌을 해결하기 위한 두 가지 방법
+  1. Bean Validation의 groups 기능을 사용
+  2. `Item` 객체를 직접 사용하지 않고 `ItemSaveForm`, `ItemUpdateForm` 등 폼 전송을 위한 별도의 모델 객체를 만들어서 사용
+
 
 
 ### Bean Validation - groups
+
+- 예시
+
+  - `Item`에서
+
+    ```java
+    @Data
+    public class Item {
+        ...
+    	@NotNull(groups = {SaveCheck.class, UpdateCheck.class})
+    	@Max(value = 9999, groups = SaveCheck.class)
+    	private Integer quantity;
+        ...
+    }
+    ```
+
+  - 컨트롤러에서
+
+    ```java
+        @PostMapping("/add")
+        public String addItemV2(@Validated(SaveCheck.class) @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+        ...
+        }
+    ...
+        @PostMapping("/{itemId}/edit")
+        public String editV3(@PathVariable Long itemId, @Validated(UpdateCheck.class) @ModelAttribute Item item,
+                             BindingResult bindingResult) {
+    	...
+    	}
+    ```
+
+    - `@Validated(SaveCheck.class)`와 같은 식으로 적용
+
+- 별개로, 999999999 같은 Integer 범위를 넘어간 경우에는 어떻게 구별할 것인지?
+  - 문자를 입력한 경우와 같은 말이 나오는 것은 이상
+
+- **`@Validated`에만 groups 적용 가능, `@Valid`에는 적용 불가 !**
+
+- groups 기능은 실무에서는 잘 사용되지 않는다.
+  - 코드가 난잡해지며
+  - 폼 객체를 분리하는 것이 낫기 때문이다.
+
+
+
+### Form 전송 객체 분리: V4
+
+- 실무에서는 DTO 사용하여 현 작업과 관련한 정보만 전달함이 좋다.
+  - 도메인 객체를 그대로 사용한다면
+    - 흐름: HTML Form -> Item -> Controller -> Repository
+    - 장점: 단순한 개발
+    - 단점: 간단한 경우에만 사용 가능, 수정시 중복 발생한다면 groups 사용해야
+  - DTO 사용
+    - HTML Form -> ItemSaveForm -> Controller -> Item 생성 -> Repository
+    - 장점: 폼 데이터가 복잡해도 맞춤 폼 객체를 사용하여 전달 가능, 검증 중복 없음
+    - 단점: 폼 데이터를 기반으로 컨트롤러에서 `Item` 객체를 생성하는 변환 과정이 추가됨
+- DTO 명명 관례
+  - `ItemSave`, `ItemSaveForm`, `ItemSaveRequest`, `ItemSaveDto` 등 의미 있게 짓되, **일관성이 중요!**
+
+- 뷰 템플릿이 비슷하다고 해도 왠만해선 분리함이 좋다.
+  - 어설프게 합칠 경우 분기로 인해 유지보수에 장애가 발생
+  - 이런 어설픈 분기가 보이는 것이 분리의 신호다.
+
+- DTO Form 파일들은 web에 만들었다. 뷰와 관련된 부분들이기 때문이다.
+
+- 예제
+
+  ```java
+  @Data
+  public class ItemSaveForm {
+  
+      @NotBlank
+      private String itemName;
+  
+      @NotNull
+      @Range(min = 1000, max = 1000000)
+      private Integer price;
+  
+      @NotNull
+      @Max(9999)
+      private Integer quantity;
+  }
+  ```
+
+  - 그리고 컨트롤러에서,
+
+  ```java
+  @PostMapping("/add")
+  public String addItem(@Validated @ModelAttribute("item") ItemSaveForm form, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+  
+      if (form.getPrice() != null && form.getQuantity() != null) {
+          int resultPrice = form.getPrice() * form.getQuantity();
+          if (resultPrice < 10000) {
+              bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+          }
+      }
+  
+      // 검증에 실패하면 다시 입력 폼으로
+      if (bindingResult.hasErrors()) { // 가독성을 위해 이중 부정을 없앴다.
+          log.info("errors = {} ", bindingResult);
+          return "validation/v4/addForm";
+      }
+  
+      Item item = new Item();
+      item.setItemName(form.getItemName());
+      item.setPrice(form.getPrice());
+      item.setQuantity(form.getQuantity());
+  
+      // 성공 로직
+      Item savedItem = itemRepository.save(item);
+      redirectAttributes.addAttribute("itemId", savedItem.getId());
+      redirectAttributes.addAttribute("status", true);
+      return "redirect:/validation/v4/items/{itemId}";
+  }
+  ```
+
+  - 주의할 점
+    - `ItemSaveForm` 매개변수의 `@ModelAttribute` 애노테이션에 name을 item으로 설정해준다. 기존 뷰 템플릿과의 호환을 위함
+      - 적지 않을 경우 모델에 `itemSaveForm`으로 들어가기 때문
+    - 검증 과정은 form을 이용해서 진행하며
+    - Repo에 save 하기 전에 `Item` 객체로 변환하여 넣어준다. 
