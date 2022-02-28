@@ -1599,3 +1599,103 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
       - 적지 않을 경우 모델에 `itemSaveForm`으로 들어가기 때문
     - 검증 과정은 form을 이용해서 진행하며
     - Repo에 save 하기 전에 `Item` 객체로 변환하여 넣어준다. 
+
+
+
+### Bean Validation - HTTP 메시지 컨버터
+
+- 참고
+  - `@ModelAttribute`: HTTP 요청 파라미터(URL 쿼리 스트링, POST Form)를 다룰 때 사용
+  - `@RequestBody`: HTTP Body의 데이터를 객체로 변환할 때 사용
+
+- API에 관해 고려해봐야 할 3가지 경우
+
+  - 성공 요청
+  - 실패 요청: JSON을 객체로 생성하는 것 자체가 실패
+  - 검증 오류 요청: JSON을 객체로 생성하였지만, 검증 실패
+
+- 요청 자체가 실패한 경우: 컨트롤러 호출도 안 되는 경우
+
+  ```java
+  @Slf4j
+  @RestController
+  @RequestMapping("/validation/api/items")
+  public class ValidationItemApiController {
+  
+      @PostMapping("/add")
+      public Object addItem(@RequestBody @Validated ItemSaveForm form, BindingResult bindingResult) {
+  
+          log.info("API 컨트롤러 호출");
+  
+          if (bindingResult.hasErrors()) {
+              log.info("검증 오류 발생 errors={}", bindingResult);
+              return bindingResult.getAllErrors();
+          }
+  
+          log.info("성공 로직 실행");
+          return form;
+      }
+  }
+  ```
+
+  - 정상 요청시에는 의도대로 컨트롤러 호출이 로그에 잘 남음
+
+  - 그런데 잘못된 요청 보낼 시에는 컨트롤러 호출 자체가 안 일어나고 Exception만 발생
+
+    ```java
+    2022-02-28 23:11:19.773  WARN 27424 --- [nio-8080-exec-5] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotReadableException:
+    JSON parse error:                                                                                                         Unrecognized token 'a': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false'); nested exception is com.fasterxml.jackson.core.JsonParseException:                                                               Unrecognized token 'a': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')
+     at [Source: (PushbackInputStream); line: 1, column: 50]]
+    ```
+
+  - API는 JSON을 객체(ItemSaveForm)로 변환한 이후에야 검증이 가능한데 그걸 하지 못했기 때문 -> 컨트롤러 조차 호출하지 못하게 되는 것
+
+- 검증 오류의 경우
+
+  ```
+  [
+      {
+          "codes": [
+              "Max.itemSaveForm.quantity",
+              "Max.quantity",
+              "Max.java.lang.Integer",
+              "Max"
+          ],
+          "arguments": [
+              {
+                  "codes": [
+                      "itemSaveForm.quantity",
+                      "quantity"
+                  ],
+                  "arguments": null,
+                  "defaultMessage": "quantity",
+                  "code": "quantity"
+              },
+              9999
+          ],
+          "defaultMessage": "9999 이하여야 합니다",
+          "objectName": "itemSaveForm",
+          "field": "quantity",
+          "rejectedValue": 10500,
+          "bindingFailure": false,
+          "code": "Max"
+      }
+  ]
+  ```
+
+  
+
+  - 응답으로 위와 같이 오고, 다음과 같이 로그가 찍힌다.
+
+  ```json
+  2022-02-28 23:24:09.919  INFO 27424 --- [nio-8080-exec-8] h.i.w.v.ValidationItemApiController      : 검증 오류 발생 errors=org.springframework.validation.BeanPropertyBindingResult: 1 errors
+  Field error in object 'itemSaveForm' on field 'quantity': rejected value [10500]; codes [Max.itemSaveForm.quantity,Max.quantity,Max.java.lang.Integer,Max]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [itemSaveForm.quantity,quantity]; arguments []; default message [quantity],9999]; default message [9999 이하여야 합니다]
+  ```
+
+  - `return bindingResult.getAllErrors()`가 `ObjectError`와 `FieldError`를 반환하였고
+  - 스프링이 이를 JSON을 변환, 클라이언트에 전달한 상황이다.
+  - 실무에서는 오류 객체를 그대로 반환하지 말고, 필요한 데이터만 뽑아 별개로 API 스펙을 정의, 객체를 만들어 반환하자.
+
+- `@ModelAttribute` vs `@RequestBody`
+  - `ModelAttribute`는 필드 단위로 적용되기에, 특정 필드에 타입 오류가 발생해도 다른 필드는 정상 처리된다.
+  - `RequestBody`는 객체 전체 단위로 적용된다. 이 경우에는 객체 생성 자체가 성공하지 않으면 예외 발생한다. (컨트롤러 호출도, 검증도 이루어지지 않는다.)
