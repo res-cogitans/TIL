@@ -1699,3 +1699,134 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
 - `@ModelAttribute` vs `@RequestBody`
   - `ModelAttribute`는 필드 단위로 적용되기에, 특정 필드에 타입 오류가 발생해도 다른 필드는 정상 처리된다.
   - `RequestBody`는 객체 전체 단위로 적용된다. 이 경우에는 객체 생성 자체가 성공하지 않으면 예외 발생한다. (컨트롤러 호출도, 검증도 이루어지지 않는다.)
+
+
+
+## 로그인 처리1 - 쿠키, 세션
+
+### 프로젝트 설정
+
+- 웹과 도메인을 분리하였음
+  - 웹에 변동이 있더라도 도메인에는 변화가 없도록 해야
+  - 웹이 도메인을 보되, 반대는 없게 해야
+  - 의존관계, 패키지 설정에 있어서 유의
+
+
+
+### 로그인 기능 개발 
+
+- 코드
+
+  ```java
+  @Service
+  @RequiredArgsConstructor
+  public class LoginService {
+  
+      private final MemberRepository memberRepository;
+  
+      /**
+       * @return null일 경우 로그인 실패
+       */
+      public Member login(String loginId, String password) {
+  //        Optional<Member> foundMemberOptional = memberRepository.findByLoginId(loginId);
+  //        Member member = foundMemberOptional.get();  // 실제로는 get 말고 다른 것 쓰는 편이 나음
+  //        if (member.getPassword().equals(password)) {
+  //            return member;
+  //        } else {
+  //            return null;
+  //        }
+  
+          return memberRepository.findByLoginId(loginId)
+                  .filter(m -> m.getPassword().equals(password))
+                  .orElse(null);
+      }
+  }
+  ```
+
+
+
+### 로그인 처리 - 쿠키 사용
+
+- 로그인 상태 유지하기
+  - 쿼리 파라미터를 계속 유지하면서 보내는 것은 어렵고 번거롭기에
+  - 쿠키를 사용한다:
+    - 로그인에 성공하면 HTTP 응답에 쿠키를 담아서 브라우저에 전달
+    - 이후
+      - welcome 페이지 처럼 로그인 정보 사용하는 페이지 접근 시 쿠키 사용
+      - 모든 요청에 쿠키 정보 포함
+
+- 쿠키
+  - 영속 쿠키: 만료 날짜 입력 시 해당 날짜까지 유지
+  - 세션 쿠키: 만료 날짜 생략시 브라우저 종료할 때 까지만
+    - 서버 세션과는 무관하게, 쿠키 종류로서 세션 쿠키임
+
+- 코드
+
+  ```java
+      @PostMapping
+      public String login(@Valid @ModelAttribute LoginForm form,
+                          BindingResult bindingResult, HttpServletResponse response) {
+          if (bindingResult.hasErrors()) {
+              return "login/loginForm";
+          }
+  
+          Member loginMember = loginService.login(form.getLoginId(), form.getPassword());
+  
+          if (loginMember == null) {
+              bindingResult.reject("loginFail", "아이디 또는 비밀번호가 틀렸습니다.");
+              return "login/loginForm";
+          }
+  
+          // 로그인 성공 처리
+  
+          // 쿠키에 시간 정보를 주지 않으면 세션 쿠키(브라우저 종료시 모두 종료)
+  
+          Cookie idCookie = new Cookie("memberId", String.valueOf(loginMember.getId()));
+          response.addCookie(idCookie);
+  
+          return "redirect:/";
+      }
+  ```
+
+- 쿠키가 적용되게 홈 화면을 변경하면:
+
+  ```java
+      @GetMapping("/")
+      public String homeLogin(@CookieValue(name = "memberId", required = false) Long memberId, Model model) {
+  
+          if (memberId == null) {
+              return "home";
+          }
+  
+          // 로그인
+          Member loginMember = memberRepository.findById(memberId);
+          if (loginMember == null) {
+              return "home";
+          }
+  
+          model.addAttribute("member", loginMember);
+          return "loginHome";
+      }
+  ```
+
+
+
+#### 로그아웃
+
+```java
+    @PostMapping("/logout")
+    public String logout(HttpServletResponse response) {
+        expireCookie(response, "memberId");
+        return "redirect:/";
+    }
+
+    private void expireCookie(HttpServletResponse response, String cookieName) {
+        Cookie cookie = new Cookie(cookieName, null);
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+    }
+```
+
+- MaxAge를 0으로 설정하는 방식으로 없앤다.
+
+- **하지만 위와 같이 쿠키만으로 로그인 기능을 구현하는 것에는 당연히 보안 문제가 있다!**
