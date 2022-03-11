@@ -1868,3 +1868,378 @@ https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframe
     - 쿠키 값 변조 -> 예측 불가능한 복잡한 세션 id 사용
     - 클라이언트 해킹으로 인한 쿠키 정보 탈취 -> 세션 id에는 중요한 정보가 없음
     - 쿠키 탈취 후 사용 -> 세션 만료시간을 짧게 사용, 해킹 의심 시 서버에서 해당 세션을 강제로 제거
+
+
+
+#### 세션 직접 개발해 보기
+
+- 코드
+
+  - `SessionManager`
+
+    ```java
+    public class SessionManager {
+    
+        public static final String SESSION_COOKIE_NAME = "mySessionId";
+        private Map<String, Object> sessionStore = new ConcurrentHashMap<>();
+    
+        /**
+         * 세션 생성
+         */
+        public void createSession(Object value, HttpServletResponse response) {
+    
+            // 세션 id를 생성하고, 값을 세션에 저장
+            String sessionId = UUID.randomUUID().toString();
+            sessionStore.put(sessionId, value);
+    
+            // 쿠키 생성
+            Cookie mySessionCookie = new Cookie(SESSION_COOKIE_NAME, sessionId);
+            response.addCookie(mySessionCookie);
+        }
+    
+        /**
+         * 세션 조회
+         */
+        public Object getSession(HttpServletRequest request) {
+            Cookie sessionCookie = findCookie(request, SESSION_COOKIE_NAME);
+            if (sessionCookie == null) {
+                return null;
+            }
+            return sessionStore.get(sessionCookie.getValue());
+        }
+    
+        /**
+         * 세션 만료
+         */
+        public void expire(HttpServletRequest request) {
+            Cookie sessionCookie = findCookie(request, SESSION_COOKIE_NAME);
+            if (sessionCookie != null) {
+                sessionStore.remove(sessionCookie.getValue());
+            }
+        }
+    
+        public Cookie findCookie(HttpServletRequest request, String cookieName) {
+            Cookie[] cookies = request.getCookies();
+            if (cookies == null) {
+                return null;
+            }
+            return Arrays.stream(cookies)
+                    .filter(cookie -> cookie.getName().equals(cookieName))
+                    .findAny()
+                    .orElse((null));
+        }
+    }
+    ```
+
+  - `LoginController`
+
+    ```java
+        @PostMapping("/login")
+        public String loginV2(@Valid @ModelAttribute LoginForm form,
+                            BindingResult bindingResult, HttpServletResponse response) {
+            if (bindingResult.hasErrors()) {
+                return "login/loginForm";
+            }
+    
+            Member loginMember = loginService.login(form.getLoginId(), form.getPassword());
+    
+            if (loginMember == null) {
+                bindingResult.reject("loginFail", "아이디 또는 비밀번호가 틀렸습니다.");
+                return "login/loginForm";
+            }
+    
+            // 로그인 성공 처리
+    
+            // 세션 관리자를 통해 세션 생성, 회원 데이터 보관
+    
+            sessionManager.createSession(loginMember, response);
+    
+            return "redirect:/";
+        }
+    
+        @PostMapping("/logout")
+        public String logoutV2(HttpServletRequest request) {
+            sessionManager.expire(request);
+            return "redirect:/";
+        }
+    
+    ```
+
+  - `HomeController`
+
+    ```java
+    @GetMapping("/")
+    public String homeLoginV2(HttpServletRequest request, Model model) {
+    
+        // 세션 관리자에 저장된 회원 정보 조회
+        Member member = (Member)sessionManager.getSession(request);
+    
+        // 로그인
+        if (member == null) {
+            return "home";
+        }
+    
+        model.addAttribute("member", member);
+        return "loginHome";
+    }
+    ```
+
+- 기존 방식처럼 쿠키를 사용하지만 서버에서 데이터를 유지하게 했으며, UUID 사용
+
+- 세션 매니저를 통해 무작위 UUID인 세션 id를 얻어오는 방식
+
+  - 이제 Request Headers를 살펴보면
+
+    `Set-Cookie: mySessionId=8076b391-55f0-4b40-8099-08ae9f95e006`
+
+  - 쿠키를 훔쳐 본다고 해도 의미 있는 정보를 유추할 수 없다.
+
+- 위와 같이 직접 만들지 않더라도 서블릿이 세션을 지원한다.
+
+  - 서블릿 세션의 경우 추가적으로 일정 시간 세션 사용하지 않을 시 자동삭제함
+
+
+
+### HTTP 서블릿 세션
+
+- **`HttpSession`**
+  - 서블릿이 제공하는 방식
+
+- 상수 보관용 클래스
+
+  ```java
+  public abstract class SessionConst {
+      public static final String LOGIN_MEMBER = "loginMember";
+  }
+  ```
+
+  - 실제로 클래스를 생성하지는 않을 것이기에 추상 클래스로 만들었음
+  - 인터페이스로 만드는 방식도 가능
+
+- `LoginController`
+
+  ```java
+      @PostMapping("/login")
+      public String loginV3(@Valid @ModelAttribute LoginForm form,
+                            BindingResult bindingResult, HttpServletRequest request) {
+          ...
+          // 로그인 성공 처리
+          // 세션이 있으면 있는 세션을 반환, 없다면 신규 세션을 생성
+          HttpSession session = request.getSession();
+  
+          // 세션에 로그인 회원 정보 보관
+          session.setAttribute(SessionConst.LOGIN_MEMBER, loginMember);
+  
+          return "redirect:/";
+      }
+  ```
+
+  - 서블릿 세션을 사용하기 위해서는 서블릿 request가 필요하기에 request를 인자로 받음
+
+  - **세션 생성**
+
+    - `request.getSession(true)`: true가 defualt
+
+    - 세션이 있을 경우 기존 세션을 반환한다.
+
+    - 세션이 없을 경우
+
+      - create 인자가 true: 새로운 세션을 생성, 반환한다.
+
+      - create 인자가 false: 새로운 새션을 생성하지 않고, `null` 반환한다.
+
+  - 세션에 로그인 회원 정보 보관
+
+    - `session.setAttribute(SessionConst.LOGIN_MEMBER, loginMember)`
+    - `request.setAttribute()`와 유사함, 한 세션에 여러 값을 저장 가능
+
+- 로그아웃
+
+  ```java
+      @PostMapping("/logout")
+      public String logoutV3(HttpServletRequest request) {
+          HttpSession session = request.getSession(false);
+          if (session != null) {
+              session.invalidate();
+          }
+          return "redirect:/";
+      }
+  ```
+
+  - `getSession(false)`인 까닭은, true일 경우 현재 세션이 없다 하더라도 세션을 새로 생성해 버리기 때문임
+  - `session.invalidate()`로 세션 삭제
+
+- `HomeController`
+
+  ```java
+      @GetMapping("/")
+      public String homeLoginV3(HttpServletRequest request, Model model) {
+  
+          HttpSession session = request.getSession(false);
+          if (session == null) {
+              return "home";
+          }
+  
+          Member loginMember = (Member) session.getAttribute(SessionConst.LOGIN_MEMBER);
+  
+          // 세션에 회원 데이터가 없으면 home
+          if (loginMember == null) {
+              return "home";
+          }
+  
+          // 세션이 유지되면 로그인으로 이동
+          model.addAttribute("member", loginMember);
+          return "loginHome";
+      }
+  ```
+
+  - `request.getSession(false)` 사용한 이유
+    - true로 하면 로그인 하지 않고 홈 화면을 요청하는 경우에도 무조건 세션을 생성하게 되기 때문이다.
+    - 메모리 소모가 있기 때문에 꼭 필요할 때만 세션을 만들자. 
+    
+    
+
+#### SessionAttribute
+
+```java
+@GetMapping("/")
+public String homeLoginV3Spring(
+        @SessionAttribute(name = SessionConst.LOGIN_MEMBER, required = false) Member loginMember, Model model) {
+
+    // 세션에 회원 데이터가 없으면 home
+    if (loginMember == null) {
+        return "home";
+    }
+
+    // 세션이 유지되면 로그인으로 이동
+    model.addAttribute("member", loginMember);
+    return "loginHome";
+}
+```
+
+- 스프링이 제공하는 `@SessionAttribute` 애노테이션을 이용하여 위와 같이 코드를 간소화할 수 있다.
+
+- 단 이 방식으로는 세션을 새로 생성하지는 않기 때문에
+- 세션을 생성할 경우에는 기존 방식을 사용하면 된다.
+
+
+
+#### TrackingModes
+
+- 첫 로그인을 시도할 경우
+  - `http://localhost:8080/;jsessionid=1D2812249FB0BF8C42942FA66506B948`
+  - url에 `jsessionid`가 붙는다.
+
+- 쿠키를 지원하지 않는 브라우저의 경우를 위해서 제공되는 기능이다.
+  - 처음에는 서버 입장에서는 해당 브라우저가 쿠키를 지원하는지 모르기 때문이다.
+  - 단 이 기능을 사용할 경우 계속 이 정보를 모든 링크에 전달해야 한다.
+  - Thymeleaf 등 템플릿 엔진을 사용할 경우 위를 url에 자동 전달하게 돕기도 하지만
+  - 이 방식 자체가 매우 번거롭다.
+
+- `application.properties`에 다음을 추가하여 위 기능을 끄도록 하자:
+
+  `server.servlet.session.tracking-modes=cookie`
+
+
+
+#### 세션 정보
+
+- 세션 정보 출력용 컨트롤러
+
+  ```java
+  @Slf4j
+  @RestController
+  public class SessionInfoController {
+  
+      @GetMapping("/session-info")
+      public String sessionInfo(HttpServletRequest request) {
+          HttpSession session = request.getSession(false);
+  
+          if (session == null) {
+              return "세션이 없습니다";
+          }
+  
+          // 세션 데이터 출력
+          session.getAttributeNames().asIterator()
+                  .forEachRemaining(name -> log.info("session name={}, value={}", name, session.getAttribute(name)));
+  
+          log.info("sessionId={}", session.getId());
+          log.info("session.getMaxInactiveInterval()={}", session.getMaxInactiveInterval());
+          log.info("creationTime={}", new Date(session.getCreationTime()));
+          log.info("lastAccessedTime={}", new Date(session.getLastAccessedTime()));
+          log.info("isNew={}", session.isNew());
+  
+          return "세션 출력";
+      }
+  }
+  ```
+
+- 아래와 같은 값이 출력된다:
+
+  ```
+  2022-03-11 23:35:52.924  INFO 8112 --- [nio-8080-exec-8] h.l.web.session.SessionInfoController    : 
+  session name=loginMember, value=Member(id=1, loginId=test, name=테스터, password=1q2w!)
+  sessionId=5704D91BE7B71C6FE8353B467C2D4C05
+  session.getMaxInactiveInterval()=1800
+  creationTime=Fri Mar 11 23:35:47 KST 2022
+  lastAccessedTime=Fri Mar 11 23:35:47 KST 2022
+  isNew=false
+  ```
+
+- 설명
+
+  - sessionId : 세션Id, JSESSIONID 의 값이다.
+    - 예) 34B14F008AA3527C9F8ED620EFD7A4E1
+  - maxInactiveInterval : 세션의 유효 시간,
+    - 예) 1800초, (30분)
+  - creationTime : 세션 생성일시
+  - lastAccessedTime : 세션과 연결된 사용자가 최근에 서버에 접근한 시간, 클라이언트에서 서버로 sessionId ( JSESSIONID )를 요청한 경우에 갱신된다.
+  -  isNew : 새로 생성된 세션인지, 아니면 이미 과거에 만들어졌고, 클라이언트에서 서버로 sessionId ( JSESSIONID )를 요청해서 조회된 세션인지 여부
+
+- Date 형태로 오지 않고 long으로 오는 값들의 경우 형변환 필요하다.
+
+
+
+#### 세션 타임아웃
+
+- 문제 상황
+
+  - 로그아웃 해야 세션이 삭제되는데, 대부분의 사용자는 로그아웃 하지 않고, 브라우저를 종료함.
+
+  - HTTP는 비연결성(ConectionLess)이기에 서버는 사용자의 브라우저 종료 여부를 알 수 없음.
+  - 서버 입장에선 세션을 언제 삭제해야 하는지 판단할 수 없음.
+
+- 남아 있는 세션을 무한정 보관할 경우
+  - 세션과 관련한 쿠키 정보가 탈취되었을 때의 보안 문제
+  - 세션은 기본적으로 메모리에 생성됨 -> 자원 소모, 메모리 누수
+
+- **세션의 종료 시점**
+  - 30분 정도씩 시간이 흐를 때마다 종료시키는 방식
+  - 하지만 해당 시간마다 로그인 해야 하는 것은 불편
+  - 대안: **마지막 요청 시간을 기준으로 30분 정도를 유지해주는 방식, `HttpSession`도 이 방식을 사용**
+
+- **세션 타임아웃 설정**
+
+  - 스프링 부트의 글로벌 설정 방식
+    - `application.properties`에서 `server.servlet.session.timeout=1800`
+    - 기본 값은 `1800(30min)`\
+    - 글로벌 설정의 경우 분 단위로 설정해야: 60(최소값), 120, ... , 1800, ...
+
+  - 특정 세션 단위로 시간을 설정하는 방식
+    - `session.getMaxInactiveInterval(1200)`
+    - 보안상 혹은 다른 이유로 특정 세션에만 다른 시간을 적용하고자 한다면 위를 사용
+
+- **세션 타임아웃 발생**
+  - 세션 타임아웃 시간은 해당 세션과 관련된 `JSESSIONID`를 전달하는 HTTP 요청이 있을 경우 다시 갱신됨
+  - `session.getLastAccessedTime()`: 최근 세션 접속 시간
+  - 해당 시간 이후로 timeout 시간 지날 경우 WAS가 내부에서 해당 세션을 제거함 
+
+
+
+#### 세션 주의사항
+
+- 세션에는 최소한의 데이터만 보관하라.
+  - 메모리 사용량이 급격하게 늘어나서 장애로 직결될 위험이 있다!
+
+- 세션 유지 시간을 긴 경우 메모리 사용량이 누적될 수 있기에 적절히 조절이 필요.
+  - 기본 시간이 30분이라는 데에 기반하여 조절
