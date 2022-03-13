@@ -2243,3 +2243,274 @@ public String homeLoginV3Spring(
 
 - 세션 유지 시간을 긴 경우 메모리 사용량이 누적될 수 있기에 적절히 조절이 필요.
   - 기본 시간이 30분이라는 데에 기반하여 조절
+
+
+
+## 로그인 처리2 - 필터, 인터셉터
+
+### 서블릿 필터
+
+- 필요성
+
+  - 로그인이 필요한 페이지들을 처리하려면
+
+    일일히 컨트롤러에 동일한 로그인 체크 매커니즘을 반복적으로 호출하게 됨
+
+    - 이는 번거롭고 누락 가능성이 높을 뿐만 아니라
+    - 수정이 매우 어렵다.
+
+  - 이와 같은 **공통 관심사(cross-cutting concern)**에 대한 처리가 필요
+
+    - 스프링 AOP로 해결 가능하다.
+
+    - **하지만 웹과 관련된 공통 관심사의 경우 서블릿 필터, 스프링 인터셉터를 사용하는 것이 나음**
+
+      - 웹 관련 공통 관심사를 처리할 때는 HTTP 헤더, url 정보 등이 필요한데
+
+        서블릿 필터, 스프링 인터셉터는 `HttpServletRequest` 등을 제공하기에 웹 관련된 공통 관심사를 처리함에 더 유용하다.
+
+        (AOP의 경우 위와 같은 기능을 제공하지 않는다. )
+
+
+
+#### 서블릿 필터 설명
+
+- **필터의 흐름**
+
+  ```mermaid
+  graph LR
+  A[HTTP 요청] --> B[WAS] --> C[필터] --> D[서블릿] --> E[컨트롤러]
+  ```
+
+- 필터는 특정 url 패턴에 적용할 수 있다.
+
+  - /* 의 경우 모든 요청에 필터 적용
+  - 서블릿 url 패턴을 찾아보면 구체적으로 이 url 패턴에 대해 알아볼 수 있음
+
+- 스프링 사용 시 서블릿 필터의 '서블릿'은 디스패처 서블릿이라 생각하면 된다.
+
+- **필터의 제한기능**
+
+  ```mermaid
+  graph LR
+  A[HTTP 요청] --> B[WAS] --> C[필터] --> D[서블릿] --> E[컨트롤러]
+  ```
+
+  - 정상 상황에는 위와 같이 처리되는 반면
+
+  ```mermaid
+  graph LR
+  A[HTTP 요청] --> B[WAS] --> C[필터]
+  ```
+
+  - **비정상 상황**에서는 위와 같이 필터 단계에서 **서블릿을 호출하지 않고** 끝낼 수도 있다.
+
+    -> 로그인, 권한 여부 등을 체크하기에 유용
+
+- **필터 체인**
+
+  ```mermaid
+  graph LR
+  A[HTTP 요청] --> B[WAS] --> C[필터1:로그 남기기] --> F[필터2: 로그인 여부 체크] --> G[필터3: ...]--> D[서블릿] --> E[컨트롤러]
+  ```
+
+  - 위와 같이 필터를 연쇄하여 사용할 수도 있다.
+
+- **필터 인터페이스**
+  - 필터 인터페이스를 구현, 등록 시 서블릿 컨테이너가 필터를 **싱글톤** 객체로 생성, 관리
+  - `init()`: 필터 초기화 메서드, 서블릿 컨테이너가 생성될 때 호출됨
+  - `doFilter()`: 고객의 요청이 올 때마다 요청되는 메서드, 필터의 로직을 구현하면 됨
+  - `destroy()`: 필터 종료 메서드, 서블릿 컨테이너가 종료될 때 호출됨
+
+
+
+#### 요청 로그
+
+- 코드
+
+  ```java
+  @Slf4j
+  public class LogFilter implements Filter {
+      @Override
+      public void init(FilterConfig filterConfig) throws ServletException {
+          log.info("log filter init");
+      }
+  
+      @Override
+      public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+          log.info("log filter doFilter");
+  
+          HttpServletRequest httpRequest = (HttpServletRequest) request;
+          String requestURI = httpRequest.getRequestURI();
+  
+          String uuid = UUID.randomUUID().toString();
+  
+          try {
+              log.info("Request [{}][{}]", uuid, requestURI);
+              chain.doFilter(request, response);
+          } catch (Exception e) {
+              throw e;
+          } finally {
+              log.info("");
+              log.info("Response [{}][{}]", uuid, requestURI);
+          }
+      }
+  
+      @Override
+      public void destroy() {
+          log.info("log filter destroy");
+          Filter.super.destroy();
+      }
+  }
+  ```
+
+  - `javax.servlet`의 `Filter`를 구현해주자.
+
+  - `doFilter()`는 `ServletRequest/Response`를 사용하는데,
+
+     더 많은 기능을 제공하는 `HttpServletRequest/Response`로 다운캐스팅 하였다.
+
+    - `ServletRequest/Response`는 Http 요청이 아닌 경우까지 고려된 인터페이스임. Http 사용할 것이기에 다운캐스팅 한 것임.
+
+  - **`try` 블록 안에서 `chain.doFilter()`를 호출해준 데에 주목하라!**
+    - 다음 연쇄 필터를 호출 시도해 줘야 한다.
+    - 연쇄 필터를 호출하지 않으면 결과적으로 서블릿 호출도 이뤄지지 않으며, 컨트롤러 호출도 일어나지 않음!
+  - **로그를 남길 때 동일 식별자(UUID)를 남기게 해야 추적에 용이함. logback mdc를 참고하라.**
+
+- 필터 등록 - 스프링 부트 사용
+
+  ```java
+  @Configuration
+  public class WebConfig {
+  
+      @Bean
+      public FilterRegistrationBean logFilter() {
+          FilterRegistrationBean<Filter> filterFilterRegistrationBean = new FilterRegistrationBean<>();
+          filterFilterRegistrationBean.setFilter(new LogFilter());
+          filterFilterRegistrationBean.setOrder(1);
+          filterFilterRegistrationBean.addUrlPatterns("/*");
+  
+          return filterFilterRegistrationBean;
+      }
+  }
+  ```
+
+  - 스프링 부트가 WAS를 갖고 띄우기 때문에 WAS 띄울 때 필터를 같이 띄움
+  - `setFilter(new LogFilter())`로 위의 필터를 적용
+  - `setOrder()`로 필터 연쇄 순서 설정
+  - `addUrlPatterns()`로 필터 적용 url을 설정
+
+
+
+#### 인증 체크
+
+- 로그인 여부 검사 필터 개발
+
+  ```java
+  @Slf4j
+  public class LoginCheckFilter implements Filter {
+  
+      private static final String[] whitelist = {"/", "/members/add", "/login", "/logout", "/css/*"};
+  
+      @Override
+      public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+  
+          HttpServletRequest httpRequest = (HttpServletRequest) request;
+          String requestURI = httpRequest.getRequestURI();
+  
+          HttpServletResponse httpResponse = (HttpServletResponse) response;
+  
+          try {
+              log.info("인증 체크 필터 시작{}", requestURI);
+  
+              if (isLoginCheckPath(requestURI)) {
+                  log.info("인증 체크 로직 실행 {}", request);
+                  HttpSession session = httpRequest.getSession(false);
+                  if (session == null || session.getAttribute(SessionConst.LOGIN_MEMBER) ==null) {
+  
+                      log.info("미인증 사용자 요청 {}", requestURI);
+                      // 로그인으로 redirect
+                      httpResponse.sendRedirect("/login?redirectURL=" + requestURI);
+                      return;
+                  }
+              }
+  
+              chain.doFilter(request, response);
+          } catch (Exception e){
+              throw e; // 예외 로깅 가능하지만, 톰캣까지 예외를 보내주어야 한다.
+          } finally {
+              log.info("인증 체크 필터 종료 {}", requestURI);
+          }
+      }
+  
+      /**
+       * 화이트리스트의 경우 인증 체크 X
+       */
+      private boolean isLoginCheckPath(String requestURI) {
+          return !PatternMatchUtils.simpleMatch(whitelist, requestURI);
+      }
+  }
+  ```
+
+  - `init()`이나 `destroy()`는 구현할 필요가 없다.
+    - 인터페이스의 메서드라 할지라도 `default`가 붙은 것들은(`public default void init()`) 구현 하지 않아도 됨
+
+  - 검증을 위한 whitelist
+
+  - 
+
+- 필터 적용을 위하여 `WebConfig`에 빈 등록한다.
+
+  ```java
+      @Bean
+      public FilterRegistrationBean loginCheckFilter() {
+          FilterRegistrationBean<Filter> filterFilterRegistrationBean = new FilterRegistrationBean<>();
+          filterFilterRegistrationBean.setFilter(new LoginCheckFilter());
+          filterFilterRegistrationBean.setOrder(2);
+          filterFilterRegistrationBean.addUrlPatterns("/*");
+  
+          return filterFilterRegistrationBean;
+      }
+  ```
+
+  - 여기서 url 패턴을 전체로 적용한 것은, 추후 페이지가 추가 되더라도 화이트 리스트를 제외한 전체에 대해 권한 체크를 수행하고 싶어서이기 때문이다.
+
+    - 적용 범위에 따라서 둘 중 어디에 제약을 적용할 것인가에 대해 생각해보자.
+
+    - url 패턴을 넓게 잡아서 필터를 한 번 더 호출한 것으로 인한 성능 저하는 신경쓰지 않아도 될 정도다.
+
+      메서드 1회 호출이 큰 영향을 주지는 않는다.
+
+      **주로 데이터베이스 쿼리나 외부 네트워크에서 성능을 깎아먹기에 오히려 그 부분에 유의해야 한다!**
+
+- **`redirectURL`**
+
+  - `httpResponse.sendRedirect("/login?redirectURL=" + requestURI);`
+
+    로그인 이후에는 자동으로 시도했던 페이지로 리다이렉트 하게끔 만듦
+
+  - 하지만 위의 코드를 실행해 봐도 로그인 이후에 리다이렉트가 일어나지 않는다. 로그인 컨트롤러를 손봐야 한다.
+
+    ```java
+        @PostMapping("/login")
+        public String loginV4(@Valid @ModelAttribute LoginForm form, BindingResult bindingResult,
+                              @RequestParam(defaultValue = "/") String redirectURL,
+                              HttpServletRequest request) {
+            ...
+                        return "redirect:" + redirectURL;
+        }
+    ```
+
+    - `@RequestParam`으로 쿼리 파라미터 받아와서, 리다이렉트 url 변경해준다.
+    - 변경 이후에는 로그인 시 목적 페이지로 정상적으로 리다이렉트 되는 것을 볼 수 있다.
+
+- 정리
+
+  - 서블릿 필터로 공통 관심사를 해결했기에,
+
+    추후 관련 변경사항이 생기더라도 필터만 변경하면 된다.
+
+    - 변경에 용이하며
+    - SRP를 지키는 방식임
+
+- 참고: `chain.doFilter(request, response)`의 경우 다음 호출 시에 `request`와 `response`를 다른 객체로 바꿔 넘길 수 있음
