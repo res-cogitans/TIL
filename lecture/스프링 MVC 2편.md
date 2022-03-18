@@ -2514,3 +2514,93 @@ public String homeLoginV3Spring(
     - SRP를 지키는 방식임
 
 - 참고: `chain.doFilter(request, response)`의 경우 다음 호출 시에 `request`와 `response`를 다른 객체로 바꿔 넘길 수 있음
+
+
+
+### 스프링 인터셉터
+
+#### 스프링 인터셉터 설명
+
+- 서블릿 필터와 마찬가지로 웹과 관련된 공통 관심사를 해결하는 기술
+
+  - 서블릿 필터: 서블릿 제공 기술
+  - 스프링 인터셉터: 스프링 MVC제공 기술
+  - 두 기술은 적용 순서, 범위, 사용법이 다름
+
+- 스프링 MVC에 특화된 필터 기능
+
+  - 스프링 MVC를 사용하며
+  - 필터를 사용할 특별한 이유가 없다면 사용 권장
+
+- **흐름**
+
+  ```mermaid
+  graph LR
+  A[HTTP 요청] --> B[WAS] --> C[필터] --> D[서블릿] --> E[스프링 인터셉터] --> F[컨트롤러]
+  ```
+
+  - 스프링 인터셉터는 스프링 MVC 기능이기에 디스패처 서블릿 이후 등장
+  - url 패턴 설정이 서블릿 필터와 다르며, 더 정밀
+  - 필터와 마찬가지로 스프링 인터셉터는 부적절한 요청이 발생할 경우 컨트롤러를 호출하지 않을 수 있음
+  - 스프링 인터셉터도 서블릿 필터처럼 체인 기능 사용
+
+- **`HandlerInterceptor` 인터페이스**
+
+  - 서블릿 필터는 `doFilter()`만 있었지만, 스프링 인터셉터의 경우 세분화되어 있음:
+
+  ```java
+  public interface HandlerInterceptor {
+      
+  	default boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+  			throws Exception {
+  		return true;
+      }
+      
+  	default void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+  			@Nullable ModelAndView modelAndView) throws Exception {
+  	}
+      
+  	default void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler,
+  			@Nullable Exception ex) throws Exception {
+  	}
+  
+  }
+  ```
+
+  - `preHandle()`: 컨트롤러 호출 전
+    - 리턴 값이 `true`면 다음으로 진행
+  - `postHandle()`: 컨트롤러 호출 이후(정확히는 핸들러 어댑터 호출 이후)
+  - `afterCompletion()`: 요청 완료 이후(뷰 렌더링 이후)
+
+
+
+##### 스프링 인터셉터 호출 흐름
+
+1. 클라이언트--HTTP 요청-->`DispatcherServlet`
+2. `DispatcherServlet-->preHandle` 호출(인터셉터)
+3. `DispatcherServlet`-->`handle(handler)` 핸들러 어댑터 호출
+4. 핸들러 어댑터- -> 핸들러(컨트롤러) 호출
+
+5. -핸들러 어댑터->`DispatcherServlet`로 `ModelAndView` 반환
+
+6. `DispatcherServlet`-->`postHandle`호출(인터셉터)
+7. `DispatcherServlet` --> `render(model)` `View` 호출
+
+8. `DispatcherServlet`-->`afterCompletion` 호출(인터셉터)
+9. `View` --> HTML 응답
+
+
+
+##### 예외 상황의 경우
+
+- 컨트롤러에서 Exception이 발생한다면?
+  5. 핸들러 어댑터 -->`DispatcherServlet`로 예외 전달
+  6. `DispatcherServlet` --> `WAS`로 예외 전달
+
+- **주의!**
+  - **위 상황에서 `postHandle`은 호출되지 않는다!**
+  - **하지만, `afterCompletion`은 호출된다!**
+    - 이 경우 파라미터 `Exception ex`에 예외를 받아서, 로그 출력 가능
+    - 정상 호출 시에는  `Exception ex`는 `null`
+  - **`postHandle`은 예외시 호출 X**
+  - **`afterCompletion`은 예외시에도 호출 O**
