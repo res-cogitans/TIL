@@ -2604,3 +2604,233 @@ public String homeLoginV3Spring(
     - 정상 호출 시에는  `Exception ex`는 `null`
   - **`postHandle`은 예외시 호출 X**
   - **`afterCompletion`은 예외시에도 호출 O**
+
+
+
+#### 요청 로그
+
+- `LogInterceptor`
+
+  ```java
+  @Slf4j
+  public class LogInterceptor implements HandlerInterceptor {
+  
+      public static final String LOG_ID = "logId";
+  
+      @Override
+      public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+  
+          String requestURI = request.getRequestURI();
+          String uuid = UUID.randomUUID().toString();
+  
+          request.setAttribute(LOG_ID, uuid);
+  
+          // @RequestMapping: HandlerMethod
+          // 정적 리소스: ResourceHttpRequestHandler
+          if (handler instanceof HandlerMethod) {
+              HandlerMethod hm = (HandlerMethod) handler; // 호출할 컨트롤러 메서드의 모든 정보가 포함되어 있다.
+          }
+  
+          log.info("REQUEST [{}][{}][{}]", uuid, requestURI, handler);
+          return true;
+      }
+  
+      @Override
+      public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+          log.info("postHandle [{}]", modelAndView);
+      }
+  
+      @Override
+      public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+          String requestURI = request.getRequestURI();
+          String uuid = (String) request.getAttribute(LOG_ID);
+          log.info("REQUEST [{}][{}][{}]", uuid, requestURI, handler);
+          if (ex != null) {
+              log.error("afterCompletion error!!", ex);
+          }
+      }
+  }
+  ```
+
+  - `request`에 변수를 담아서 전달
+
+    - 서블릿 필터와는 달리, 스프링 인터셉터의 `preHandle`, `postHandle`, `afterCompletion`은 호출 시점이 분리되어 있음
+    - 값을 전달할 방법이 필요함
+      - 필드 값을 사용해서는 안 된다!! 로그 인터셉터도 싱글톤처럼 관리되기에 stateless해야 한다.
+    - 때문에 `request`에 값을 담아서 전달하였다.
+
+  - `preHandle`이 `true`로 리턴되야 다음 인터셉터, 컨트롤러가 호출 될 수 있다.
+
+  - `HandlerMethod`
+
+    - 메서드 파라미터로 넘어오는 `Object handler`
+
+      - `Object`인 것은 여러 가지 핸들러를 사용하기 위해 설정된 것
+
+        타입에 따라 다르게 형 변환 등의 처리가 필요하다.
+
+      - `@Controller`, `RequestMapping`을 이용한 경우 `ResourceHttpRequestHandler`가 넘어온다.
+
+  - 오류 로그일 경우 {} 안 넣어도 오류 정보가 뜬다. 인자로 담기만 해도 된다.
+
+- `WebConfig`
+
+  ```java
+  @Configuration
+  public class WebConfig implements WebMvcConfigurer {
+  
+      @Override
+      public void addInterceptors(InterceptorRegistry registry) {
+          registry.addInterceptor(new LogInterceptor())
+                  .order(1)
+                  .addPathPatterns("/**")
+                  .excludePathPatterns("/css/**", "/*.ico", "/error");
+      }
+      ...
+  }
+  ```
+
+  - 필터에 비해서 정밀하게 url 패턴을 설정 가능
+
+- **스프링의 url 경로 관련: [PathPattern](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/util/pattern/PathPattern.html)**
+
+
+
+#### 인증 체크
+
+- `LoginCheckInterCeptor`
+
+  ```java
+  @Slf4j
+  public class LoginCheckInterceptor implements HandlerInterceptor {
+  
+      @Override
+      public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+  
+          String requestURI = request.getRequestURI();
+  
+          log.info("인증 체크 인터셉터 실행{}", requestURI);
+  
+          HttpSession session = request.getSession();
+  
+          if (session == null || session.getAttribute(SessionConst.LOGIN_MEMBER) == null) {
+              log.info("미인증 사용자 요청");
+              // 로그인으로 redirect
+              response.sendRedirect("/login?redirectURL=" + requestURI);
+  
+              return false;
+          }
+  
+          return true;
+      }
+  }
+  ```
+
+  - 서블릿 필터에 비해 코드가 간결해졌음에 주목하라.
+
+  - 로그인 인증 여부는 컨트롤러 호출 이전에만 확인하면 되기 때문에
+
+    `preHandle`만 구현하였다.
+
+    - 인터페이스라고 해도 `default` 메서드들은 구현 안 해도 되니까(Java8)
+
+- `WebConfig`
+
+  ```java
+      public void addInterceptors(InterceptorRegistry registry) {
+          ...
+  
+          registry.addInterceptor(new LoginCheckInterceptor())
+                  .order(2)
+                  .addPathPatterns("/**")
+                  .excludePathPatterns("/", "/members/add", "/login", "/logout",
+                          "/css/**", "/*.ico", "error");
+      }
+  ```
+
+  - 인터셉터 적용 경로 설정이 간단
+
+
+
+### ArgumentResolver 활용
+
+공통 작업이 필요할 때 컨트롤러를 편리하게 사용 가능!
+
+
+
+- `HomeController`
+
+  ```java
+  //    @GetMapping("/") 기존 버전
+      public String homeLoginV3Spring(
+              @SessionAttribute(name = SessionConst.LOGIN_MEMBER, required = false) Member loginMember, Model model) {
+      ...
+      }
+  
+      @GetMapping("/")
+      public String homeLoginV3ArgumentResolver(@Login Member loginMember, Model model) {
+      ...
+      }
+  ```
+
+  - 매개변수가 깔끔하게 정리된다.
+
+- `Login` 애노테이션
+
+  ```java
+  @Target(ElementType.PARAMETER)
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface Login {
+  }
+  ```
+
+  - 파라미터에만 적용했고,
+  - 리플렉션 등을 활용할 수 있게 런타임까지 애노테이션 정보가 남아 있음, 보통 런타임 사용
+
+- `LoginMemberArgumentResolver`
+
+  ```java
+  @Slf4j
+  public class LoginMemberArgumentResolver implements HandlerMethodArgumentResolver {
+  
+      @Override
+      public boolean supportsParameter(MethodParameter parameter) {
+          log.info("supportsParameter 실행");
+  
+          boolean hasLoginAnnotation = parameter.hasParameterAnnotation(Login.class);
+          boolean hasMemberType = Member.class.isAssignableFrom(parameter.getParameterType());
+          return hasLoginAnnotation && hasMemberType;
+      }
+  
+      @Override
+      public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+  
+          log.info("resolveArgument 실행");
+  
+          HttpServletRequest request = (HttpServletRequest) webRequest.getNativeRequest();
+          HttpSession session = request.getSession(false);
+  
+          if (session == null) {
+              return null;
+          }
+  
+          return session.getAttribute(SessionConst.LOGIN_MEMBER);
+      }
+  }
+  ```
+
+  - `supportsParameter()`: 해당 애노테이션(`@Login`이 있으면서 지원하는 타입(`Member`)일 경우 이 `ArgumentResolver`사용
+  - `resolveArgument()`
+    - 컨트롤러 호출 이전에 호출되어 필요한 파라미터 정보를 생성
+    - 이후 스프링 MVC가 컨트롤러 메서드 호출할 때 반환값을 인자로 전달
+
+- `WebConfig`
+
+  ```java
+      @Override
+      public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+          resolvers.add(new LoginMemberArgumentResolver());
+      }
+  ```
+
+  
