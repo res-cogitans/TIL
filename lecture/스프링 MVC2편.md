@@ -2834,3 +2834,152 @@ public String homeLoginV3Spring(
   ```
 
   
+
+## 예외 처리와 오류 페이지
+
+### 서블릿 예외 처리
+
+- 서블릿이 예외 처리를 지원하는 방식
+  - `Exception`: 예외가 발생해서 WAS 서블릿 컨테이너까지 날아갈 때
+  - `response.sendError(Http 상태 코드, 오류 메시지)`
+
+
+
+#### Exception
+
+- **자바 직접 실행**
+
+  - 자바의 메인 메서드를 실행하는 경우 `main` 쓰레드가 실행된다.
+
+    예외 발생 메서드가 계속해서 던져져서, `main` 메서드를 넘어서 던져지면
+
+  - 예외 정보를 남기고 쓰레드가 종료됨
+
+- **웹 어플리케이션**
+
+  - 요청별로 쓰레드가 할당, 서블릿 컨테이너에서 실행
+
+  - 애플리케이션 바깥으로 예외가 던져질 경우
+
+    ```mermaid
+    graph LR
+    A[컨트롤러:예외 발생]-->B[인터셉터]-->C[서블릿]-->D[필터]-->E[WAS]
+    ```
+
+    - WAS는 어떻게 예외를 어떻게 처리할까?
+
+      - `server.error.whitelabel.enabled=false`을 `application.properties`에 더해서,
+
+        스프링의 기본 에러 페이지를 닫고 테스트 해본다.
+
+      ```java
+      @Slf4j
+      @Controller
+      public class ServletExController {
+      
+          @GetMapping("/error-ex")
+          public void errorEx() {
+              throw new RuntimeException("테스트 예외 발생!");
+          }
+      }
+      ```
+
+      - 톰캣이 기본으로 제공하는 `HTTP Status 500 – Internal Server Error`화면이 나옴
+        - 서버 내부에서 해결 불가한 오류 500
+      - 매핑이 되어있지 않은 url `http://localhost:8080/no-page`을 입력시에는 톰캣이 제공하는 404에러 확인 가능
+
+
+
+#### response.sendError(Http 상태 코드, 오류 메시지)
+
+- `HttpServletResponse`의 메서드
+- 예외를 일으키지는 않지만, 서블릿 컨테이너에게 오류 발생을 전달 가능
+
+- http 상태 코드와 오류 메시지 넣을 수 있음
+
+- `ServletExController`
+
+  ```java
+      @GetMapping("/error-404")
+      public void error404(HttpServletResponse response) throws IOException {
+          response.sendError(SC_NOT_FOUND, "404 오류!");
+      }
+  
+      @GetMapping("/error-500")
+      public void error500(HttpServletResponse response) throws IOException {
+          response.sendError(500, "500 오류!");
+      }
+  ```
+
+  - 메서드 특성상 IOException 던져야 함: 왜?
+
+- 호출 흐름
+
+  ```mermaid
+  graph LR
+  A[컨트롤러:sendError]-->B[인터셉터]-->C[서블릿]-->D[필터]-->E[WAS: sendError 호출 기록 확인]
+  ```
+
+  - `sendError`는 `response`에 오류 상태를 저장한다.
+  - 서블릿 컨테이너는 클라이언트 응답 전에 `sendError`가 호출되었는가를 확인한다.
+  - 호출 되었을 경우, 오류 코드에 맞춰 오류 페이지를 제공한다.
+
+
+
+- Exception의 경우 무조건 500에러!
+- sendError의 경우 HTTP 상태 코드, 오류 메시지 지정 가능.
+
+
+
+### 오류 화면 제공
+
+- 고객 친화적 오류화면 제공
+- 서블릿은 `Exception`이나 `sendError`상황에서 오류 처리 기능을 제공한다.
+
+- 제공 방식
+
+  - 과거: `web.xml`
+
+    ```xml
+    <web-app>
+     <error-page>
+     <error-code>404</error-code>
+     <location>/error-page/404.html</location>
+     </error-page>
+     <error-page>
+     <error-code>500</error-code>
+     <location>/error-page/500.html</location>
+     </error-page>
+     <error-page>
+     <exception-type>java.lang.RuntimeException</exception-type>
+     <location>/error-page/500.html</location>
+     </error-page>
+    </web-app>
+    ```
+
+  - 현재는 스프링 부트가 제공하는 기능을 사용하여 서블릿 오류 페이지를 등록
+
+    (스프링 부트를 통해 서블릿 컨테이너를 실행하기 때문)
+
+- `WebServerCustomizer`
+
+  ```java
+  @Component
+  public class WebServerCustomizer implements WebServerFactoryCustomizer<ConfigurableWebServerFactory> {
+      @Override
+      public void customize(ConfigurableWebServerFactory factory) {
+  
+          ErrorPage errorPage404 = new ErrorPage(NOT_FOUND, "/error-page/404");
+          ErrorPage errorPage500 = new ErrorPage(INTERNAL_SERVER_ERROR, "/error-page/500");
+  
+          ErrorPage errorPageEx = new ErrorPage(RuntimeException.class, "/error-page/500");
+  
+          factory.addErrorPages(errorPage404, errorPage500, errorPageEx);
+      }
+  }
+  ```
+
+  - 에러 페이지를 등록했음
+  - `RuntimeException`로 등록할 경우 하위 자식 클래스들의 경우까지 연결
+
+-  컨트롤러와 뷰를 구현하면, 제대로 오류 페이지가 작동하는 것을 볼 수 있다.
