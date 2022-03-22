@@ -2839,13 +2839,15 @@ public String homeLoginV3Spring(
 
 ### 서블릿 예외 처리
 
+#### 개념
+
 - 서블릿이 예외 처리를 지원하는 방식
   - `Exception`: 예외가 발생해서 WAS 서블릿 컨테이너까지 날아갈 때
   - `response.sendError(Http 상태 코드, 오류 메시지)`
 
 
 
-#### Exception
+##### Exception
 
 - **자바 직접 실행**
 
@@ -2890,7 +2892,7 @@ public String homeLoginV3Spring(
 
 
 
-#### response.sendError(Http 상태 코드, 오류 메시지)
+##### response.sendError(Http 상태 코드, 오류 메시지)
 
 - `HttpServletResponse`의 메서드
 - 예외를 일으키지는 않지만, 서블릿 컨테이너에게 오류 발생을 전달 가능
@@ -2931,7 +2933,7 @@ public String homeLoginV3Spring(
 
 
 
-### 오류 화면 제공
+#### 오류 화면 제공
 
 - 고객 친화적 오류화면 제공
 - 서블릿은 `Exception`이나 `sendError`상황에서 오류 처리 기능을 제공한다.
@@ -2983,3 +2985,143 @@ public String homeLoginV3Spring(
   - `RuntimeException`로 등록할 경우 하위 자식 클래스들의 경우까지 연결
 
 -  컨트롤러와 뷰를 구현하면, 제대로 오류 페이지가 작동하는 것을 볼 수 있다.
+
+
+
+#### 오류 페이지 작동원리
+
+##### 요청 흐름
+
+- 위의 예제에서,
+
+- `Exception` 발생 시에는
+
+  ```mermaid
+  graph LR
+  A[컨트롤러:예외 발생]-->B[인터셉터]-->C[서블릿]-->D[필터]-->E[WAS]
+  ```
+
+  - 순서로 호출된다. 여기서 다시 해당 오류 페이지로 `/error-page/500`이 지정되어 있음을 확인하고,
+
+    ```mermaid
+    graph LR
+    A[WAS: 에러페이지 요청]-->B[필터]-->C[서블릿]-->D[인터셉터]-->E[컨트롤러]-->F[view]
+    ```
+
+  - 다시 위와 같이 요청 흐름이 이루어진다.
+
+    - Http요청이 다시 온 것과 유사하지만, 실제로는 요청이 다시 온 것은 아니며 내부 동작이다.
+    - **클라이언트 요청은 1회 이루어졌지만 컨트롤러는 2회 호출되었다.**
+    - **클라이언트(웹 브라우저)는 서버 내부의 위와 같은 동작에 대해 모른다. 위는 모두 서버 내에서 일어난 일이다.**
+
+
+
+##### 오류 정보 추가
+
+- WAS는 오류 페이지를 단순 요청만 하는 것이 아니라 오류 정보를 `request`의 `attribute`에 추가하여 넘긴다.
+
+  오류 페이지에서 이 정보를 사용할 수도 있다.
+
+- `RequestDispatcher`에 오류 정보 상수들이 보관되어 있다.
+
+  ```java
+  public static final String ERROR_EXCEPTION = "javax.servlet.error.exception";
+  public static final String ERROR_EXCEPTION_TYPE = "javax.servlet.error.exception_type";
+  public static final String ERROR_MESSAGE = "javax.servlet.error.message";
+  public static final String ERROR_REQUEST_URI = "javax.servlet.error.request_uri";
+  public static final String ERROR_SERVLET_NAME = "javax.servlet.error.servlet_name";
+  public static final String ERROR_STATUS_CODE = "javax.servlet.error.status_code";
+  ```
+
+  - 한 번 출력해보면
+
+    | ERROR PAGE 404                       | ERROR PAGE 500                       |
+    | ------------------------------------ | ------------------------------------ |
+    | ERROR_EXCEPTION:null                 | ERROR_EXCEPTION:null                 |
+    | ERROR_EXCEPTION_TYPE:null            | ERROR_EXCEPTION_TYPE:null            |
+    | ERROR_MESSAGE:404 오류!              | ERROR_MESSAGE:500 오류!              |
+    | ERROR_REQUEST_URI:/error-404         | ERROR_REQUEST_URI:/error-500         |
+    | ERROR_SERVLET_NAME:dispatcherServlet | ERROR_SERVLET_NAME:dispatcherServlet |
+    | ERROR_STATUS_CODE:404                | ERROR_STATUS_CODE:500                |
+    | dispatcherType=ERROR                 | dispatcherType=ERROR                 |
+
+
+
+#### 필터
+
+- 예외 발생 시 오류 페이지 출력을 위해 WAS가 2번째 호출을 시도한다.
+
+  하지만, 이 경우 이미 클라이언트부터 온 요청 흐름에서 필터/인터셉터의 검증을 이미 완료한 상황이다.
+
+  비효율적인 호출을 막기 위해서 클라이언트에서 온 요청인지, 서버 내부의 요청인지를 구별할 수 있어야 한다.
+
+  -> **`DispatcherType`의 필요**
+
+
+
+##### DispatcherType
+
+- 서블릿 스펙은 요청이 고객에 의한 것인지, 서버에 의한 것인지를 알 수 있는 `DispatherType`을 제공한다.
+  - `dispatherType=REQUEST`: 고객의 요청
+  - `dispatcherType=ERROR`: 서버 오류 페이지용 요청
+
+| DispatcherType | 설명                                                         |
+| -------------- | ------------------------------------------------------------ |
+| FOWARD         | 서블릿에서 다른 서블릿이나 JSP를 호출할 때(`RequestDispatcher.foward(request, response)`) |
+| INCLUDE        | 서블릿에서 다른 서블릿이나 JSP의 결과를 포함할 때(`RequestDispatcher.include(request, response)`) |
+| REQUEST        | 클라이언트 요청                                              |
+| ASYNC          | 서블릿 비동기 호출                                           |
+| ERROR          | 서버에서 에러 호출                                           |
+
+
+
+##### 필터와 DispatcherType
+
+- `WebConfig`에서
+
+  ```java
+      @Bean
+      public FilterRegistrationBean logFilter() {
+          FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>();
+          filterRegistrationBean.setFilter(new LogFilter());
+          filterRegistrationBean.setOrder(1);
+          filterRegistrationBean.addUrlPatterns("/*");
+          filterRegistrationBean.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ERROR);
+          return filterRegistrationBean;
+      }
+  ```
+
+  - `filterRegistrationBean.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ERROR)`: `REQUEST`와 `ERROR` 모두를 넣었기에
+
+    클라이언트의 일반 요청 외에 에러 페이지에서도 필터가 호출된다.
+
+    참고로, default는 `REQUEST`만 지정된다.
+
+  - 필요에 따라 달리 지정하면 된다. 오류 메시지 전용 필터를 사용하거나, 클라이언트 요청에만 필터를 지정하거나 하는 식으로
+
+  
+
+#### 인터셉터
+
+- 필터의 경우와 같이, 오류 처리로 인한 서버 내부의 호출이 이루어졌을 때 인터셉터가 요청 검증을 할 필요가 없다.
+
+  다음과 같은 변
+
+- `WebConfig`
+
+  ```java
+      @Override
+      public void addInterceptors(InterceptorRegistry registry) {
+          registry.addInterceptor(new LogInterceptor())
+                  .order(1)
+                  .addPathPatterns("/**")
+                  .excludePathPatterns("/css/**", "*.ico", "/error", "/error-page/**");   // 오류 페이지 경로를 추가
+      }
+  ```
+
+  - 인터셉터의 경우 `DispatcherType`을 지원하지 않는다,
+
+    대신에, `.excludePathPatterns`에 오류 페이지 경로를 추가하는 방식으로 문제를 해결할 수 있다.
+
+
+
