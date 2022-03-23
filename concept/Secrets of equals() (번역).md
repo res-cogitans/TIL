@@ -2,7 +2,13 @@
 
 [**원문 링크**](http://www.angelikalanger.com/Articles/JavaSolutions/SecretsOfEquals/Equals-2.html)
 
-How to implement a correct slice comparison in Java
+**How to implement a correct slice comparison in Java**
+
+
+
+*JavaSolutions, August 2002*
+
+*Angelika Langer & Klaus Kreft*
 
 
 
@@ -191,9 +197,9 @@ The functionality that we aim to implement depends on the type of `this` object 
 
 1. `this` and `other` are of the exact same type.
 
-2. All fields can and must be compared.
+   All fields can and must be compared.
 
-3. `this`와 `ohter`는 정확히 동일한 타입이다.
+1. `this`와 `ohter`는 정확히 동일한 타입이다.
 
    모든 필드들은 비교될 수 있으며, 그래야만 한다.
 
@@ -212,6 +218,8 @@ The functionality that we aim to implement depends on the type of `this` object 
 3. `this` is of a supertype of `other`.
 
    The `other` object is the larger object that has subclass-specific fields that must have default values. This can be implemented easiest if we let the `other` object do the work, which gets us back to case 2  with the roles of `this` and `other` being switched. 
+
+   
 
 3. `this`는 `other`의 슈퍼타입이다.
 
