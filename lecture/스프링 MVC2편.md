@@ -3125,3 +3125,115 @@ public String homeLoginV3Spring(
 
 
 
+### 스프링 부트 - 오류 페이지
+
+- 기존에 예외 처리 페이지를 만들기 위해 사용한 방식
+  - `WebServerCustomizer`
+  - 예외 종류에 따라 `ErrorPage` 추가
+  - 예외 처리용 컨트롤러 `ErrorPageController`
+
+- 스프링 부트가 기본 제공하는 사항:
+
+  - `ErrorPage` 자동 등록, `/error` 경로로 기본 오류 페이지를 설정함
+    - `new ErrorPage("/error")`, 상태코드와 예외를 설정하지 않을 경우 기본 오류 페이지로 사용됨
+    - 서블릿 밖으로 예외가 발생하거나, `sendError` 호출시 모든 오류는 `error`를 호출하게 됨
+  - `BasicErrorController` 스프링 컨트롤러를 자동으로 등록
+    - `ErrorPage`에서 등록한 `/error`를 매핑하여 처리하는 컨트롤러
+
+  - **`ErrorMvcAutoConfiguration`**: 오류 페이지를 자동 등록하는 역할
+
+- 개발자는 뷰 템플릿 경로에 오류 페이지만 넣어두면 된다.
+
+
+
+#### 뷰 선택 우선순위
+
+`BasicErrorController`의 처리순서다:
+
+1. 뷰 템플릿
+
+   - `resources/templates/error/500.html`
+   - `resources/templates/error/5xx.html`
+
+2. 정적 리소스(`static`, `public`)
+
+   - `resources/static/error/404.html`
+
+   - `resources/static/error/4xx.html`
+
+3. 적용 대상이 없을 때 뷰 이름(`error`)
+   - `resources/templates/error.html`
+
+- 구체적인 것이 더 우선순위를 가짐
+- 뷰 템플릿이 정적 리소스보다 우선순위가 높음
+
+
+
+#### `BasicErrorController`가 제공하는 기본 정보들
+
+- `BasicErrorController`가 모델에 담아 뷰에 전달하는 정보들로, 뷰 템플릿은 이 값을 이용하여 출력할 수 있다.
+
+- 오류 페이지에 다음을 추가해보자:
+
+  ```html
+              <li th:text="|timestamp: ${timestamp}|"></li>
+              <li th:text="|path: ${path}|"></li>
+              <li th:text="|status: ${status}|"></li>
+              <li th:text="|message: ${message}|"></li>
+              <li th:text="|error: ${error}|"></li>
+              <li th:text="|exception: ${exception}|"></li>
+              <li th:text="|errors: ${errors}|"></li>
+              <li th:text="|trace: ${trace}|"></li>
+  ```
+
+  - 다음과 같이 출력된다:
+
+    ```
+    오류 정보
+    timestamp: Wed Mar 23 13:35:56 KST 2022
+    path: /error-ex
+    status: 500
+    message: null
+    error: Internal Server Error
+    exception: null
+    errors: null
+    trace: null
+    ```
+
+- **오류 관련 내부 정보들을 고객에게 노출하는 것은 좋지 않다.**
+
+  - 고객이 해당 정보를 읽어도 혼란만 더해지며
+
+  - 보안상 문제가 된다.
+
+  - `BasicErrorController`가 다음 오류 정보를 `model`에 포함할지 선택 가능하다: `application.properties`에서
+
+    ```
+    server.error.include-exception=false : exception 포함 여부( true , false )
+    server.error.include-message=never : message 포함 여부
+    server.error.include-stacktrace=never : trace 포함 여부
+    server.error.include-binding-errors=on_param : errors 포함 여부
+    ```
+
+    - `on param`은 파라미터가 있을 경우 해당 정보를 노출한다: 운영 서버에서 사용하지 말자.
+
+      (`localhost:8080/error-ex/?message=`)
+
+- 사용자에게는 간단한 오류 메세지와 오류 화면을 제공하고
+
+  **오류는 서버에 로그로 남겨서 로그로 확인해라.**
+
+
+
+#### 기타 참고사항
+
+- **스프링 부트 오류 관련 옵션**
+
+  - `server.error.whitelabel.enabled=true`: 오류 처리 화면을 못 찾으면 스프링 whitelabel 오류 페이지 적용
+
+  - `server.error.path=/error`: 오류 페이지 경로, 스프링이 자동 등록하는 서블릿 글로벌 오류 페이지 경로와 `BasicErrorController` 오류 컨트롤러 경로에 함께 사용된다.
+
+- **확장 포인트**
+  - 에러 공통 처리 컨트롤러의 기능을 변경하고 싶다면,
+    - `ErrorController` 인터페이스를 상속받거나
+    - `BasicErrorController`를 상속받아서 기능을 추가
