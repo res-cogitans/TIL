@@ -3228,12 +3228,110 @@ public String homeLoginV3Spring(
 #### 기타 참고사항
 
 - **스프링 부트 오류 관련 옵션**
-
   - `server.error.whitelabel.enabled=true`: 오류 처리 화면을 못 찾으면 스프링 whitelabel 오류 페이지 적용
-
+  
   - `server.error.path=/error`: 오류 페이지 경로, 스프링이 자동 등록하는 서블릿 글로벌 오류 페이지 경로와 `BasicErrorController` 오류 컨트롤러 경로에 함께 사용된다.
-
+  
 - **확장 포인트**
   - 에러 공통 처리 컨트롤러의 기능을 변경하고 싶다면,
     - `ErrorController` 인터페이스를 상속받거나
     - `BasicErrorController`를 상속받아서 기능을 추가
+
+
+
+## API 예외 처리
+
+- **주의점**
+
+  - html 페이지의 경우 오류 페이지로 대부분의 예외 처리가 가능하지만
+
+  - API의 경우 각 오류 상황에 맞는 오류 의답 스펙을 정하고 JSON으로 데이터를 내려주어야 한다.
+
+- `ApiController`
+
+  ```java
+  @Slf4j
+  @RestController
+  public class ApiExceptionController {
+  
+      @GetMapping("/api/members/{id}")
+      public MemberDto getMember(@PathVariable("id") String id) {
+  
+          if (id.equals("ex")) {
+              throw new RuntimeException("잘못된 사용자");
+          }
+  
+          return new MemberDto(id, "hello " + id);
+      }
+  
+      @Data
+      @AllArgsConstructor
+      static class MemberDto {
+          private String memberId;
+          private String name;
+      }
+  }
+  ```
+
+  `RestController`를 만들고, 의도적으로 `Exception` 발생시킬 수 있는 상황을 만든다.
+
+- 이 경우 `Exception` 발생하면 json 응답이 아니라 기존의 에러페이지(html)을 반환한다. 이를 수정해보자:
+
+- `ErrorPageCotroller`
+
+  ```java
+  @RequestMapping(value = "/error-page/500", produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<Map<String, Object>> errorPage500Api(
+          HttpServletRequest request, HttpServletResponse response) {
+  
+      log.info("API errorPage 500");
+  
+      HashMap<String, Object> result = new HashMap<>();// 실제로는 객체 사용이 더 좋다.
+      Exception ex = (Exception) request.getAttribute(ERROR_EXCEPTION);
+      result.put("status", request.getAttribute(ERROR_STATUS_CODE));
+      result.put("message", ex.getMessage());
+  
+      Integer statusCode = (Integer)request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
+  
+      return new ResponseEntity<>(result, HttpStatus.valueOf(statusCode));
+  }
+  ```
+
+  - `RequestMapping`에 `produce`값으로 `MediaType.APPLICATION_JSON_VALUE`를 넣어서
+  -  `Accept` 헤더가 json을 요구할 경우 오류 정보를 json의 형태로 전달해줄 수 있게 하자.
+
+
+
+### 스프링부트 기본 오류 처리
+
+- API의 경우에도 스프링부트가 제공하는 `BasicErrorController` 오류 제공 메커니즘을 적용할 수 있다.
+
+  다음과 같은 json 데이터가 반환된다:
+
+  ```json
+  {
+      "timestamp": "2022-03-24T04:58:41.672+00:00",
+      "status": 500,
+      "error": "Internal Server Error",
+      "path": "/api/members/ex"
+  }
+  ```
+
+  - 한편, `Accept` 헤더를 json이 아닌, `text/html`로 변경한 요청의 응답을 받아보면, html 페이지가 반환된다.
+
+    `produce` 값을 변경하는 것을 바탕으로 구현되어 있다. (`BasicErrorController`)
+
+    - 기본적으로는 `error` 메서드를 이용하여 경로를 처리하고, html 요청이 올 경우`errorHtml()`메서드로 처리하는 것
+
+  - json 응답의 경우에도 `application.properties`의 변경을 통해 오류 정보를 추가 전달이 가능하다.
+
+- **Html 페이지 / API 오류 처리 **
+
+  - `BasicErrorController`: API 오류 처리에도 사용 가능하지만(`BasicErrorController`확장을 통해), 기본적으로 **html 페이지 처리일 때 더 적합**
+
+  - **`@ExceptionHandler`: API 오류 처리시에는, 이걸 사용하자.**
+
+    - API의 경우는 각 컨트롤러, 예외마다 다른 응답 결과를 출력해야 할 수도 있기 때문에
+
+      html 오류 페이지처럼 일관되게 처리하기는 힘들기 때문이다.
+
