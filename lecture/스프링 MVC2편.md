@@ -3600,3 +3600,120 @@ public String homeLoginV3Spring(
   하지만, `ExceptionResolver` 구현이 복잡함
 
   -> 스프링이 제공하는 기술 사용하면 됨!
+
+
+
+### 스프링 ExceptionResolver
+
+- 스프링이 제공하는 `ExceptionResolver`
+  - `HandlerExceptionResolver`에 다음 순서로 등록
+    1. `ExceptionHandlerExceptionResolver` -> 높은 우선순위
+    2. `ResponseStatusExceptionResolver`
+    3. `DefaultHandlerExceptionResolver` -> 낮은 우선순위
+
+- **`ExcpetionHandlerExceptionResolver`**
+  - `@ExceptionHandler`를 처리, API 예외 대부분을 처리
+- **`ResponseStatusExceptionResolver`**
+  - HTTP 상태 코드 지정
+  - `@ResponseStatus(code = HttpStatus.NOT_FOUND)`
+
+- **`DefaultHandlerExceptionResolver`**
+  - 스프링 내부 기본 예외 처리
+
+
+
+#### `ResponseStatusExceptionResolver`
+
+- 예외에 따라 상태코드를 지정
+
+- 대상
+  - `@ResponseStatus`
+  - `ResponseStatusException` 예외
+
+- 사용
+
+  ```java
+  @ResponseStatus(code = HttpStatus.BAD_REQUEST, reason = "잘못된 요청 오류")
+  public class BadRequestException extends RuntimeException {
+  }
+  ```
+
+  API 통신시에는 다음을 출력:
+
+  ```json
+  {
+      "timestamp": "2022-03-27T21:40:17.747+00:00",
+      "status": 400,
+      "error": "Bad Request",
+      "path": "/api/response-status-ex1"
+  }
+  ```
+
+  - 상태코드와 `reason`을 뽑아내서, `sendError`하고, `ModelAndView`반환
+    - `HandlerExceptionResolver`와 같음!
+
+- `reason`은 메시지 소스에서 찾는 기능도 제공함
+
+  ```java
+  @ResponseStatus(code = HttpStatus.BAD_REQUEST, reason = "error.bad")
+  ```
+
+  그리고 메시지에 내용만 추가해주면 적용된다,
+
+
+
+#### `ResponseStatusException`
+
+- 필요성
+
+  - 개발자가 직접 변경할 수 없는 예외에도 적용할 수 있어야.
+  - 애노테이션은 동적 변경이 어려움
+
+- 사용
+
+  ```java
+      @GetMapping("/api/response-status-ex2")
+      public String responseStatusEx2() {
+          throw new ResponseStatusException(HttpStatus.NOT_FOUND, "error.bad", new IllegalArgumentException());
+      }
+  ```
+
+  - `ResponseStatusException`을 던졌지만, `IllegalArgumentException`을 처리한다.
+
+- `ResponseStatusException`은 `RuntimeException`을 확장하고 있다.
+
+
+
+#### `ExceptionHandlerExceptionResolver`
+
+- **`DefaultHandlerExceptionResolver`**
+
+  - 스프링 내부 예외를 해결
+
+  - `responser.sendError()` 이용해서 해결하는 방식
+
+- 스프링의 적용예
+
+  ```java
+      @GetMapping("/api/default-handler-ex")
+      public String defaultException(@RequestParam Integer data) {
+          return "ok";
+      }
+  ```
+
+  파라미터의 `TypeMismatch` 발생시, 응답은 다음과 같다:
+
+  ```json
+  {
+      "timestamp": "2022-03-27T22:03:13.083+00:00",
+      "status": 400,
+      "error": "Bad Request",
+      "path": "/api/default-handler-ex"
+  }
+  ```
+
+  400으로 변환된 것을 볼 수 있다(기본적으로는 500임).
+
+  -> `DefaultHandlerExceptionResolver`의 기능
+
+  
