@@ -3716,4 +3716,235 @@ public String homeLoginV3Spring(
 
   -> `DefaultHandlerExceptionResolver`의 기능
 
+
+
+#### API 예외 처리 - `@ExcpetionHandler`
+
+- **HTML 화면 오류 vs API 오류**
+  - HTML 화면 오류
+    - `BasicErrorController` 사용하면 편하다. 단순히 5xx, 4xx 오류 화면을 보여주기만 하면 되기 때문이다.
+  - **API 오류의 난점**
+    - 시스템마다 응답 모양, 스펙이 다름
+    - 예외에 따라 각기 다른 데이터를 출력해야 할 수도 있음
+    - 같은 예외라도 어떤 컨트롤러에서 발생한 예외인지에 따라 다른 응답을 보내줘야 할 수도 있음
+
+
+
+- **`@ExceptionHandler`**
+
+  - 편리한 예외 처리 기능을 제공
+
+  - `ExceptionHandlerExceptionResolver`가 위 애노테이션을 이용하여 예외 처리 기능 제공
+
+  - `ExceptionResolver` 중에서 우선순위가 가장 높음
+
+  - 실무에서 API 예외처리는 이 방식을 사용
+
+##### 예시코드
+
+- 예제1
+
+  ```java
+  @Slf4j
+  @RestController
+  public class ApiExceptionV2Controller {
   
+      @ExceptionHandler(IllegalArgumentException.class)
+      public ErrorResult illegalExHandler(IllegalArgumentException e) {
+          log.error("[exceptionHandler] ex", e);
+          return new ErrorResult("BAD", e.getMessage());
+      }
+  
+      @GetMapping("/api2/members/{id}")
+      public ApiExceptionController.MemberDto getMember(@PathVariable("id") String id) {
+  
+          if (id.equals("bad")) {
+              throw new IllegalArgumentException("잘못된 입력값");
+          }
+  
+      }
+  ```
+
+  그리고 오류 정보를 받아 올 `ErrorResult`는 다음과 같다.
+
+  ```java
+  @Data
+  @AllArgsConstructor
+  public class ErrorResult {
+      private String code;
+      private String message;
+  }
+  ```
+
+  - `@ExceptionHandler(IllegalArgumentException.class)` 붙은 메서드는 아래 메서드 호출에서 해당 `Exception` 발생시 처리한다.
+    위의 경우 다음과 같은 응답을 받는다.
+
+  ```json
+  {
+      "code": "BAD",
+      "message": "잘못된 입력값"
+  }
+  ```
+
+  JSON으로 잘 받은 것을 볼 수 있다. (상태코드가 200 OK임에 주의하자)
+
+- 호출 흐름(기본적으로 이전과 유사)
+
+  - 예외가 터지면 `ExceptionHandlerExceptionResolver`가 우선 작동
+
+  - 컨트롤러에 해당하는 `@ExceptionHandler`가 있는지 찾고, 있다면 호출
+
+  - `ErrorResult` 반환하여 `ErrorHandler` 호출 (정상적인 흐름으로 변화: 상태코드가 200 OK로 온다.)
+
+    - **정상적으로 처리되었기에 상태코드 200 OK 사용은 적합하지만,**
+      만일 상태코드를 바꾸고 싶다면 어떻게 할까?
+
+      - 그냥 `@ResponseStatus` 애노테이션을 달아준다.
+
+        ```java
+        @ResponseStatus(HttpStatus.BAD_REQUEST)
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ErrorResult illegalExHandler(IllegalArgumentException e) {
+        ```
+
+- 예제2
+
+  ```java
+      @ExceptionHandler
+      public ResponseEntity<ErrorResult> userHandler(UserException e) {
+          log.error("[exceptionHandler] ex", e);
+          ErrorResult errorResult = new ErrorResult("USER-EX", e.getMessage());
+          return new ResponseEntity(errorResult, HttpStatus.BAD_REQUEST);
+      }
+  
+  ```
+
+  - `@ExceptionHandler`에 예외 종류를 넣지 않고,
+    메서드 매개변수에 넣어도 정상 작동한다.
+
+  - `ErrorResult`를 반환하지 않고 `ResponseEntity<ErrorResult>` 형태로 반환하는 것도 가능하다.
+
+  - 위와 같은 방식으로 상태코드를 설정할 수도 있다.
+
+  - 다음을 응답한다.
+
+    ```json
+    {
+        "code": "USER-EX",
+        "message": "사용자 오류"
+    }
+    ```
+
+    - 정상적으로 JSON으로 출력되었으며, 상태코드도 잘 바뀌었음을 알 수 있다.
+
+- 예제3
+
+  ```java
+      @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+      @ExceptionHandler
+      public ErrorResult exHandler(Exception e) {
+          log.error("[exceptionHandler] ex", e);
+          return new ErrorResult("EX", "내부 오류");
+      }
+  ```
+
+  - 다른 `@ExceptionHandler`로 처리하지 못한 전체를 처리한다.
+
+  - 처리 범위는 이 컨트롤러 내에서다.
+
+  - 런타임 에러를 일으키면 다음이 반환된다.
+
+    ```json
+    {
+        "code": "EX",
+        "message": "내부 오류"
+    }
+    ```
+
+    - `RuntimeException`의 경우 다른 `@ExceptionHandler`들이 잡아주지 못했기에, 전체 `Exception`을 다루는 `@ExceptionHandler`가 잡아주는 것이다.
+
+##### `@ExceptionHandler`의 예외 처리 방식
+
+- `@ExceptionHandler` 애노테이션을 선언, 해당 컨트롤러에서 처리하고 싶은 예외를 지정
+
+  - 해당 컨트롤러에서 예외 호출되면 메서드가 호출
+
+  - 지정한 예외 + 자식 클래스를 모두 잡을 수 있음
+
+- **우선순위**
+  - 항상 자세한 것이 우선권을 가진다.
+  - 부모 예외를 처리하는 메서드와 자식 예외를 처리하는 메서드가 있다면 자식 예외를 처리하는 쪽이 적용됨
+
+- **다양한 예외를 동시 처리 가능**
+
+  ```java
+  @ExceptionHandler({ExceptionA.class, ExceptionB.class})
+  public String ex(Exception e) {
+      ...
+  }
+  ```
+
+  `@ExceptionHandler`에 복수의 `Exception`을 넣었고, 메서드 매개변수가 그 복수의 변수에 대한 부모 `Exception`이라면 둘 다 처리 가능하다.
+
+- `@ExceptionHandler`에 예외를 지정하지 않고, 메서드 매개변수에 예외를 넣기만 할 수도 있음.
+
+- **파라미터와 응답**
+  - 다양한 파라미터와 응답이 가능함
+  - **[공식 메뉴얼](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-ann-exceptionhandler-args)**
+
+- **실행 흐름**
+  - 컨트롤러를 호출한 결과 예외가 컨트롤러 밖으로 던져짐
+  - 예외가 발생했기에 `ExceptionResolver`가 작동
+    가장 우선순위가 높은 `ExceptionHandlerExceptionResolver`가 실행됨
+  - `ExceptionHandlerExceptionResolver`는 해당 컨트롤러에 그 예외를 처리할 수 있는 `@ExceptionHandler`가 있는지 확인, 실행한다.
+  - `@RestController`이기에 Http 컨버터가 사용되며, 응답은 JSON으로 변환된다.
+  - 상태 코드 지정에 따라 상태 코드도 변경된다.
+- **단점**
+  - 다른 컨트롤러에도 적용하고 싶을 때는 동일한 코드를 붙여 넣어야 한다.
+
+
+
+#### API예외 처리 - `@ControllerAdvice`
+
+- **문제상황**
+
+  - `@ExceptionHandler`를 사용하여 예외를 깔끔하게 처리할 수 있었지만, 하나의 컨트롤러에 정상 코드와 예외 코드가 뒤섞여 있는 상황이다.
+
+  - `@ControllerAdvice`나 `@RestControllerAdvice`를 사용하여 둘을 분리하자.
+
+- `ExControllerAdvice`
+
+  ```java
+  @Slf4j
+  @RestControllerAdvice
+  public class ExControllerAdvice {
+  
+      @ExceptionHandler(IllegalArgumentException.class)
+      ...
+  }
+  ```
+
+  - 예외 처리하는 `@ExceptionHandler`를 한 군데에 빼준다.
+  - 정상 작동함을 확인할 수 있다.
+
+- **`@ControllerAdvice`**
+  - 대상으로 지정한 여러 컨트롤러에 `@ExceptionHandler`, `@InitBinder` 기능을 부여해주는 역할을 한다.
+  - 대상을 지정하지 않으면 모든 컨트롤러에 적용된다.
+
+- **대상 지정 방법**
+
+  ```java
+  // Target all Controllers annotated with @RestController
+  @ControllerAdvice(annotations = RestController.class)
+  public class ExampleAdvice1 {}
+  
+  // Target all Controllers within specific packages
+  @ControllerAdvice("org.example.controllers")
+  public class ExampleAdvice2 {}
+  
+  // Target all Controllers assignable to specific classes
+  @ControllerAdvice(assignableTypes = {ControllerInterface.class,AbstractController.class})
+  public class ExampleAdvice3 {}
+  ```
+
+  - **관련 스프링 공식 문서 [링크](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-ann-controller-advice)**
