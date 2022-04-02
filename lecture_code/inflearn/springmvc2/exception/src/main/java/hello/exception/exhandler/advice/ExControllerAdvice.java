@@ -32,5 +32,4 @@ public class ExControllerAdvice {
         log.error("[exceptionHandler] ex", e);
         return new ErrorResult("EX", "내부 오류");
     }
-
 }
