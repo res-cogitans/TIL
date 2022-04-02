@@ -3948,3 +3948,121 @@ public String homeLoginV3Spring(
   ```
 
   - **관련 스프링 공식 문서 [링크](https://docs.spring.io/spring-framework/docs/current/reference/html/web.html#mvc-ann-controller-advice)**
+
+
+
+## 스프링 타입 컨버터
+
+### 필요성
+
+- `request.getParameter`
+  - Http 요청 파라미터는 모두 문자로 반환되기에, 다른 타입으로 사용하고 싶다면 변환 과정을 거쳐야 한다.
+  - `@RequestParam`을 이용하여 전달받을 경우 위와 같은 반환 과정 없이 원하는 타입으로 받을 수 있다.
+    스프링이 중간에서 타입 변환을 수행해주었기 때문이다.
+    - `@ModelAttribute`와 `@PathVariable`에서도 마찬가지다.
+
+- 타입 변환 해야 할 상황은 많으며, 개발자가 직접 변환해야 한다면 생산성이 떨어질 것임
+- 만일 개발자가 새 타입을 만들어서 변환하고 싶다면?
+  **-> 스프링의 `Converter` 인터페이스를 이용하자!**
+  - 컨버터 인터페이스를 구현하여 등록하기만 하면 된다.
+
+- **`PropertyEditor`**
+  - 과거에 타입 변환을 담당했음
+  - 동시성 문제로 인해 변환 시마다 객체를 계속 생성해야 했던 문제점이 있음
+  - 현재는 `Converter` 사용하면 된다.
+
+
+
+### `Converter`
+
+```java
+package org.springframework.core.convert.converter;
+
+@FunctionalInterface
+public interface Converter<S, T> {
+
+	@Nullable
+	T convert(S source);
+
+	default <U> Converter<S, U> andThen(Converter<? super T, ? extends U> after) {
+		Assert.notNull(after, "After Converter must not be null");
+		return (S s) -> {
+			T initialResult = convert(s);
+			return (initialResult != null ? after.convert(initialResult) : null);
+		};
+	}
+
+}
+```
+
+- 동명의 클래스들이 많기 때문에 주의해서 사용하자.
+
+- 구현예
+
+  ```java
+  @Slf4j
+  public class StringToIntegerConverter implements Converter<String, Integer> {
+  
+      @Override
+      public Integer convert(String source) {
+          log.info("convert source={}", source);
+          return Integer.valueOf(source);
+      }
+  }
+  
+  @Slf4j
+  public class IntegerToStringConverter implements Converter<Integer, String> {
+  
+      @Override
+      public String convert(Integer source) {
+          log.info("convert source={}", source);
+          return String.valueOf(source);
+      }
+  }
+  ```
+
+- 좀 더 복잡한 경우를 살펴보자
+
+  ```java
+  @Getter
+  @EqualsAndHashCode
+  public class IpPort {
+  
+      private String ip;
+      private int port;
+  
+      public IpPort(String ip, int port) {
+          this.ip = ip;
+          this.port = port;
+      }
+  }
+  ```
+
+  ```java
+  @Slf4j
+  public class StringToIpPortConverter implements Converter<String, IpPort> {
+  
+      @Override
+      public IpPort convert(String source) {
+          log.info("convert source={}", source);
+          // 127.0.0.1:8080"
+          String[] split = source.split(":");
+          String ip = split[0];
+          int port = Integer.parseInt(split[1]);
+          return new IpPort(ip, port);
+      }
+  }
+  ```
+
+- 타입 컨버터를 하나하나 찾아서 사용하는 것은 여전히 불편하다.
+  타입 컨버터를 등록, 관리하며 편리하게 변환 기능을 제공하는 기술이 필요하다.
+
+- 스프링은 용도에 따라 다양한 컨버터를 제공함
+  - `Converter` 기본
+  - `ConverterFactory` 전체 클래스 계층 구조가 필요할 때
+  - `GenericConverter`: 정교한 구현, 대상 필드의 애노테이션 정보 사용 가능
+  - `ConditionalGenericConverter` 특정 조건이 참인 경우에만 실행
+
+
+
+### `ConversionService`
