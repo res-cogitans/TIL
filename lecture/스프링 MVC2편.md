@@ -4066,3 +4066,201 @@ public interface Converter<S, T> {
 
 
 ### `ConversionService`
+
+- 개별 컨버터들을 모아서 편리하게 사용할 수 있는 기능
+
+- `ConversionService` 인터페이스
+
+  ```java
+  public interface ConversionService {
+      boolean canConvert(@Nullable Class<?> sourceType, Class<?> targetType);
+  	boolean canConvert(@Nullable TypeDescriptor sourceType, TypeDescriptor targetType);
+      
+  	@Nullable
+  	<T> T convert(@Nullable Object source, Class<T> targetType);
+  	@Nullable
+  	Object convert(@Nullable Object source, @Nullable TypeDescriptor sourceType, TypeDescriptor targetType);
+  
+  }
+  ```
+
+  - `canConvert()`: 컨버팅이 가능한지 확인하는 메서드
+  - `convert()`: 컨버팅 메서드
+
+- 용례
+
+  ```java
+      @Test
+      void conversionService() {
+          //등록
+          DefaultConversionService conversionService = new DefaultConversionService();
+          conversionService.addConverter(new StringToIntegerConverter());
+          conversionService.addConverter(new IntegerToStringConverter());
+          conversionService.addConverter(new StringToIpPortConverter());
+          conversionService.addConverter(new IpPortToStringConverter());
+  
+          //사용
+          assertThat(conversionService.convert("10", Integer.class)).isEqualTo(10);
+          assertThat(conversionService.convert(10, String.class)).isEqualTo("10");
+  
+          IpPort ipPort = conversionService.convert("127.0.0.1:8080", IpPort.class);
+          assertThat(ipPort).isEqualTo(new IpPort("127.0.0.1", 8080));
+  
+          String ipPortString = conversionService.convert(new IpPort("127.0.0.1", 8080), String.class);
+          assertThat(ipPortString).isEqualTo("127.0.0.1:8080");
+      }
+  ```
+
+  - 로그
+
+    ```
+    INFO hello.typeconverter.converter.StringToIntegerConverter - convert source=10
+    INFO hello.typeconverter.converter.IntegerToStringConverter - convert source=10
+    INFO hello.typeconverter.converter.StringToIpPortConverter - convert source=127.0.0.1:8080
+    INFO hello.typeconverter.converter.IpPortToStringConverter - convert source=hello.typeconverter.type.IpPort@59cb0946
+    ```
+
+- **등록과 사용의 분리**
+  - 컨버터를 등록할 때는 개별 타입 컨버터를 명확하게 알아야 하지만
+    컨버터를 사용하는 입장에서는 타입 컨버터를 전혀 몰라도 된다.
+  - 타입 컨버터들은 모두 컨버전 서비스 내부에 은닉되어 제공된다.
+  - 사용자는 컨버전 서비스 인터페이스에만 의존하면 된다.
+  - 컨버전 서비스 등록과 사용 부분을 분리하고 DI를 사용해야 한다.
+
+- **인터페이스 분리 원칙(ISP; Interface Segeregation Principle)**
+  - `DefaultConversionService`는 다음 두 인터페이스를 구현했음
+    - `ConversionService`: 컨버터 사용에 초점
+    - `ConverRegistry`: 컨버터 등록에 초점
+  - 사용과 등록의 관심사가 명확하게 분리됨
+
+- 스프링은 `ConversionService`를 이용하여 타입을 변환
+  - 예시) `@RequestParam`
+
+
+
+### 스프링에 `Converter` 적용하기
+
+- `WebConfig`의 등록 코드
+
+  ```java
+  @Configuration
+  public class WebConfig implements WebMvcConfigurer {
+  
+      @Override
+      public void addFormatters(FormatterRegistry registry) {
+          registry.addConverter(new StringToIntegerConverter());
+          registry.addConverter(new IntegerToStringConverter());
+          registry.addConverter(new StringToIpPortConverter());
+          registry.addConverter(new IpPortToStringConverter());
+      }
+  }
+  ```
+
+  - 스프링이 사용하는 `ConversionService`에 컨버터가 추가됨
+  - `@RequestParam` 으로 값을 받을 때 정상 작동됨을 볼 수 있다. 로그:`h.t.converter.StringToIntegerConverter   : convert source=10`
+    `String`으로 들어온 쿼리 파라미터가 `Integer`로 변환되었다.
+  - 그런데 `Integer` 변환은 이미 지원되고 있었다. 스프링이 지원하는 기본 컨버터가 있었기 때문이다.
+    - 위와 같이 기본 컨버터와 커스텀 컨버터가 겹칠 경우에는 커스텀 컨버터가 우선 적용된다.
+
+- 직접 만든 클래스 변환을 적용
+
+  ```java
+      @GetMapping("/ip-port")
+      public String ipPort(@RequestParam IpPort ipPort) {
+          System.out.println("ipPort.getIp() = " + ipPort.getIp());
+          System.out.println("ipPort.getPort() = " + ipPort.getPort());
+          return "ok";
+      }
+  ```
+
+  - 아래와 같이 출력된다:
+
+    ```
+    h.t.converter.StringToIpPortConverter    : convert source=192.168.0.1:8080
+    ipPort.getIp() = 192.168.0.1
+    ipPort.getPort() = 8080
+    ```
+
+    정상 작동함을 볼 수 있다.
+
+  - `@ModelAttribute` 등에도 마찬가지로 잘 적용된다.
+
+- **처리 과정**
+  - `@RequestParam`을 처리하는 `ArgumentResolver`인
+    `RequestParamMethodArgumentResolver`에서 `ConversionService`를 사용하여 타입을 변환
+
+
+
+### 뷰 템플릿에 `Converter` 적용하기
+
+- 타임리프는 랜더링 시에 컨버터를 적용하여 렌더링하는 방법을 지원한다.
+
+```html
+<ul>
+  <li>${number}: <span th:text="${number}" ></span></li>
+  <li>${{number}}: <span th:text="${{number}}" ></span></li>
+  <li>${ipPort}: <span th:text="${ipPort}" ></span></li>
+  <li>${{ipPort}}: <span th:text="${{ipPort}}" ></span></li>
+</ul>
+
+```
+
+- 중괄호가 한 개인 경우 `th:text="${number}"` 컨버터가 적용되지 않으며
+  중괄호가 두 개인 경우 `th:text="${{number}}"` 컨버터가 적용된다.
+
+- 다음과 같은 형태로 출력된다:
+  - ${number}: 10000
+  - ${{number}}: 10000
+  - ${ipPort}: hello.typeconverter.type.IpPort@59cb0946
+  - ${{ipPort}}: 127.0.0.1:8080
+
+- 타임리프는 `${{...}}` 사용하여 컨버전 서비스를 사용한 결과 출력 가능
+  - 스프링이 제공하는 컨버전 서비스 사용하기에, 등록한 컨버터도 사용 가능
+
+- 폼에 적용하기
+
+  ```java
+      @GetMapping("/converter/edit")
+      public String converterForm(Model model) {
+          IpPort ipPort = new IpPort("127.0.0.1", 8080);
+          Form form = new Form(ipPort);
+          model.addAttribute("form", form);
+          return "converter-form";
+      }
+  
+      @PostMapping("/converter/edit")
+      public String converterEdit(@ModelAttribute Form form, Model model) {
+          IpPort ipPort = form.getIpPort();
+          model.addAttribute("ipPort", ipPort);
+          return "converter-view";
+      }
+  
+      @Data
+      static class Form {
+          private IpPort ipPort;
+  
+          public Form(IpPort ipPort) {
+              this.ipPort = ipPort;
+          }
+      }
+  ```
+
+  ```html
+  <!DOCTYPE html>
+  <html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+  </head>
+  <body>
+  <form th:object="${form}" th:method="post">
+    th:field <input type="text" th:field="*{ipPort}"><br/>
+    th:value <input type="text" th:value="*{ipPort}">(보여주기 용도)<br/>
+    <input type="submit"/>
+  </form>
+  </body>
+  </html>
+  ```
+
+  - `th:field` 사용시 컨버터 자동 적용된다. (`${...}`형태라도)
+  - `th:value` 사용해야 컨버터가 적용되지 않는다.
