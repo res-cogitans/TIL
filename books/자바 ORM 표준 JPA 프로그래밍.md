@@ -418,3 +418,283 @@ jpa.persist(member);	//회와과 연관관계 함께 저장
 
 # 02장 JPA 시작
 
+## 2.3 라이브러리와 프로젝트 구조
+
+- JPA 구현체로 하이버네이트를 사용하기 위한 핵심 라이브러리
+  - `hibernate-core`: 하이버네이트 라이브러리
+  - `hibernate-entitymanager`: 하이버네이트가 JPA 구현체로 동작하도록 JPA 표준을 구현한 라이브러리
+  - `hibernate-japa-x.x-api`: JPA x.x 표준 API를 모아둔 라이브러리
+
+- maven의 핵심 라이브러리
+  - `hibernate-entitymanager`
+    - JPA 표준과 하이버네이트를 포함하는 라이브러리
+    - 다음 중요 라이브러리도 함께 받게 됨
+      - `-hibernate-core.jar`
+      - `-hibernate-jpa-x.x-api.jar`
+
+
+
+## 2.4 객체 매핑 시작
+
+```java
+@Entity
+@Getter
+public class Member {
+
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    @Column(name = "NAME")
+    private String username;
+
+    private Integer age;
+}
+```
+
+- 객체 생성 및 거기에 맞는 SQL문 실행하여 테이블 생성한다.
+
+- JPA는 아래와 같은 매핑 애노테이션을 분석해서 어떤 객체가 어떤 테이블과 유관한지 알아냄
+
+  - `@Entity`
+    - 이 클래스를 테이블과 매핑한다는 것을 JPA에게 알려줌
+    - `@Entity`가 사용된 클래스를 엔티티 클래스라 함
+  - `@Table`
+    - 엔티티 클래스에 매핑할 테이블 정보를 알려줌
+    - `name`속성을 생략할 경우 엔티티 이름을 테이블 이름으로 매핑한다.
+  - `@Id`
+    - 필드를 PK로 매핑
+    - `@Id`가 사용된 필드를 식별자 필드라고 함
+
+  - `@Column`
+    - 필드를 컬럼에 매핑
+  - 매핑 정보가 없는 필드
+    - 매핑 어노테이션이 생략되었을 경우 필드명을 사용하여 컬럼명으로 매핑
+    - 만일 데이터베이스가 대소문자를 구별한다면 `@Column(name="AGE")`처럼 명시적으로 매핑해야 한다.
+
+
+
+## 2.5 `Persistence.xml` 설정
+
+- JPA는 `persistence.xml`을 사용해서 설정 정보를 관리
+  - `META-INF/persistence.xml` 클래스 패스에 있을 경우 자동으로  JPA가 인식
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.1">
+    <persistence-unit name="jpabook">
+        <properties>
+            
+            <!--필수 속성-->
+            <property name="javax.persistence.jdbc.driver"
+                      value="org.h2.Driver"/>
+            <property name="javax.persistence.jdbc.user" value="sa"/>
+            <property name="javax.persistence.jdbc.password" value=""/>
+            <property name="javax.persistence.jdbc.url"
+                      value="jdbc:h2:tcp://localhost/~/test"/>
+            <property name="hibernate.dialect"
+                      value="org.hibernate.dialect.H2Dialect"/>
+            
+            <!-- 옵션 -->
+            <property name="hibernate.show_sql" value="true"/>
+            <property name="hibernate.format_sql" value="true"/>
+            <property name="hibernate.use_sql_comments" value="true"/>
+            <property name="hibernate.id.new_generator_mappings" value="true"/>
+            
+        </properties>
+    </persistence-unit>
+</persistence>
+```
+
+- `<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.1">`
+  - XML 네임스페이스, 사용할 버전 지정
+- `    <persistence-unit name="jpabook">`
+  - 영속성 유닛(persistence unit)의 고유명 등록
+- `properties`
+  - JPA 표준 속성
+    - `javax.persistence.jdbc.driver`: JDBC 드라이버
+    - `javax.persistence.jdbc.user`, `javax.persistence.jdbc.password`: DB 접속 아이디와 패스워드
+    - `javax.persistence.jdbc.url`: DB 접속 URL
+  - 하이버네이트 속성
+    - `hibernate.dialect`: **데이터베이스 방언(dialect)** 설정
+
+- `javax.persistence`로 시작하는 속성은 JPA 표준 속성
+- `hibernate`로 시작하는 속성은 하이버네이트 구현체에 종속되는 속성
+
+
+
+### 데이터베이스 방언
+
+- JPA는 DB 종속적이지 않은 표준 기술
+  - DB 교체가 간단히 가능
+  - **문제: 각 DB는 SQL 문법과 함수에 있어 조금씩 다르다.**
+    - 데이터 타입: MySQL의 `VARCHAR` vs 오라클의 `VARCHAR2`
+    - 다른 함수명: 문자열을 자르는 함수의 SQL 표준은 `SUBSTRING()` vs 오라클은 `SUBSTR()`
+    - 페이징 처리: `MySQL의 LIMIT` vs 오라클의 `ROWNUM`
+  - JPA에서는 위와 같은 SQL 표준을 지키지 않거나 특정 DB에만 고유한 기능을 **방언(Dialect)**라 한다.
+  - 특정 방언에 종속적일 경우 DB 종류 고체가 어려움
+    이런 문제를 해결하기 위해 데이터베이스 방언 클래스를 제공
+
+- JPA는 `Dialect`를 사용하는데
+  - 이 `Dialect`의 구현은 `MySQLDialect`일 수도, `OracleDialect`일 수도, `H2Dialect`일 수도 있다.
+  - DB 의존적 방언은 `Dialect`가 처리하면 된다. (DIP를 지킨 코드의 다형성 활용과 같다.)
+  - DB 방언을 처리하는 방식은 JPA에 표준화되어있지 않다.
+- 하이버네이트가 제공하는 DB 방언
+  - H2: `org.hibernate.dialect.H2Dialect`
+  - 오라클: `org.hibernate.dialect.Oracle10gDialect`
+  - MySQL: `org.hibernate.dialect.MySQL5InnoDBDialect`
+  - 하이버네이트는 45개 이상의 DB 방언을 지원한다.
+
+
+
+## 2.6 애플리케이션 개발
+
+- JPA 어플리케이션 시작 코드
+
+  ```java
+  public class JpaMain {
+  
+  	public static void main(String[] args) {
+  
+  		//엔티티 매니저 팩토리 생성
+  		EntityManagerFactory emf =
+  				Persistence.createEntityManagerFactory("jpabook");
+  		//엔티티 매니저 생성
+  		EntityManager em = emf.createEntityManager();
+  		//트랜잭션 획득
+  		EntityTransaction tx = em.getTransaction();
+  
+  		try {
+  
+  			tx.begin();		//트랜잭션 시작
+  			logic(em);		//비즈니스 로직 실행
+  			tx.commit();	//트랜잭션 커밋
+  
+  		} catch (Exception e) {
+  			tx.rollback();	//트랜잭션 롤백
+  		} finally {
+  			em.close();		//엔티티 매니저 종료
+  		}
+  		emf.close();		//엔티티 매니저 팩토리 종료
+  	}
+  
+  	private static void logic(EntityManager em) {
+  		//구체적인 비즈니스 로직이 들어가는 부분
+  	}
+  
+  }
+  ```
+
+- 코드 분석: 크게 세 부분이다.
+  - 엔티티 매니저 설정
+  - 트랜잭션 관리
+  - 비즈니스 로직
+
+
+
+### 2.6.1 엔티티 매니저 설정
+
+**엔티티 매니저의 생성과정**
+
+- 엔티티 매니저 팩토리 생성
+  - `persistence.xml`의 설정 정보를 조회
+  - `Persistence`글래스가 입력한 영속성 유닛의 이름(여기서는 `jpabook`)을 찾아서 엔티티 매니저 팩토리 생성
+  - 이 과정에서 JPA 동작을 위한 기반 객체 생성하고,
+    구현체에 따라 DB 커넥션 풀을 생성하기도 한다.
+    -> **생성 비용이 매우 크다!**
+    ->**엔티티 매니저 팩토리는 애플리케이션 전체에서 단 한번만 생성하고 공유해서 사용해야 한다!!!**
+- 엔티티 매니저 생성
+  - 엔티티 매니저 팩토리가 엔티티 매니저를 생성
+  - **엔티티 매니저**
+    - **JPA 기능 대부분은 엔티티 매니저가 제공**(예시: CRUD) 
+    - 엔티티 매니저는 **내부에 DB 커넥션을 유지**하면서 DB와 통신
+      -> 사용하는 개발자 입장에서는 일종의 가상 데이터베이스
+    - 엔티티 매니저는 DB 커넥션과 밀집한 관계가 있기 떄문에
+      **쓰레드간에 공유하거나 재사용해서는 안 된다!!!**
+- 종료
+  - 사용이 끝난 엔티티 매니저, 엔티티 매니저 팩토리는 반드시 종료해야 한다.
+    - `em.close()`, `emf.close()`
+
+
+
+### 2.6.2 트랜잭션 관리
+
+- **JPA는 항상 트랜잭션 내에서 데이터를 변경해야 한다.**
+  - 그렇지 않을 경우 **예외 발생!**
+  - 트랜잭션은 엔티티 매니저에서 트랜잭션 API를 받아와야 한다. (`em.getTransaction()`)
+  - 비즈니스 로직이 정상 작동할 경우 트랜잭션을 커밋하고, 예외가 발생하면 롤백한다.
+
+
+
+### 2.6.3 비즈니스 로직
+
+```java
+    private static void logic(EntityManager em) {
+        Member member = new Member();
+        member.setUsername("tester");
+        member.setAge(25);
+
+        //등록
+        em.persist(member);
+
+        //수정
+        member.setAge(40);
+
+        //단건 조회
+        Member foundMember = em.find(Member.class, member.getId());
+        System.out.println("foundMember.getId() = " + foundMember.getId());
+        System.out.println("foundMember.getUsername() = " + foundMember.getUsername());
+        System.out.println("foundMember.getAge() = " + foundMember.getAge());
+
+		//목록 조회
+        List<Member> members = em.createQuery("SELECT m FROM Member m", Member.class)
+                .getResultList();
+		System.out.println("members.size() = " + members.size());
+
+		//삭제
+		em.remove(member);
+    }
+```
+
+- 실행해 보면, CRUD작업이 엔티티 매니저 `em`에 의해 수행됨을 볼 수 있다.
+- 등록
+  - `em.persist()`메서드로 저장할 엔티티를 넘겨준다.
+  - JPA가 대응하는 쿼리문을 생성하여 DB에 전달한다.
+
+- 수정
+  - `member.setAge()`만으로 수정이 반영된다.
+  - 어떤 엔티티가 수정되었는지 추적하는 기능을 JPA가 가지고 있기 때문이다.
+- 삭제
+  - `em.remove()`
+- 단건조회
+  - `em.find()`
+
+
+
+### 2.6.4 JPQL
+
+```java
+        List<Member> members = em.createQuery("SELECT m FROM Member m", Member.class)
+                .getResultList();
+```
+
+- 단건조회의 경우 `em.find()`메서드로 해결했지만 검색 쿼리의 경우는 다르다.
+- JPA는 테이블이 아닌 엔티티 객체를 대상으로 검색해야 한다. (엔티티 중심 개발이기에)
+- 애플리케이션이 필요한 엔티티 정보만 가져와 엔티티 객체로 받고, 검색해야 한다.
+  - 이를 위해 JPQL; Java Persistence Query Language 쿼리 언어를 사용하면 된다.
+  - JPQL은 SQL을 추상화한 객체지향 쿼리 언어다.
+
+- JPQL과 SQL의 차이점
+  - JPQL은 엔티티 객체(클래스와 객체)를 대상으로 쿼리한다.
+  - SQL은 DB 테이블을 대상으로 쿼리한다.
+
+- **위의 JPQL문에서 `Member`는 엔티티 객체지, 테이블이 아니다. JPQL은 DB 테이블을 전혀 알지 못한다.** 
+
+
+
+### 2.7 정리
+
+- 간단한 CRUD 예제만을 살펴봤는데도 JPA가 반복적인 JDBC API와 SQL 작성을 대신 처리해준 덕분에
+  코드량이 줄어들고 생산성이 증가하였다.
+- 생산성 외에 JPA가 제공하는 핵심 기능에 대해 살펴볼 것이다.
+
