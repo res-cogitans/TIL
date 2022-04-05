@@ -4264,3 +4264,172 @@ public interface Converter<S, T> {
 
   - `th:field` 사용시 컨버터 자동 적용된다. (`${...}`형태라도)
   - `th:value` 사용해야 컨버터가 적용되지 않는다.
+
+
+
+### Formatter
+
+- 필요성
+
+  - `Converter` 입/출력 타입에 제한이 없는 **범용 타입 변환 기능**
+
+  - 웹 어플리케이션 개발의 경우 문자 관련 변환이 많이 발생한다.
+    - **Locale**: 날짜, 숫자 등은 국가에 따라 표현 방식이 달라지기도 한다.
+  - 문자를 특정 포맷에 맞춰 출력하거나, 그 반대의 일을 하는데 특화된 기능
+    -> **포맷터(`Formatter`)**
+
+- `Formatter` 인터페이스
+
+  ```java
+  public interface Formatter<T> extends Printer<T>, Parser<T> {
+  
+  }
+  ```
+
+  ```java
+  @FunctionalInterface
+  public interface Printer<T> {
+      
+  	String print(T object, Locale locale);
+  }
+  
+  ```
+
+  ```java
+  @FunctionalInterface
+  public interface Parser<T> {
+     T parse(String text, Locale locale) throws ParseException;
+  }
+  ```
+
+  - `print()`와 `parse()`
+
+- 용례: 숫자 자릿수 사이의 ','표시 변환
+
+  ```java
+  public class MyNumberFormatter implements Formatter<Number> {
+      @Override
+      public Number parse(String text, Locale locale) throws ParseException {
+          log.info("text={}, locale={}", text, locale);
+          //"1,000" -> 1000
+          NumberFormat format = NumberFormat.getInstance(locale);
+          return format.parse(text);
+      }
+  
+      @Override
+      public String print(Number object, Locale locale) {
+          log.info("object={}, locale={}", object, locale);
+          return NumberFormat.getInstance(locale).format(object);
+      }
+  }
+  ```
+
+  - `Number` 타입은 `Integer`, `Long`과 같은 숫자 타입의 부모 클래스임
+  - 자바의 `NumberFormat` 객체를 이용하여 변환
+
+  ```java
+      @Test
+      void parse() throws ParseException {
+          Number number = formatter.parse("1,000", Locale.KOREA);
+          assertThat(1000L).isEqualTo(number);
+      }
+  
+      @Test
+      void print() {
+          String result = formatter.print(1000, Locale.KOREA);
+          assertThat(result).isEqualTo("1,000");
+      }
+  ```
+
+  - `parse()` 결과가 `Long`이라는 점에 유의하자.
+
+- 스프링이 제공하는 포맷터
+  - `Formatter`
+  - `AnnotationFormatterFactory` 필드 타입이나 애노테이션 정보를 활용할 수 있는 포맷터
+
+
+
+### 포맷터를 지원하는 컨버전 서비스
+
+- `ConversionService`의 경우 컨버터만 등록 가능
+- `FormattingConversionService`의 경우 포맷터도 지원함
+  - 내부에서 어댑터 패턴을 이용, `Formatter`가 `Converter`처럼 작동하도록 한다.
+  - `DefaultFormattingConversionService`는 기본적인 통화, 숫자 관련 포맷터를 추가해서 제공
+
+```java
+    @Test
+    void formattingConversionService() {
+        DefaultFormattingConversionService conversionService = new DefaultFormattingConversionService();
+        //컨버터 등록
+        conversionService.addConverter(new StringToIpPortConverter());
+        conversionService.addConverter(new IpPortToStringConverter());
+        //포맷터 등록
+        conversionService.addFormatter(new MyNumberFormatter());
+
+        //컨버터 사용
+        IpPort ipPort = conversionService.convert("127.0.0.1:8080", IpPort.class);
+        assertThat(ipPort).isEqualTo(new IpPort("127.0.0.1", 8080));
+
+        //포맷터 사용
+        assertThat(conversionService.convert(1000, String.class)).isEqualTo("1,000");
+        assertThat(conversionService.convert("1,000", Long.class)).isEqualTo(1000L);
+    }
+```
+
+- **`DefaultFormattingConversionService` 상속관계**
+  - `FormattingConversionService`는 `ConversionService` 관련 기능을 모두 상속받기 때문에
+    컨버터도 포맷터도 모두 등록 가능하다.
+  - 사용 시에는 `ConversionService`가 제공하는 `convert()`를 이용하면 된다. (포맷터, 컨버터 구별 없이)
+  - 스프링 부트는 `DefaultFormattingConversionService`를 상속 받은 `WebConversionService`를 내부에서 사용함
+
+
+
+### 포맷터를 웹 어플리케이션에 적용하기
+
+- `WebConfig`
+
+  ```java
+      @Override
+      public void addFormatters(FormatterRegistry registry) {
+          //우선순위로 인한 주석처리
+  //        registry.addConverter(new StringToIntegerConverter());
+  //        registry.addConverter(new IntegerToStringConverter());
+          registry.addConverter(new StringToIpPortConverter());
+          registry.addConverter(new IpPortToStringConverter());
+  
+          //추가
+          registry.addFormatter(new MyNumberFormatter());
+      }
+  ```
+
+  - 동일 대상: 문자<->숫자를 담당하기에 주석 처리가 필요하다.
+    **컨버터가 포맷터보다 우선 순위가 높기 때문이다.**
+
+
+
+### 스프링이 제공하는 기본 포맷터
+
+- 스프링은 자바서 제공하는 자료형들에 대해서 다양한 포맷터들을 제공함
+
+- 포맷터는 타입에 단일하게 적용되기에 객체 각 필드마다 달리 적용시키기가 어려움
+
+- 스프링이 제공하는 **애노테이션 기반 포맷터**: 필드별 적용 가능
+
+  - `@NumberFormat`: 숫자 관련 형식 지정 포맷터 사용 `NumberFormatAnnotationFormatterFactory`
+  - `@DateTimeFormat`: 날짜 관련 형식 지정 포맷터 사용 `Jsr310DateTimeFormatAnnotationFormatterFactory`
+
+  - 관련 [링크](https://docs.spring.io/spring-framework/docs/current/reference/html/core.html#format-CustomFormatAnnotations)
+
+
+
+### 주의사항
+
+- **메시지 컨버터(`HttpMessageConverter`)에는 컨버전 서비스가 적용되지 않는다!**
+  - `HttpMessageConverter`의 역할은 Http 메시지 바디의 내용을 객체로 변환하거나, 객체를 Http 메시지 바디에 입력하는 것이다.
+  - ex) JSON을 객체로 변환하는 메시지 컨버터는 `Jackson`등의 라이브러리 사용
+    이 경우 변환은 라이브러리가 담당하는 일이다.
+  - JSON 결과로 만들어진 숫자나 날짜 포맷을 변경하고 싶다면 해당 라이브러리가 제공하는 설정을 통해 포맷을 지정해야 한다.
+    (**컨버전 서비스와 무관!**)
+
+- 컨버전 서비스의 적용 범위
+  - `@RequestParam`, `@ModelAttribute`, `@PathVariable`, 뷰 템플릿 등
