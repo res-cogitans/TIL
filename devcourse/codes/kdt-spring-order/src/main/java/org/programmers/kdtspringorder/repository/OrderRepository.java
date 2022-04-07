@@ -1,7 +1,11 @@
 package org.programmers.kdtspringorder.repository;
 
-import org.programmers.kdtspringorder.domain.Order;
+import org.programmers.kdtspringorder.order.Order;
+
+import java.util.Optional;
+import java.util.UUID;
 
 public interface OrderRepository {
-    public void insert(Order order);
+    public Optional<Order> findById(UUID orderId);
+    public Order insert(Order order);
 }

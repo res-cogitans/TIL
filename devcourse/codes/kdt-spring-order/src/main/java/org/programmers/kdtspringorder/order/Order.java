@@ -1,4 +1,4 @@
-package org.programmers.kdtspringorder.domain;
+package org.programmers.kdtspringorder.order;
 
 import org.programmers.kdtspringorder.voucher.Voucher;
 
@@ -37,6 +37,10 @@ public class Order {
         else {
             return beforeDiscount;
         }
+    }
+
+    public UUID getOrderId() {
+        return orderId;
     }
 
     public void setOrderStatus(OrderStatus orderStatus) {

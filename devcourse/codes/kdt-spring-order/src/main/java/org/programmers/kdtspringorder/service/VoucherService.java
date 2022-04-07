@@ -3,10 +3,12 @@ package org.programmers.kdtspringorder.service;
 import lombok.RequiredArgsConstructor;
 import org.programmers.kdtspringorder.repository.VoucherRepository;
 import org.programmers.kdtspringorder.voucher.Voucher;
+import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 import java.util.UUID;
 
+@Service
 @RequiredArgsConstructor
 public class VoucherService {
 

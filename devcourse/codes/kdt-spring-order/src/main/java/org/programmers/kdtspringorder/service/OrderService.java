@@ -1,13 +1,15 @@
 package org.programmers.kdtspringorder.service;
 
 import lombok.RequiredArgsConstructor;
-import org.programmers.kdtspringorder.domain.Order;
-import org.programmers.kdtspringorder.domain.OrderItem;
+import org.programmers.kdtspringorder.order.Order;
+import org.programmers.kdtspringorder.order.OrderItem;
 import org.programmers.kdtspringorder.repository.OrderRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
+@Service
 @RequiredArgsConstructor
 public class OrderService {
 

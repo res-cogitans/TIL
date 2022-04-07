@@ -1,5 +1,6 @@
 package org.programmers.kdtspringorder.voucher;
 
+
 import java.util.UUID;
 
 public interface Voucher {

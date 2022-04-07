@@ -1,4 +1,4 @@
-package org.programmers.kdtspringorder.domain;
+package org.programmers.kdtspringorder.order;
 
 import java.util.UUID;
 

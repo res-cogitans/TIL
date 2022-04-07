@@ -1,4 +1,4 @@
-package org.programmers.kdtspringorder;
+package org.programmers.kdtspringorder.order;
 
 public enum OrderStatus {
 
