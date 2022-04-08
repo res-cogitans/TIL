@@ -1,0 +1,13 @@
+# 프로파일2
+
+spring.config.activate.on-profile: dev
+
+kdt:
+  version: "v1.0"
+  minimum-order-amount: 3
+  support-vendors:
+    - dev-a
+    - deb-b
+  description: |- # |는 그냥 여러 줄 표현, |-는 빈 줄 포함하지 않음을 표현
+    it's dev
+    dev, dev...
