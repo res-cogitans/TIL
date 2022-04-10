@@ -29,9 +29,9 @@ public class OrderProperties implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        System.out.println(MessageFormat.format("[OrderProperties]version = {0}", version));
-        System.out.println(MessageFormat.format("[OrderProperties]minimumOrderAmount = {0}", minimumOrderAmount));
-        System.out.println(MessageFormat.format("[OrderProperties]supportVendors = {0}", supportVendors));
-        System.out.println(MessageFormat.format("[OrderProperties]javaHome = {0}", javaHome));
+//        System.out.println(MessageFormat.format("[OrderProperties]version = {0}", version));
+//        System.out.println(MessageFormat.format("[OrderProperties]minimumOrderAmount = {0}", minimumOrderAmount));
+//        System.out.println(MessageFormat.format("[OrderProperties]supportVendors = {0}", supportVendors));
+//        System.out.println(MessageFormat.format("[OrderProperties]javaHome = {0}", javaHome));
     }
 }

@@ -1,4 +1,5 @@
 # 모든 프로파일에서 공통적으로 적용되어야 하는 사항
+
 servers:
   - dev.bar.com
   - foo.bar.com
@@ -11,3 +12,7 @@ kdt:
     dLine is default
     it is defualt setting
     without profiles
+
+#logging:
+#  level:
+#    root: warn

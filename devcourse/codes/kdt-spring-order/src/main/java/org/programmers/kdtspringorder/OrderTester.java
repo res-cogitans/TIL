@@ -10,30 +10,38 @@ import org.programmers.kdtspringorder.service.OrderService;
 import org.programmers.kdtspringorder.service.VoucherService;
 import org.programmers.kdtspringorder.voucher.FixedAmountVoucher;
 import org.programmers.kdtspringorder.voucher.Voucher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.BeanFactoryAnnotationUtils;
+import org.springframework.boot.ansi.AnsiOutput;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static java.nio.charset.StandardCharsets.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class OrderTester {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderTester.class);
+
     public static void main(String[] args) throws IOException {
-        AnnotationConfigApplicationContext ac = new AnnotationConfigApplicationContext();
+//        var ac = new AnnotationConfigApplicationContext(AppConfiguration.class);
+
+        AnsiOutput.setEnabled(AnsiOutput.Enabled.ALWAYS);
+        var ac = new AnnotationConfigApplicationContext();
+
+        log.info("logger name => {}", log.getName());
 
         var resource = ac.getResource("application.yaml");
         var resourceWithOutJar = ac.getResource("file:sample");
@@ -44,10 +52,9 @@ public class OrderTester {
 
 
         //resource 어떤 클래스인지?
-        System.out.println(MessageFormat.format(
+        log.info(MessageFormat.format(
                 "resource -> {0}", resource.getClass().getCanonicalName()));
-
-        System.out.println(MessageFormat.format(
+        log.info(MessageFormat.format(
                 "resourceWithUrl -> {0}", resourceWithUrl.getClass().getCanonicalName()));
 
         //resource 출력해보기
@@ -55,35 +62,34 @@ public class OrderTester {
         //실행 workingDirectory 기준으로 탐색한다.
         printResource(resourceWithOutJar, "[sample file reading...] = ");
 //        printResource(resourceWithUrl, "[file at url reading...] = ");
-
         //파일이 아닌 url 경우
-        var readableByteChannel = Channels.newChannel(resourceWithUrl.getURL().openStream());
-        var bufferedReader = new BufferedReader(Channels.newReader(readableByteChannel, UTF_8));
-        var contents = bufferedReader.lines().collect(Collectors.joining("\n"));
-        System.out.println(contents);
+        prinUrlResource(resourceWithUrl);
 
         ac.register(AppConfiguration.class);
         ConfigurableEnvironment environment = ac.getEnvironment();
         environment.setActiveProfiles("local");
         ac.refresh();
-
         String[] activeProfiles = environment.getActiveProfiles();
-        System.out.println(MessageFormat.format("[activeProfiles] = {0}", activeProfiles));
+        log.info(MessageFormat.format("[activeProfiles] = {0}", activeProfiles));
 
 //        String property = environment.getProperty("kdt.description");
-//        System.out.println("property = " + property);
+//        log.info("property = " + property);
+
+        /*
+        Properties 관련 내용0
 
         var orderProperties = ac.getBean(OrderProperties.class);
         printProperties(orderProperties);
+*/
 
         OrderService orderService = ac.getBean(OrderService.class);
         VoucherRepository voucherRepository = ac.getBean(VoucherRepository.class);
         VoucherService voucherService = ac.getBean(VoucherService.class);
         Voucher voucher = voucherRepository.insert(new FixedAmountVoucher(UUID.randomUUID(), 10L));
 
-        System.out.println(MessageFormat.format(
+        log.info(MessageFormat.format(
                 "is Jdbc Repo -> {0}", voucherRepository instanceof JdbcVoucherRepository));
-        System.out.println(MessageFormat.format(
+        log.info(MessageFormat.format(
                 "is voucherRepository.class() -> {0}", voucherRepository.getClass()));
 
         List<OrderItem> orderItems = new ArrayList<>() {
@@ -99,25 +105,32 @@ public class OrderTester {
 
     }
 
+    private static void prinUrlResource(Resource resourceWithUrl) throws IOException {
+        var readableByteChannel = Channels.newChannel(resourceWithUrl.getURL().openStream());
+        var bufferedReader = new BufferedReader(Channels.newReader(readableByteChannel, UTF_8));
+        var contents = bufferedReader.lines().collect(Collectors.joining("\n"));
+        log.trace(contents);
+    }
+
     private static void printResource(Resource resource, String x) throws IOException {
         var file = resource.getFile();
         var strings = Files.readAllLines(file.toPath());    // 개행 기준으로 String 나눔
-        System.out.println(x
+        log.info(x
                 + strings.stream().reduce("", (a, b) -> a + "\n" + b));
     }
 
     private static void printProperties(OrderProperties orderProperties) {
-        System.out.println(MessageFormat.format("orderProperties.getVersion() = {0}",
+        log.info(MessageFormat.format("orderProperties.getVersion() = {0}",
                 orderProperties.getVersion()));
-        System.out.println(MessageFormat.format("orderProperties.getDescription() = {0}",
+        log.info(MessageFormat.format("orderProperties.getDescription() = {0}",
                 orderProperties.getDescription()));
-        System.out.println(MessageFormat.format("orderProperties.getVersion() = {0}",
+        log.info(MessageFormat.format("orderProperties.getVersion() = {0}",
                 orderProperties.getVersion()));
-        System.out.println(MessageFormat.format("orderProperties.getMinimumOrderAmount() = {0}",
+        log.info(MessageFormat.format("orderProperties.getMinimumOrderAmount() = {0}",
                 orderProperties.getMinimumOrderAmount()));
-        System.out.println(MessageFormat.format("orderProperties.getJavaHome() = {0}",
+        log.info(MessageFormat.format("orderProperties.getJavaHome() = {0}",
                 orderProperties.getJavaHome()));
-        System.out.println(MessageFormat.format("orderProperties.getSupportVendors() = {0}",
+        log.info(MessageFormat.format("orderProperties.getSupportVendors() = {0}",
                 orderProperties.getSupportVendors()));
 
     }
