@@ -1000,3 +1000,596 @@ member.setAge(10);
 
   
 
+# 04장 엔티티 매핑
+
+- 매핑 정보 기술법
+  - xml
+  - **애노테이션(추천): 더 쉽고 직관적**
+
+
+
+## 4.1 `@Entity`
+
+- 테이블과 매핑할 클래스에는 반드시 붙여야 한다.
+- JPA가 관리하는 엔티티로 등록됨
+
+| 속성 | 기능                                                         | 기본값                  |
+| ---- | ------------------------------------------------------------ | ----------------------- |
+| name | JPA에서 사용할 엔티티 이름 지정<br />주의: 다른 패키지에 이름이 같은 엔티티가 있을 경우 충돌 발생! | 클래스 명을 그대로 사용 |
+
+- 주의사항
+  - 기본 생성자는 필수다: `public` 또는 `protected`
+  - `final` 클래스, `enum` , `interface`, `inner` 클래스에는 사용 불가
+  - 저장할 필드에 `final`을 사용해선 안 됨
+
+
+
+## 4.2 `@Table`
+
+- 엔티티와 매핑할 테이블 지정
+
+| 속성                   | 기능                                                         | 기본값             |
+| ---------------------- | ------------------------------------------------------------ | ------------------ |
+| name                   | 매핑할 테이블 명                                             | 엔티티 이름을 사용 |
+| catalog                | catalog 기능이 있는 DB에서 catalog 매핑                      |                    |
+| schema                 | schema 기능이 있는 DB에서 schema 매핑                        |                    |
+| uniqueConstraints(DDL) | DDL 생성 시에 유니크 제약조건을 만듦<br />복합 유니크 제약조건도 가능<br />스키마 자동 생성 기능을 사용해서 DDL을 만들때만 사용됨 |                    |
+
+
+
+## 4.3 다양한 매핑 사용
+
+```java
+@Entity
+@Table(name = "MEMBER")
+@Getter
+@Setter
+public class Member {
+
+    @Id
+    @Column(name = "ID")
+    @GeneratedValue
+    private Long id;
+
+    @Column(name = "NAME")
+    private String username;
+
+    private Integer age;
+
+    @Enumerated(EnumType.STRING)
+    private RoleType roleType;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdDate;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date lastModifiedDate;
+
+    @Lob
+    private String description;
+}
+```
+
+```java
+public enum RoleType {
+    ADMIN, USER
+}
+```
+
+
+
+## 4.4 데이터베이스 스키마 자동 생성
+
+- 클래스의 매핑 정보 + DB 방언을 이용하여 DB 스키마를 JPA가 자동 생성
+
+- 설정: `persistence.xml`
+
+  ```xml
+              <property name="hibernate.hibernate.hbm2ddl.auto" value="create"/>
+  ```
+
+- 애플리케이션 실행 시점에 DB 테이블을 자동생성함
+  - 실행시 기존 테이블을 삭제하고 다시 생성
+- 추천
+  - 개발자의 수고를 덜어주지만 운영 환경에서 사용할만큼 완벽하지는 않음
+  - 개발 환경에서만 쓰거나, 매핑 참고용으로만 사용을 추천
+- `hibernate.hbm2ddl.auto` 속성
+
+| 옵션                                       | 설명                                                         |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| create                                     | 기존 테이블을 삭제하고 새로 생성<br />DROP + CREATE          |
+| create-drop                                | create 옵션에 더해, 애플리케이션 종료 시 생성한  DDL 제거<br />DROP + CREATE + DROP |
+| update                                     | DB 테이블과 엔티티 매핑정보를 비교, 변경 사항만 수정         |
+| validate                                   | DB 테이블과 엔티티 매핑정보를 비교, 차이가 있을 경우 경고를 날리고, 애플리케이션을 실행하지 않음<br />DDL을 수정하지 않는 옵션 |
+| 사용하지 않음<br />(구체적인 옵션 값 없음) | 자동 속성 기능을 사용하지 않음<br />속성 자체를 삭제하거나, 유효하지 않은 옵션 값을 주면 적용 |
+
+- 당연히 **운영 환경에서 DDL 수정하는 옵션을 써선 안 된다!** (create, create-drop, update)
+- 개발 단계에 따른 추천 전략
+  - 초기: create or update
+  - 초기화 상태로 테스트 진행하는 개발자 환경 및 CI 서버: create or create-drop
+  - 테스트 서버: update or validate
+  - 스테이징, 운영 서버: validate or 사용 안 함
+
+- JPA 2.1부터는 스키마 자동 생성 기능을 지원
+
+  ```xml
+  <property name="javax.persistence.schema-generation.database.action"
+            value="drop-and-create" />
+  ```
+
+  - 단 none, create, drop-and-create, drop만 지원하며
+  - update, validate는 하이버네이트만 지원한다.
+
+- **이름 매핑 전략**
+
+  - 자바의 관례: CamelCase
+
+  - DB의 관례: under_score
+
+  - 양 측의 관례를 맞추려면 `@Column.name` 속성 등으로 명시해줘야 한다.
+
+    ```java
+    @Column(name="role_type")	 //under_score 사용
+    String roleType;			//CamelCase 사용
+    ```
+
+  - `hibernate.ejb.naming_strategy`: 이름 매핑 전략 변경 가능
+    - 하이버네이트의 `org.hibernate.cfg.ImprovedNamingStrategy` 클래스를 이용할 수 있음
+      - 테이블 명, 컬럼 명이 명시되지 않은 경우
+        카멜케이스(자바) -> 언더스코어 표기법(테이블)로 매핑
+
+
+
+## 4.5 DDL 생성 기능
+
+- DDL에 명명 제약조건을 추가하고 싶다면?
+
+  ```java
+  @Table(name = "MEMBER", uniqueConstraints = {
+          @UniqueConstraint(
+                  name = "NAME_AGE_UNIQUE",
+                  columnNames = {"NAME", "AGE"}
+          )})
+  ...
+  @Column(name = "NAME", nullable = false, length = 10)
+  private String username;
+  ```
+
+  위와 같이 제약조건 추가 가능
+
+- 주의사항
+
+  - **DDL 자동 생성 기능 사용할 때만 적용**
+    - DDL 자동 생성 안 쓴다면 무의미
+
+  - **JPA 실행 로직에는 영향을 주지 않음**
+
+- 개발자가 엔티티만 보고도 제약조건을 파악할 수 있다는 장점
+
+
+
+## 4.6 기본 키 매핑
+
+- 기본 키를 직접 할당하지 않고, DB 값을 사용하고 싶다면?
+  - DB마다 기본 키 생성 방식이 다름!
+
+- JPA의 기본 키 생성 전략
+  - 직접 할당: 애플리케이션에서 직접 할당
+  - 자동 생성: 대리 키 사용 방식
+    - IDENTITY: 기본 키 생성을 DB에 위임
+    - SEQUENCE: DB 시퀀스를 이용
+    - TABLE: 키 생성 테이블을 사용
+
+- **주의사항**
+  - **키 생성 전략을 사용하려면 `persistence.xml`에 `hibernate.id.new_generator_mappings=true`를 반드시 추가해야 함!**
+  - 위의 속성 값은 기본적으로 `false`이기 때문(구버전과의 호환성 때문)
+    - 상기 옵션이 `true`일 경우 `allocationSize` 속성(키 생성 기능 최적화) 사용 방식이 달라짐
+
+
+
+### 4.6.1 기본 키 직접 할당 전략
+
+- `@Id`로 매핑하고, `em.persist()`로 엔티티 저장 전에 기본키를 직접 할당해 주면 된다.
+  - 식별자 없이 저장할 경우 예외 발생
+    - JPA 표준에 정의되어 있지 않기에, JPA 최상위 예외인 `javax.persistence.PersistenceException` 발생
+    - 하이버네이트의 경우 `org.hibernate.id.IdentifierGenerationException` 사용 가능
+- `@Id` 적용 가능 자바 타입
+  - 자바 기본 자료형
+  - 자바 기본 자료형에 대한 Wrapper
+  - `String`
+  - `java.util.Date`
+  - `java.sql.Date`
+  - `java.math.BigDecimal`
+  - `java.math.BigInteger`
+
+
+
+### 4.6.2 IDENTITY 사용 전략
+
+- 기본 키 생성을 DB에 위임하는 전략
+
+  - 주로 MySQL, PostgreSQL, SQL Server, DB2에서 사용
+
+  - ex) MySQL의 AUTO_INCREMENT 기능
+
+    ```SQL
+    CREATE TABLE BOARD (
+        ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        DATA VARCHAR(255)
+    );
+    
+    INSERT INTO BOARD(DATA) VALUES('A');
+    INSERT INTO BOARD(DATA) VALUES('B');
+    ```
+
+    - 테이블 결과
+
+      | ID   | DATA |
+      | ---- | ---- |
+      | 1    | A    |
+      | 2    | B    |
+
+      ID 컬럼에 자동으로 값이 입력됨
+
+- **데이터베이스에 값을 저장하고 나서야 기본 키 값을 구할 수 있을 때 사용**
+
+  - **`@GeneratedValue(strategy = GenerationType.IDENTITY)`를 함께 사용하라.**
+
+- **최적화**
+
+  - 해당 객체를 처음 DB에 등록하는 상황에서 JPA가 기본 키 값을 얻어오기 위해 DB를 추가로 조회하게 됨
+
+    - DB에 INSERT한 후에야 PK값을 조회할 수 있다는 점에서 성능 문제가 발생할 수 있지만
+      JDBC3의 `Statement.getGeneratedKeys()`이용하여 DB 저장하면서 동시에 생성된 PK 값을 얻어오는 최적화가 가능하다.
+      - 하이버네이트의 경우에도 위 방식을 사용하기에 DB 통신을 두 번 하지 않는다.
+
+  - 엔티티를 영속 상태로 만들려면 식별자가 필요 + 엔티티를 DB에 저장해야 PK를 얻는 IDENTITY 전략
+
+    -> **`em.persist()` 호출 즉시 INSERT SQL이 DB에 전달되기에 쓰기 지연이 동작하지 않음!**
+
+
+
+### 4.6.3 SEQUENCE 전략
+
+- 시퀀스를 이용하여 PK를 생성하는 전략
+
+  - DB 시퀀스: 유일한 값을 순차적으로 생성하는 DB 오브젝트
+  - 시퀀스를 지원하는 오라클, PostgreSQL, DB2, H2 DB에서 사용 가능
+
+- 시퀀스 사용
+
+  - 코드
+
+    - DDL
+
+      ```SQL
+      CREATE SEQUENCE BOARD_SEQ START WITH 1 INCREMENT BY 1;
+      ```
+
+    - 매핑
+
+      ```java
+      @Entity
+      @SequenceGenerator (
+          name = "BOARD_SEQ_GENERATOR",
+          sequenceName = "BOARD_SEQ",	//매핑할 데이터베이스 시퀀스 이름
+          initialValue = 1, aloocationSize =1)
+      public class Board {
+          
+          @Id
+          @GeneratedValue(strategy = GenrationType.SEQUENCE,
+                         generator = "BOARD_SEQ_GENERATOR")
+          private Long id;
+          ...
+      }
+      ```
+
+  - 방법
+
+    - 시퀀스 생성
+    - 사용할 DB 시퀀스 매핑
+    - 키 생성 전략을 `GenrationType.SEQUENCE`로 설정, 시퀀스 생성기를 `generator`로 등록
+
+- 엔티티 사용 코드는 IDENTITY 코드와 같지만, 내부 동작 방식은 다름. 시퀀스 전략은:
+  - `em.persist()` 호출 시 DB 시퀀스로 식별자 우선 조회
+  - 식별자를 엔티티에 할당, 영속성 컨텍스트에 엔티티 저장
+  - 트랜잭션이 커밋되면 DB에 엔티티 저장(쓰기 지연 가능!)
+
+- `@SequenceGenerator` 속성
+
+  | 속성            | 기능                                                         | 기본값             |
+  | --------------- | ------------------------------------------------------------ | ------------------ |
+  | name            | 식별자 생성기 이름                                           | 필수               |
+  | sequenceName    | DB에 등록되어 있는 시퀀스 이름                               | hibernate_sequence |
+  | initialValue    | DDL 생성 시에만 사용,<br />시퀀스 DDL 생성 시 처음 시작하는 수를 정함 | 1                  |
+  | allocationSize  | 시퀀스 한 번 호출에 증가하는 수(성능 최적화용)               | 50                 |
+  | catalog, schema | 데이터베이스 catalog, schema 이름                            |                    |
+
+  - 매핑 DDL
+
+    ```SQL
+    CREATE SEQUENCE [sequenceName]
+    START WITH [initialValue] INCREMENT BY [allocationSize]
+    ```
+
+  - **`SequenceGenerator`는 `@GeneratedValue` 옆에서 사용할 수도 있음**
+
+- `sequenceName` 기본값은 JPA 명세 상으로는 JPA 구현체가 정의함(상단은 하이버네이트 기준)
+
+- 기본 설정의 `allocationSize`가 50이기에 1씩 증가한다고 착각하지 않도록 주의: 아래 참고
+
+- **최적화**
+
+  - DB와 두 번 통신하게 되는 문제점
+    - 식별자 조회를 위해 1번
+    - 조회한 시퀀스를 PK로 사용하여 DB에 저장하기 위해 1번
+  - JPA의 최적화 방법: `allocationSize`
+    - 시퀀스를 조회할 때
+      - DB에서는 한 번에 `allocationsize`만큼 시퀀스 값이 증가(ex. 1-> 51)
+      - 처음 시퀀스를 얻어 온 다음, 다음 `allocationSize` 만큼 증가한 수에 도달할 때까지는 메모리에서 할당
+        - 위의 예시로는 1~50까지는 메모리에서 식별자를 할당
+        - DB 접근을 줄일 수 있음
+    - 시퀀스 값을 선점하기에 여러 JVM이 동시 동작하더라도 PK값이 충돌하지 않음
+    - **DB에 직접 접근할 때마다 `allocationSize` 만큼 시퀀스 값이 크게 증가함에 주의**
+      - 성능에 덜 신경쓴다면 `allocationSize`를 1로 설정해서 위 상황을 막을 수 있음
+    - **`hibernate.id.new_generator_mappings` 속성이 `true`여야 적용된다.**
+      - `false`일 경우 하이버네이트의 과거 최적화 방식 이용:
+        - 시퀀스 값을 할당받고, `allocationSize`만큼 사용
+        - ex) `allocationSize`가 1이고, 시퀀스가 1부터 시작하는 경우
+          - DB에서 시퀀스 값 1을 받환받은 경우 1~50 사용
+          - DB에서 시퀀스 값 2를 반환받은 경우 51~~100 사용
+
+
+
+### 4.6.4 TABLE 전략
+
+- 키 생성 전용 테이블을 생성, 이름과 값으로 사용할 컬럼을 만들어 시퀀스를 흉내냄
+
+  - 테이블 기반이기에 어느 DB에나 적용 가능
+
+- 방법
+
+  - 키 생성 용도로 사용할 테이블 만들기
+
+    - 테이블 DDL
+
+      ```SQL
+      CREATE TABLE MY_SEQUENCES (
+          SEQUENCE_NAME VARCHAR(255) NOT NULL,
+          NEXT_VAL BIGINT,
+          PRIMARY KEY (SEQUENCE_NAME)
+      )
+      ```
+
+      - SEQUENCE_NAME: 시퀀스 이름
+      - NEXT_VAL: 시퀀스 값
+      - (위의 명칭이 기본 값임)
+
+  - 매핑
+
+    ```java
+    @Entity
+    @TableGenerator (
+        name = "BOARD_SEQ_GENERATOR",
+        table = "MY_SEQUENCES",
+        pkColumnValue = "BOARD_SEQ", allocationSize = 1)
+    public class Board {
+        
+        @Id
+        @GeneratedValue(strategy = GenerationType.TABLE,
+                       generator = "BOARD_SEQ_GENERATOR")
+        private Long id;
+        ...
+    }
+    ```
+
+    - 시퀀스 대신에 테이블을 사용한다는 점을 제외하면 시퀀스 전략과 내부 동작방식이 동일
+
+  - `@TableGenerator` 속성
+
+    | 속성                   | 기능                                           | 기본값              |
+    | ---------------------- | ---------------------------------------------- | ------------------- |
+    | name                   | 식별자 생성기 이름                             | 필수                |
+    | table                  | 키 생성 테이블 명                              | hibernate_sequences |
+    | pkColumnName           | 시퀀스 컬럼명                                  | sequence_name       |
+    | valueColumnName        | 시퀀스 값 컬럼명                               | next_val            |
+    | pkColumnName           | 키로 사용할 값 이름                            | 엔티티 이름         |
+    | intialValue            | 초기 값, 마지막으로 생성된 값이 기준           | 0                   |
+    | allocationSize         | 시퀀스 한 번 호출에 증가하는 수(성능 최적화용) | 50                  |
+    | catalog, schema        | DB catalog, schema 이름                        |                     |
+    | uniqueConstraints(DDL) | 유니크 제약 조건 지정 가능                     |                     |
+
+    - JPA 표준 명세상 `table`, `pkColumnName`, `valueColumnName` 기본값은 JPA 구현체가 정의
+      (상단의 기본값은 하이버네이트 기준)
+
+    - 매핑할 DDL, 테이블명
+
+      | {pkColumnName} | {valueColumnName} |
+      | -------------- | ----------------- |
+      | {pkColumnName} | {initialValue}    |
+
+- **최적화**
+  - 값을 조회할 때 SELECT, 다음 시퀀스 값으로 증가시킬 때 UPDATE 쿼리 날려야 하니
+    시퀀스 전략에 비해 시퀀스 조회 당 DB 통신이 +1이라는 문제점
+  - `@TableGenerator.allocationSize` 사용하여 최적화 가능, 방식은 시퀀스 전략과 같음
+
+
+
+### 4.6.5 AUTO 전략
+
+- DB 방언에 따라 적절한 전략을 자동으로 선택해줌
+  - 오라클은 SEQUENCE, MySQL은 IDENTITY
+- `GeneratedValue(strategy  = GenerationType.AUTO)`: 기본값이기에 명시하지 않아도 됨
+- DB를 변경해도 코드를 수정할 필요가 없다는 장점
+  - 개발 초기 단계, 프로토타입 개발 시 특히 유용
+- 시퀀스나 테이블의 경우 각각 시퀀스, 키 생성 테이블을 필요로 하기에, 이 전략들이 선택될 경우 미리 만들어두어야 한다.
+  물론, 스키마 자동 생성 기능을 사용시 하이버네이트가 기본 값 기반으로 적절히 처리해준다.
+
+
+
+### 4.6.6 기본 키 매핑 정리
+
+- **권장하는 식별자 선택 전략**
+  - PK의 3조건
+    - NOT NULL
+    - UNIQUE
+    - 불변
+  - 자연 키와 대리 키
+    - **자연 키(natural key)**: 비즈니스에 의미 있는 키, ex) 주민번호, 이메일, 전화번호
+    - **대리 키(surrogate key)**: (=대체 키) 비즈니스와 무관한 임의 생성 키, ex) 오라클 시퀀스, 키 생성 테이블
+  - **자연 키보다는 대리 키를 권장**
+    - 현실과 비즈니스 규칙은 생각보다 쉽게 변하기 때문
+  - **비즈니스 환경은 언젠가 변함**
+    - 주민번호가 PK였는데, 정책 변화로 주민번호 저장이 금지되게 된 케이스
+    - 대리 키는 비즈니스와 무관한 임의의 값이라 변동이 매우 드물다.
+    - 자연 키의 후보가 되는 컬럼들은 필요에 따라 유니크 인덱스를 설정하여 사용하자.
+  - **JPA의 추천: 대리 키**
+
+- **기본 키 값은 당연히 절대 변경하지 말자. JPA가 예외를 발생시키거나, 동작하지 않게 된다.**
+  - `setId()` 등을 외부에 노출하지 말라!
+
+
+
+## 4.7 필드와 컬럼 매핑: 레퍼런스
+
+- 필드와 컬럼 매핑
+
+  | 매핑 애노테이션 | 설명                           |
+  | --------------- | ------------------------------ |
+  | @Column         | 컬럼을 매핑한다.               |
+  | @Enumerated     | 자바의 enum 타입을 매핑        |
+  | @Temporal       | 날짜 타입을 매핑               |
+  | @Lob            | BLOB, CLOB 타입을 매핑         |
+  | @Transient      | 특정 필드를 DB에 매핑하지 않음 |
+
+- 기타
+
+  | 매핑 어노테이션 | 설명                                |
+  | --------------- | ----------------------------------- |
+  | @Access         | JPA가 엔티티에 접근하는 방식을 지정 |
+
+
+
+### 4.7.1 `@Column`
+
+- 객체 필드를 테이블 컬럼에 매핑
+
+  - `name`, `nullable` 많이 사용
+  - `insertable`, `updatable`: DB 값을 읽기 전용으로만 쓰고 싶을 때 사용
+
+- 속성
+
+  | 속성                              | 기능                                                         | 기본값                                                       |
+  | --------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | name                              | 필드와 매핑할 테이블의 컬럼 이름                             | 객체의 필드 이름                                             |
+  | insertable<br />(거의 사용 안 함) | false 지정 시 엔티티 저장 시에도 필드가 DB에 저장되지 않음<br />읽기 전용으로 false 사용 | true                                                         |
+  | updatable<br />(거의 사용 안 함)  | false 지정 시 엔티티 수정 시에 필드 수정이 DB에 반영되지 않음<br />읽기 전용으로 false 사용 | true                                                         |
+  | table<br />(거의 사용 안 함)      | 하나의 엔티티를 두 개 이상의 테이블에 매핑할 때 사용<br />지정한 필드를 다른 테이블에 매핑 가능 | 현재 클래스가 매핑된 테이블                                  |
+  | nullable(DDL)                     | false 설정시 DDL 생성시에 NOT NULL 제약 조건이 붙음          | true                                                         |
+  | unique(DDL)                       | 해당 컬럼에 유니크 제약조건을 건다.<br />여러 테이블에 유니크 제약조건을 걸려면 @Table.uniqueConstraints 사용 |                                                              |
+  | columnDefinition(DDL)             | 데이터베이스 컬럼 정보를 직접 줄 수 있음                     | 필드의 자바 타입과 방언 정보를 사용,<br /> 적절한 컬럼 타입을 생성함 |
+  | length(DDL)                       | 문자 길이 제약조건, String에만 적용                          | 255                                                          |
+  | precision, scale(DDL)             | BigDecimal, BigInteger 타입에서 사용<br />precision: 소수점을 포함한 전체 자릿수<br />scale: 소수 자릿수<br />double, float 타입에는 적용되지 않음<br />아주 큰 숫자나 정밀한 소수를 다뤄야 할 때만 사용 | precision = 19,<br />scale =2                                |
+
+- **`@Column` 생략**
+  - 대부분 속성 기본값이 적용됨
+  - 단, 자바 기본 자료형의 경우 `nullable` 속성이 예외적으로 적용된다.
+    - 참조형이 아닌 기본형의 경우 `null` 값 자체를 가질 수 없기에 `nullable` 속성이 `false`가 되야 한다.
+    - JPA의 경우 DDL 사용시 기본형에 대해 `not null` 속성을 `false`로 한다.
+    - `Integer`, `Long` 등 wrapper 클래스 등은 당연히 `true`다.
+    - **`@Column`을 사용할 경우 속성 `nullable`의 기본 값이 `true`이기에**
+      **기본 값 사용 시 주의하여 `nullable` 속성을 `false`로 지정하자.**
+
+
+
+### 4.7.2 `@Enumerated`
+
+- `enum` 매핑용
+
+- 속성
+
+  | 속성  | 기능                                                         | 기본값           |
+  | ----- | ------------------------------------------------------------ | ---------------- |
+  | value | - EnumType.ORDINAL: enum 순서를 DB에 저장<br />- EnumType.STRING: enum 이름을 DB에 저장 | EnumType.ORDINAL |
+
+- `EnumType.ORDINAL`
+  - 장점: DB에 저장 공간을 적게 차지한다.
+  - **단점: 이미 저장된 `enum`의 순서를 변경할 수 없다.**
+- `EnumType.STRING`
+  - **장점: 저장된 `enum`의 순서가 바뀌거나, `enum`이 추가되어도 안전하다.**
+  - 단점: `ORDINAL`에 비해 저장 공간을 더 차지한다.
+
+
+
+### 4.7.3 `@Temporal`
+
+- 날짜 타입(`java.util.Date`, `java.util.Calendar`)매핑에 사용
+
+- 속성
+
+  | 속성  | 기능                                                         | 기본값                                 |
+  | ----- | ------------------------------------------------------------ | -------------------------------------- |
+  | value | - TemporalType.DATE: 날짜, DB의 DATE 타입과 매핑됨(2022-04-12)<br />- TemporalType.TIME: 시간,  DB의 TIME 타입과 매핑됨(22:39:56)<br />- TemporalType.TIMESTAMP: 날짜와 시간, DB의 TIMESTAMP 타입과 매핑(2022-04-12 22:40:12) | DB에 따라 다르지만<br />보통 TIMESTAMP |
+
+- 자바의 Date: 연월일, 시분초
+- DB: DATE(날짜), TIME(시간), TIMESTAMP(날짜와 시간)
+- DB에 따라 값 생략시 지정되는 값이 다름
+  - DATETIME: MySQL
+  - TIMESTAMP: H2, 오라클, PostgreSQL
+
+
+
+### 4.7.4 `@Lob`
+
+- DB의 BLOB, CLOB과 매핑
+  - 매핑 필드가 문자면 CLOB: `String`, `char[]`, `java.sql.CLOB` 
+  - 매핑 필드가 숫자면 BLOB: `byte[]`, `java.sql.BLOB`
+- 지정 가능한 속성이 없음
+
+
+
+### 4.7.5 `@Transient`
+
+- 매핑하지 않는 필드
+- DB에 저장도, 조회도 하지 않는다.
+
+
+
+### 4.7.6 `@Access`
+
+- JPA가 엔티티 데이터에 접근하는 방식
+
+  - `AccessType.FIELD`: 필드 접근 방식, `private` 필드라도 접근 가능
+
+    ```java
+    @Id
+    private String id;
+    ```
+
+    - 위와 같이 `@Id`가 필드에 있을 경우 자동 지정된다.
+
+  - `AccessType.PROPERTY`: 접근자(Getter)로 접근한다.
+
+    ```java
+    @Id
+    public String getId() {
+        return this.id;
+    }
+    ```
+
+    - 위와 같이 `@Id`가 Getter에 붙어 있을 경우 자동 지정된다.
+
+  - 아래와 같이 두 방식을 함께 사용할 수도 있다:
+
+    ```java
+    @Id
+    private String id;
+    
+    @Access(AccessType.PROPERTY)
+    public String getName() {
+        return this.name;
+    }
+    ```
+
+    - `@Id`위치로 인해 기본은 필드 접근, `name`에 대해서만 속성 접근 방식을 취하게 된다.
+
