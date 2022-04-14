@@ -459,3 +459,414 @@ public class MemberRepositoryV1 {
   - 커넥션을 좀 더 편하게 닫을 수 있음
 - `closeConnection()`: 커넥션 풀을 사용할 경우 커넥션을 닫는 것이 아니라 반환한다. 
 
+
+
+# 트랜잭션 이해
+
+## 트랜잭션의 개념
+
+- 데이터베이스를 사용하는 이유 중 하나
+- 하나의 작업 단위를 안전하게 처리하게끔 보장\
+  - ex) A->B로 계좌 이쳬: A 계좌 금액의 감소, B 계좌 금액의 증가가 함께 성공하거나, 함께 실패해야 한다.
+- 커밋(Commit): 모든 작업에 성공해서 DB에 반영하는 것
+- 롤백(Rollback): 하나라도 작업이 실패하여, 작업 이전 상태로 돌리는 것
+
+
+
+### 트랜잭션 ACID
+
+- **ACID; Atomicity, Consistency, Isolation, Durability**
+  - **원자성(Atomicity)**: 트랜잭션 내에서 실행한 작업은 하나의 작업인 것처럼 동시에 성공하거나 실패해야 한다.
+  - **일관성(Consitency)**: 모든 트랜잭션은 일관성 있는 DB 상태를 유지해야 한다. ex) DB 무결성 조건을 항상 만족
+  - **격리성(Isolation)**: 동시에 실행되는 트랜잭션들이 서로에게 영향을 미치지 않도록 격리해야 한다.
+    - 동시성과 관련된 성능 이슈로 인해 트랜잭션 격리 수준(isolation level)을 선택할 수 있다.
+  - **지속성(Durability)**: 트랜잭션을 성공적으로 끝내면 그 결과가 항상 기록되어야 한다.
+    - 중간에 문제가 발생해도 DB 로그 등을 사용해서 성공한 트랜잭션 내용을 복구해야 한다. 
+- **트랜잭션은 원자성, 일관성, 지속성을 보장함**
+  - **격리성을 엄격하게 지키려면 병렬 처리가 불가능하다.** 때문에 ANSI 표준에서는 트랜잭션 격리 수준을 4단계로 나누어 정의했다.
+- **트랜잭션 격리 수준(Isolation level)**
+  - 커밋되지 않은 읽기(READ UNCOMMITED)
+  - **커밋된 읽기(READ COMMITED)**
+    - 일반적으로 많이 사용
+  - 반복 가능한 읽기(REPEATABLE READ)
+  - 직렬화 가능(SERIALIZABLE)
+
+
+
+## 데이터베이스 연결 구조와 DB 세션
+
+- 연결구조
+  - 클라이언트: WAS, DB 접근 툴 등을 이용해서 DB에 접근
+  - 클라이언트가 커넥션을 얻고, DB는 내부에 세션을 만듦
+    - 해당 커넥션을 통한 모든 요청은 해당 세션을 통해 실행하게 됨
+  - 세션은 트랜잭션을 시작하며, 커밋/롤백을 통해 트랜잭션을 종료, 다른 트랜잭션을 시작, ...
+  - 사용자가 커넥션을 닫거나, DBA(DB 관리자)가 세션을 강제로 종료하면 세션은 종료됨
+- 커넥션 풀과 연결 구조
+  - 커넥션 풀에 커넥션이 생성된 만큼, DB 세션도 생성된다.
+
+
+
+## 트랜잭션 예시
+
+### 개념
+
+- 이하의 설명은 일반적인 개념으로, 구체적인 구현 방식은 DB마다 다르다.
+- **트랜잭션 사용**
+  - 변경 반영을 원하면 `commit`, 원하지 않는다면 `rollback`을 호출
+  - `commit` 호출 이전은 임시 데이터 저장임.
+    - 트랜잭션을 시작한 세션(사용자)에게만 변경 데이터가 보이며, 다른 세션(사용자)에게는 변경 데이터가 보이지 않음.
+- **만일 커밋하지 않은 데이터를 다른 세션에서 조회할 수 있다면?**
+  - 세션1의 커밋하지 않은 데이터를 조회한 것을 기반으로 세션2가 작업을 진행하는데, 세션1이 롤백했을 경우
+    **데이터 정합성이 무너진다.** (READ UNCOMMITED)
+
+
+
+### 자동 커밋, 수동 커밋
+
+- 자동 커밋: 각각의 쿼리 실행 직후에 자동적으로 커밋을 호출
+  - 커밋/롤백을 직접 호출하지 않아도 되지만, 트랜잭션 기능을 제대로 활용할 수 없음
+  - 일반적으로 기본 설정으로 지정되어 있음
+- 수동 커밋: `set autocommit false;`
+  - 마지막에 꼭 커밋이나 롤백을 호출해야.
+  - 만일 둘 중 하나를 호출하지 않으면 설정된 timeout이 경과되었을 때 자동 롤백된다.
+- 자동/수동 커밋 모드를 설정하면 해당 세션에서 설정이 계속 유지됨. 중도 변경도 가능.
+- 실제 트랜잭션을 실험해보고 싶을 경우 H2 콘솔을 두 개 띄우되, 서로 다른 세션이 뜨게 하자.
+- **자동커밋 모드를 수동커밋 모드로 바꾸는 것이 트랜잭션의 시작!**
+
+
+
+## DB 락
+
+- 여러 세션이 동일 데이터를 수정하게 되면 트랜잭션의 원자성이 깨진다.
+  - 한 세션이 트랜잭션을 시작하고 데이터를 수정하는 동안에는 커밋이나 롤백 전까지 다른 세션에서 해당 데이터를 수정할 수 없게 막아야 한다.
+    -> **DB 락**
+  - 과정
+    - 세션1이 어떤 데이터를 변경하려고 시도할 때는 먼저 해당 데이터의 락을 획득해야 한다.
+    - 해당 데이터의 락이 남아 있기에 세션1이 락을 획득한다.
+    - 세션2가 동일 데이터를 변경 시도하면, 락이 없으므로 락이 돌아올 때까지 대기한다.
+      - 락 대기시간을 넘어갈 경우 락 타임아웃 오류가 발생한다.
+      - `set lock_timeout <milliseconds>`: 락 타임아웃 시간 설정
+    - 세션1이 커밋을 수행하면, 트랜잭션이 종료되었기에 락을 반납한다.
+    - 세션2가 락을 획득하고 작업을 수행한다. 작업이 종료된 후 락을 반납한다.
+
+
+
+### 조회
+
+- 변경과 달리, **일반적인 조회는 락을 사용하지 않는다.**
+
+  - DB마다 다르지만, 일반적으로 조회 시에는 락을 획득하지 않아도 된다.
+
+- **조회에도 락을 적용하고 싶다면**
+
+  - **`select for update`** 구문 사용
+
+    ```SQL
+    set autocommit false;
+    select * from member where member_id='memberA' for update;
+    ```
+
+  - 이 경우 조회 시에 락을 가져가버림
+
+  - 트랜잭션 종료 시까지 해당 데이터를 변경하지 못하게 막아야 할 경우
+
+    - 금전과 관련된 중요한 계산일 경우
+    - 위 방식으로 락을 획득하고, 중요 작업을 마칠 때까지 트랜잭션을 종료하지 않으면 됨
+
+
+
+## 트랜잭션 적용
+
+### 적용 이전 상태
+
+```java
+@RequiredArgsConstructor
+public class MemberServiceV1 {
+
+    private final MemberRepositoryV1 memberRepository;
+
+    public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+        Member fromMember = memberRepository.findById(fromId);
+        Member toMember = memberRepository.findById(toId);
+
+        memberRepository.update(fromId, fromMember.getMoney() - money);
+        validate(toMember); //의도적으로 예외가 터지는 상황을 만들어보기 위한 학습용 코드
+        memberRepository.update(toId, toMember.getMoney() + money);
+    }
+
+    private void validate(Member toMember) {
+        if (toMember.getMemberId().equals("ex")) {
+            throw new IllegalStateException("이체 중 예외 발생");
+        }
+    }
+}
+```
+
+- 테스트: 정상 케이스
+
+  ```java
+      @Test
+      @DisplayName("정상 이체")
+      public void accountTransferTest() throws SQLException {
+          //Given
+          Member memberA = new Member(MEMBER_A, 10000);
+          Member memberB = new Member(MEMBER_B, 10000);
+          memberRepository.save(memberA);
+          memberRepository.save(memberB);
+  
+          //When
+          memberService.accountTransfer(memberA.getMemberId(), memberB.getMemberId(), 2000);
+  
+          //Then
+          Member foundMemberA = memberRepository.findById(memberA.getMemberId());
+          Member foundMemberB = memberRepository.findById(memberB.getMemberId());
+          assertThat(foundMemberA.getMoney()).isEqualTo(8000);
+          assertThat(foundMemberB.getMoney()).isEqualTo(12000);
+      }
+  ```
+
+- 테스트: 이체 중 예외가 터진 경우
+
+  ```java
+      @Test
+      @DisplayName("이체 중 예외 발생")
+      public void accountTransferExTest() throws SQLException {
+          //Given
+          Member memberA = new Member(MEMBER_A, 10000);
+          Member memberEx = new Member(MEMBER_EX, 10000);
+          memberRepository.save(memberA);
+          memberRepository.save(memberEx);
+  
+          //When
+          assertThatThrownBy(
+                  ()-> memberService.accountTransfer(memberA.getMemberId(), memberEx.getMemberId(), 2000))
+                  .isInstanceOf(IllegalStateException.class);
+      }
+  ```
+
+  - 예외가 터진 경우 돈이 깎이기만 하고 증가하지는 않는다: `memberA`의 돈만 2000 감소하고, `memberEx`의 돈은 증가하지 않았다!
+
+
+
+### 적용 이후
+
+- 트랜잭션을 어떤 계층에서 걸어야 하며, 어떤 경우 롤백, 커밋해야 할까?
+- **비즈니스 로직과 트랜잭션**
+  - 트랜잭션은 비즈니스 로직이 있는 서비스 계층에서 시작해야 한다.
+  - 트랜잭션 시작 -> 비즈니스 로직 -> 트랜잭션 종료
+  - 트랜잭션을 시작하려면 커넥션이 필요하기에, 서비스 계층에서 커넥션을 만들고, 트랜잭션 커밋 후에 커넥션을 종료해야 한다.
+  - **DB 트랜잭션을 사용하려면 트랜잭션을 사용하는 동안 같은 커넥션을 유지해야 한다!**
+    - 커넥션을 통해서 세션이 맺어지며, 세션에서 트랜잭션이 시작하니까.
+- **같은 커넥션을 유지하려면?**
+  - 가장 간단한 방법: 커넥션을 파라미터로 전달
+
+- 커넥션을 파라미터로 전달한 경우 코드
+
+  - `repository`
+
+    ```java
+    /**
+     * JDBC - ConnectionParam
+     */
+    @Slf4j
+    @RequiredArgsConstructor
+    public class MemberRepositoryV2 {
+    
+        ...
+            
+        public Member findById(Connection con, String memberId) throws SQLException {
+            String sql = "select * from member where member_id = ?";
+    
+            PreparedStatement pstmt = null;
+            ResultSet rs = null;
+    
+            try {
+                pstmt = con.prepareStatement(sql);
+                pstmt.setString(1, memberId);
+    
+                rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    var member = new Member();
+                    member.setMemberId(rs.getString("member_id"));
+                    member.setMoney(rs.getInt("money"));
+                    return member;
+                } else {
+                    throw new NoSuchElementException("member not found memberId=" + memberId);
+                }
+            } catch (SQLException e) {
+                log.error("DB error", e);
+                throw e;
+            } finally {
+                JdbcUtils.closeResultSet(rs);
+                JdbcUtils.closeStatement(pstmt);
+            }
+        }
+    
+            public void update(Connection con, String memberId, int money) throws SQLException {
+            String sql = "update member set money=? where member_id=?";
+    
+            PreparedStatement pstmt = null;
+    
+            try {
+                pstmt = con.prepareStatement(sql);
+                pstmt.setInt(1, money);
+                pstmt.setString(2, memberId);
+                int resultSize = pstmt.executeUpdate();
+                log.info("resultSize = {}", resultSize);
+            } catch (SQLException e) {
+                log.error("DB error", e);
+                throw e;
+            } finally {
+                JdbcUtils.closeStatement(pstmt);
+            }
+        }
+        
+        ...
+    ```
+
+    - 커넥션을 파라미터로 받아 오고 있다. 기존의 커넥션을 받아오는 코드를 제거해야 한다.
+
+    - **작업이 끝나고 자원을 반환할 때, 커넥션을 반환하지 않도록 주의하자!**
+      **이 경우 커넥션을 커넥션 풀로 반환하는 것은 커밋 혹은 롤백이 일어난 후 서비스 계층에서 이루어져야 한다!**
+
+  - `service`
+
+    ```java
+    /**
+     * 트랜잭션 - 파라미터 연동, 풀을 고려한 종료
+     */
+    @Slf4j
+    @RequiredArgsConstructor
+    public class MemberServiceV2 {
+    
+        private final DataSource dataSource;
+        private final MemberRepositoryV2 memberRepository;
+    
+        public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+    
+            Connection con = dataSource.getConnection();
+            try {
+                con.setAutoCommit(false);       //트랜잭션 시작
+    
+                //비즈니스 로직
+                bizLogic(con, fromId, toId, money);
+    
+                con.commit();       //성공 시 커밋
+            } catch (Exception e) {
+                con.rollback();     //실패 시 롤백
+                throw new IllegalStateException(e);
+            } finally {
+                release(con);
+            }
+        }
+    
+        private void bizLogic(Connection con, String fromId, String toId, int money) throws SQLException {
+            Member fromMember = memberRepository.findById(con, fromId);
+            Member toMember = memberRepository.findById(con, toId);
+    
+            memberRepository.update(con, fromId, fromMember.getMoney() - money);
+            validate(toMember); //의도적으로 예외가 터지는 상황을 만들어보기 위한 학습용 코드
+            memberRepository.update(con, toId, toMember.getMoney() + money);
+        }
+    
+        private void release(Connection con) {
+            if (con != null) {
+                try {
+                    con.setAutoCommit(true);    //반환된 커넥션이 수동 커밋 모드인 경우 다른 곳에서 사용될 때 문제 발생 가능!
+                    con.close();
+                } catch (Exception e) {
+                    log.info("error: ", e);
+                }
+            }
+        }
+    
+        private void validate(Member toMember) {
+            if (toMember.getMemberId().equals("ex")) {
+                throw new IllegalStateException("이체 중 예외 발생");
+            }
+        }
+    }
+    ```
+
+    - 트랜잭션을 시작하기 위해 자동 커밋 모드를 꺼서, 수동 커밋으로 전환한다.
+      - **커넥션 풀을 사용할 경우 커넥션을 커넥션 풀로 반환하기 전에 반드시 자동 커밋으로 다시 전환해 준다!!!**
+    - 비즈니스 로직을 분리한다. 트랜잭션 관리 로직과 비즈니스 관리 로직은 서로 다른 관심사를 다루고 있기 때문이다.
+
+- 테스트
+
+  ```java
+  /**
+   * 트랜잭션 - 커넥션 파라미터 전달 방식 동기화
+   */
+  class MemberServiceV2Test {
+  
+      static final String MEMBER_A = "memberA";
+      static final String MEMBER_B = "memberB";
+      static final String MEMBER_EX = "ex";
+  
+      private MemberRepositoryV2 memberRepository;
+      private MemberServiceV2 memberService;
+  
+      @BeforeEach
+      void beforeEach() {
+          DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+          memberRepository = new MemberRepositoryV2(dataSource);
+          memberService = new MemberServiceV2(dataSource, memberRepository);
+      }
+  
+      @AfterEach
+      void afterEach() throws SQLException {
+          memberRepository.delete(MEMBER_A);
+          memberRepository.delete(MEMBER_B);
+          memberRepository.delete(MEMBER_EX);
+      }
+  
+      @Test
+      @DisplayName("정상 이체")
+      public void accountTransferTest() throws SQLException {
+          //Given
+          Member memberA = new Member(MEMBER_A, 10000);
+          Member memberB = new Member(MEMBER_B, 10000);
+          memberRepository.save(memberA);
+          memberRepository.save(memberB);
+  
+          //When
+          memberService.accountTransfer(memberA.getMemberId(), memberB.getMemberId(), 2000);
+  
+          //Then
+          Member foundMemberA = memberRepository.findById(memberA.getMemberId());
+          Member foundMemberB = memberRepository.findById(memberB.getMemberId());
+          assertThat(foundMemberA.getMoney()).isEqualTo(8000);
+          assertThat(foundMemberB.getMoney()).isEqualTo(12000);
+      }
+  
+      @Test
+      @DisplayName("이체 중 예외 발생")
+      public void accountTransferExTest() throws SQLException {
+          //Given
+          Member memberA = new Member(MEMBER_A, 10000);
+          Member memberEx = new Member(MEMBER_EX, 10000);
+          memberRepository.save(memberA);
+          memberRepository.save(memberEx);
+  
+          //When
+          assertAll(
+                  () -> assertThatThrownBy(
+                          () -> memberService.accountTransfer(memberA.getMemberId(), memberEx.getMemberId(), 2000))
+                          .isInstanceOf(IllegalStateException.class),
+                  () -> assertThat(memberA.getMoney()).isEqualTo(10000),
+                  () -> assertThat(memberEx.getMoney()).isEqualTo(10000));
+      }
+  }
+  ```
+
+  - 기존과 달리 예외가 발생하였을 경우 트랜잭션이 롤백되어 거래 실패 시 원 상태로 돌아가는 것을 볼 수 있다.
+
+- **남은 문제**
+
+  - 트랜잭션 도입으로 문제 해결하였지만,
+  - 애플리케이션에서 DB 트랜잭션을 적용하려고 하면
+    - 서비스 계층이 매우 지저분해지고,
+    - 코드가 상당히 복잡해지며,
+    - 커넥션을 유지하도록 코드를 변경하는 것도 쉽지 않다.
+  - 스프링을 사용해서 이런 문제를 해결할 수 있다.
