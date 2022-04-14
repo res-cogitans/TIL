@@ -1,11 +1,13 @@
 package org.programmers.kdtspringorder.order;
 
+import lombok.Data;
 import org.programmers.kdtspringorder.voucher.Voucher;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Data
 public class Order {
 
     private final UUID orderId;

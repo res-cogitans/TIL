@@ -3,7 +3,7 @@
 spring.config.activate.on-profile: local
 
 kdt:
-  version: "v1.0"
+  version: "v9.9.9"
   minimum-order-amount: 1
   support-vendors:
     - a

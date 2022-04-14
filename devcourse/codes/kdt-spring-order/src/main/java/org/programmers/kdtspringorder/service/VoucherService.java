@@ -2,6 +2,7 @@ package org.programmers.kdtspringorder.service;
 
 import lombok.RequiredArgsConstructor;
 import org.programmers.kdtspringorder.repository.VoucherRepository;
+import org.programmers.kdtspringorder.voucher.FixedAmountVoucher;
 import org.programmers.kdtspringorder.voucher.Voucher;
 import org.springframework.stereotype.Service;
 
@@ -21,5 +22,6 @@ public class VoucherService {
     }
 
     public void useVoucher() {
+
     }
 }
