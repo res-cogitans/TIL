@@ -726,7 +726,7 @@ public class Member {
 
 ## 3.3 엔티티의 생명주기
 
-- **엔티티의 4가지 상태**
+- **엔티티의 4가지 상태*
   - **비영속(new/transient)**: 영속성 컨텍스트와 전혀 관계가 없는 상태
   - **영속(managed)**: 영속성 컨텍스트에 저장된 상태
     - 영속성 컨텍스트에 의해 관리된다.
@@ -894,7 +894,7 @@ member.setAge(10);
   - SQL 저장소 쿼리를 DB에 전송
 - 방법
   - `em.flush()` 직접 호출
-    - 강제 플러시, 거의 사용 안 힘.
+    - 강제 플러시, 거의 사용 안 함.
   - 트랜잭션 커밋 시 자동 호출
     - 플러시가 SQL 저장소 내용을 DB에 전송하는 과정이기에
       트랜잭션 시에는 플러시가 자동으로 먼저 실행되게 됨
@@ -976,7 +976,7 @@ member.setAge(10);
 
     ```java
     Member mergeMember = em.merge(member);	 //이것보다는
-    member = em2.merge(member)				//이걸 사용하자
+    member = em.merge(member)				//이걸 사용하자
     ```
 
 
@@ -1104,6 +1104,7 @@ public enum RoleType {
 | 사용하지 않음<br />(구체적인 옵션 값 없음) | 자동 속성 기능을 사용하지 않음<br />속성 자체를 삭제하거나, 유효하지 않은 옵션 값을 주면 적용 |
 
 - 당연히 **운영 환경에서 DDL 수정하는 옵션을 써선 안 된다!** (create, create-drop, update)
+
 - 개발 단계에 따른 추천 전략
   - 초기: create or update
   - 초기화 상태로 테스트 진행하는 개발자 환경 및 CI 서버: create or create-drop
@@ -1137,6 +1138,8 @@ public enum RoleType {
     - 하이버네이트의 `org.hibernate.cfg.ImprovedNamingStrategy` 클래스를 이용할 수 있음
       - 테이블 명, 컬럼 명이 명시되지 않은 경우
         카멜케이스(자바) -> 언더스코어 표기법(테이블)로 매핑
+  
+  - **하이버네이트5부터 `PhisicalNamingStrategy` 사용해야 한다!**
 
 
 
@@ -1199,6 +1202,7 @@ public enum RoleType {
   - `String`
   - `java.util.Date`
   - `java.sql.Date`
+    - `java.util.Date`를 상속, 시간 및 시간대에 대한 정보는 없음
   - `java.math.BigDecimal`
   - `java.math.BigInteger`
 
@@ -1552,6 +1556,7 @@ public enum RoleType {
 
 - 매핑하지 않는 필드
 - DB에 저장도, 조회도 하지 않는다.
+- 자바의 키워드와 헷갈리지 말자!(직렬화를 무시하는 필드에 사용)
 
 
 
@@ -1593,3 +1598,325 @@ public enum RoleType {
 
     - `@Id`위치로 인해 기본은 필드 접근, `name`에 대해서만 속성 접근 방식을 취하게 된다.
 
+
+
+# 05장 연관관계 매핑 기초
+
+- ORM에서 가장 어려운 부분
+  - **객체 참조와 FK를 매핑하는 것!**
+  - 키워드
+    - 방향(Direction): 단방향, 양방향, 테이블의 경우 항상 양방향
+    - 다중성(Multiplicity): 1:N, N:1, 1:1, N:M
+    - 연관관계의 주인(Owner)
+
+
+
+## 5.1 단방향 연관관계
+
+- N:1 관계 기본 이해 예시
+
+  - 회원(N): 팀(1)
+
+  - 회원은 하나의 팀에만 소속
+
+  - 객체 연관관계
+
+    - `Member.team`: `team`을 멤버변수로 가짐으로써(**참조 이용**) 팀 객체와 연관관계를 맺음
+    - 회원 -> 팀의 단방향 관계
+
+  - 테이블 연관관계
+
+    - 회원 테이블의 FK TEAM_ID로 연관관계를 맺음(**외래키 이용**)
+
+    - 양방향
+
+      - 회원과 팀을 조인
+
+        ```SQL
+        SELECT *
+        FROM MEMBER M
+        JOIN TEAM T ON M.TEM_ID = T.ID
+        ```
+
+      - 팀과 회원을 조인
+
+        ```SQL
+        SELECT *
+        FROM TEAM T
+        JOIN MEMBER M ON T.TEAM_ID  = M.TEAM_ID
+        ```
+
+  - **방향: 가장 큰 차이점**
+
+    - 객체 참조의 경우 항상 단방향
+    - 테이블의 경우 항상 양방향
+    - 객체로 양방향 관계를 표현하려면, 양 쪽 멤버필드에 참조를 보관,
+      **하지만 이 방식은 양방향이라기 보단, 단방향 2개가 맞다!**
+
+
+
+### 5.1.1  순수한 객체 연관관계, 5.1.2 테이블 연관관계
+
+- **객체 그래프 탐색**: 객체의 경우 참조를 통해 연관관계를 탐색
+
+- **외래키를 통한 조인(테이블)**
+
+  - DDL
+
+    ```SQL
+    ALTER TABLE MEMBER ADD CONSTRAINT FK_MEMBER_TEAM
+    	FOREIGN KEY (TEAM_ID)
+    	REFERENCES TEAM
+    ```
+
+
+
+### 5.1.3 객체 관계 매핑
+
+- `Member`
+
+  ```java
+  @Entity
+  @Setter	//연관관계 설정
+  public class Member {
+  
+      @Id
+      @Column(name = "ID")
+      @GeneratedValue
+      private Long id;
+  
+      @Column(name = "NAME", nullable = false, length = 10)
+      private String username;
+  
+      @ManyToOne
+      @JoinColumn(name="TEAM_ID")
+      private Team team;
+      
+      ...
+  }
+  ```
+
+- `Team`
+
+  ```java
+  @Entity
+  public class Team {
+  
+      @Id
+      @Column(name = "TEAM_ID")
+      private String id;
+  
+      private String name;
+  }
+  ```
+
+- `@ManyToOne`
+  - 다대일 관계임을 알리는 애노테이션
+
+
+
+### 5.1.4 `@JoinColumn`
+
+- FK 매핑에 사용
+
+- 생략 시 FK 탐색 전략
+
+  - 필드명 + "_" + 참조하는 테이블의 PK 컬럼명
+
+- 속성
+
+  | 속성                                                         | 기능                                                      | 기본값                                     |
+  | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------ |
+  | name                                                         | 매핑할 외래 키 이름                                       | 필드명 + "_" + 참조하는 테이블의 PK 컬럼명 |
+  | referencedColumnName                                         | 외래 키가 참조하는 대상 테이블의 컬럼명                   | 참조하는 테이블의 PK 컬럼명                |
+  | foreignKey(DDL)                                              | 외래 키 제약조건을 직접 지정<br />테이블 생성할 때만 적용 |                                            |
+  | unique<br />nullable<br />insertable<br />updatable<br />columnDefinition<br />table | Column 속성과 상동                                        |                                            |
+
+
+
+### 5.1.5 `@ManyToOne`
+
+- 다대일 관계에서 사용
+
+- 속성
+
+  | 속성         | 기능                                                         | 기본값          |
+  | ------------ | ------------------------------------------------------------ | --------------- |
+  | optional     | false일 경우 연관된 엔티티가 항상 있어야 한다.               | true            |
+  | fetch        | 글로벌 페치 전략 설정                                        | FetchType.EAGER |
+  | cascade      | 영속성 전이 기능을 사용                                      |                 |
+  | targetEntity | 연관된 엔티티의 타입 정보 설정<br />거의 사용하지 않음<br />컬렉션을 사용해도 제네릭으로 타입 정보를 알 수 있음 |                 |
+
+  ```java
+  @OneToMany
+  private List<Member> members;			//제네릭으로 타입 정보를 알 수 있음
+  
+  @OneToMany(targetEntity=Member.class)
+  private List members;				   //제네릭이 없어 타입 정보를 알 수 없음
+  ```
+
+
+
+## 5.2 연관관계 사용
+
+### 5.2.1 저장
+
+- **JPA에서 엔티티를 저장할 때 연관된 모든 엔티티는 영속 상태여야 한다.**
+
+
+
+### 5.2.2 조회
+
+- 연관관계가 있는 엔티티를 조회하는 방법
+
+  - 객체 그래프 탐색
+
+    - `member.getTeam()`
+
+  - 객체지향 쿼리(JPQL) 사용
+
+    ```java
+    String jpql = "select m from Member m join m.team t where t.name =: teamName";
+    
+    List<Member> resultList = em.createQuery(jpql, Member.class)
+        .setParameter("teamName", "팀1")
+        .getResultList();
+    ```
+
+
+
+### 5.2.3 수정
+
+- `setTeam()`으로 변경, `flush()`발생할 때 반영
+
+
+
+### 5.2.4 연관관계 제거
+
+- `setTeam(null)`
+
+
+
+### 5.2.5 연관된 엔티티 삭제
+
+- 기존에 있던 연관관계를 먼저 제거하고, 연관된 엔티리르 삭제해야 함
+  - 그렇지 않을 경우 FK 제약조건으로 인해 DB 에러 발생
+
+
+
+## 5.3 양방향 연관관계
+
+- `List` 이용하야 팀에서도 멤버를 참조하게 변경
+- JPA는 `List`, `Collection`, `Set`, `Map` 등 다양한 컬렉션을 지원함
+
+
+
+### 5.3.1 양방향 연관관계 매핑
+
+- `Team`
+
+  ```java
+      @OneToMany(mappedBy = "team")
+      private List<Member> members = new ArrayList<Member>();
+  ```
+
+  - `mappedBy` 속성에 반대쪽 매핑의 필드 값을 주면 됨
+
+
+
+## 5.4 연관관계의 주인
+
+- 객체의 관점에서는 양방향 연관관계가 없으며, 단방향 연관관계 두 개가 존재하는 상황이다.
+- 테이블 기준에서 어떤 관계를 기준으로 외래 키를 관리할지가 필요하다.
+- 따라서 `mappedBy` 속성이 필요하며, 두 연관관계 중 기준이 되는 쪽을 설정해야 한다.
+  -> **연관관계의 주인(Owner)**: 외래 키 관리자
+
+
+
+### 5.4.1 양방향 매핑의 규칙: 연관관계의 주인
+
+- 연관관계의 주인만이 DB 연관관계와 매핑되고, FK를 관리(등록, 수정, 삭제)할 수 있음
+- 주인이 아닌 쪽은 읽기만 가능
+- 주인인 경우 `mappedBy` 속성을 사용하지 않고, 주인이 아닌 경우 `mappedBy` 속성을 사용하여 연관관계의 주인을 지정한다.
+- `Many` 쪽에서 관리할 경우, 자신 테이블의 FK를 관리하지만,
+  `One`쪽에서 관리할 경우 (물리적으로) 다른 테이블의 FK를 관리해야 한다.
+  - 때문에 `Many`쪽이 관리하는 것이 낫다.
+
+
+
+### 5.4.2 연관관계의 주인은 외래 키가 있는 곳
+
+- 연관관계의 주인이 아닌 곳에는 `mappedBy` 속성으로 연관관계의 주인인 엔티티의 FK 필드를 주면 된다.
+- `@ManyToOne`의 경우 `Many` 측에게만 쓰는 애노테이션이기 때문에 `mappedBy` 속성을 설정할 수 없다.
+
+
+
+## 5.5 양방향 연관관계 저장
+
+- 연관관계의 주인인 `Member.team` 필드를 통해 연관관계를 설정하고 저장한다.
+
+
+
+## 5.6 양방향 연관관계의 주의점
+
+- **연관관계의 주인에는 값을 할당하지 않고, 주인이 아닌 곳에만 값을 할당하는 실수**
+  - 연관관계의 주인만이 FK 값을 변경할 수 있기에, DB에 정상 저장되지 않는다.
+
+
+
+### 5.6.1 순수 객체까지 고려한 양방향 연관관계
+
+- **객체 관점에서는 연관관계의 주인이 아닌 곳에도 값을 할당하는 편이 안전하다.**
+  - JPA를 사용하지 않는 경우, 연관관계의 주인이 아닌 쪽에서 연관관계의 주인 쪽으로 조회가 불가능해지기 때문이다.
+
+
+
+### 5.6.2 연관관계 편의 메서드
+
+- 양방향 연관관계를 객체 측면에서도 안전하게 설정하려면 연관관계의 주인이 아닌 쪽에도 값을 입력해 줘야 한다.
+
+- 하지만 연관관계를 설정할 때 마다 반대 방향까지 계속 설정해 주는 것은 빠트리는 실수가 일어나기 쉽다.
+
+- 한 쪽의 연관관계 설정 메서드에, 반대 측면에서의 객체 연관관계 까지 설정해주는 코드를 만들자: **연관관계 편의 메서드**
+
+  ```java
+      public void setTeam(Team team) {
+          if (this.team != null) {
+              this.team.getMembers().remove(this);
+          }
+          this.team = team;
+          team.getMembers().add(this);
+      }
+  ```
+
+  
+
+### 5.6.3 연관관계 편의 메서드 작성 시 주의사항
+
+- **연관관계 변경 메서드에는 기존 연관관계를 제거해줘야 한다.**
+
+  ```java
+          if (this.team != null) {
+              this.team.getMembers().remove(this);
+          }
+  ```
+
+  - `team`은 연관관계의 주인이 아니기 때문에 FK 변경에는 지장이 없지만
+  - 만일 `team` 쪽에서 `members`를 조회한다면 어떻게 될까?
+    - 새로운 영속성 컨텍스트에서 조회할 경우, DB FK 상으로 관계가 끊어져 있기에 기존 연관관계가 조회되지는 않겠지만
+    - 기존 영속성 컨텍스트가 살아 있는 상태에서 조회할 경우, 이전 `team`의 `members`에는 여전히 연관관계가 남아 있는 것처럼 해당 `member`가 조회될 것이다.
+      -> **이런 위험 때문에 기존 연관관계를 제거해주는 것이 안전하다.**
+
+
+
+## 5.7 정리
+
+- 단방향 매핑만으로 테이블 상의 연관관계 매핑은 완료된다.
+- 양방향 매핑은 반대 방향 객체 그래프 탐색이 필요할 때만 고려할만하다.
+  - 양방향 매핑은 복잡하기 때문에 정말로 필요한지에 대해 고민해볼 필요가 있으며, 정말 필요할 때 양방향을 추가하는 식으로 코드를 짜는 것도 괜찮다.
+- 연관관계의 주인
+  - "주인"이라고 해서 비즈니스상의 중요성을 떠올려선 안 된다. 이 "주인" 개념은 매핑 상의 개념일 뿐이다.
+- 양방향 매핑 시에 무한 루프에 빠지지 않도록 주의해야 한다. 특히 JSON 변환이나 롬복을 사용할 때 자주 발생한다.
+- `OneToMany`를 연관관계의 주인으로 설정할 수는 있다.
+  - `Team.members`를 연관관계의 주인으로 삼는 것이 그 예다.
+  - 하지만 성능과 관리 측면에서 좋지 않다.

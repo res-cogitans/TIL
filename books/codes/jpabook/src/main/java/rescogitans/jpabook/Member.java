@@ -24,6 +24,10 @@ public class Member {
     @Column(name = "NAME", nullable = false, length = 10)
     private String username;
 
+    @ManyToOne
+    @JoinColumn(name="TEAM_ID")
+    private Team team;
+
     private Integer age;
 
     @Enumerated(EnumType.STRING)
@@ -37,4 +41,12 @@ public class Member {
 
     @Lob
     private String description;
+
+    public void setTeam(Team team) {
+        if (this.team != null) {
+            this.team.getMembers().remove(this);
+        }
+        this.team = team;
+        team.getMembers().add(this);
+    }
 }
