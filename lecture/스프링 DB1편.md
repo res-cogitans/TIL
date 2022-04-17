@@ -1293,3 +1293,454 @@ public class MemberServiceV1 {
   spring.datasource.url=jdbc:h2:tcp://localhost/~/test
   spring.datasource.username=sa
   spring.datasource.password=
+  ```
+
+
+
+# 자바 예외 이해
+
+## 예외 계층
+
+- 예외 계층 도표
+
+```mermaid
+classDiagram
+Object <|-- Throwable
+
+Throwable <|-- Exception
+Throwable <|-- Error
+
+Exception <|-- SQLException
+Exception <|-- IOException
+Exception <|-- RuntimeException
+
+Error <|-- OutOfMemoryError
+
+RuntimeException <|-- NullPointerException
+RuntimeException <|-- IllegalArgumentException
+```
+
+- `Exception` 중 `RuntimeException` 제외한 부분이 `CheckedException`
+- `RuntimeException`이 `UncheckedException`, 또한 `Error`도 `UncheckedException`
+- 설명
+  - `Object`: 예외도 객체이기에 최상위 부모는 `Object`
+  - `Throwable`: 최상위 예외
+  - `Error`
+    - 애플리케이션에서 복구 불가능한 시스템 예외
+    - 개발자가 해결할 영역의 문제가 아니기에, `catch`하지 말자.
+      - `catch`는 해당 예외의 하위 예외까지 잡음. 따라서 `Error`를 자손으로 둔 `Throwable`을 잡아선 안 됨
+      - `Exception` 부터 `catch`의 영역으로 생각하면 됨
+  - `Exception`
+    - `RuntimeException`을 제외한 `Exception`은 체크 예외
+    - 애플리케이션 로직에서 사용할 수 있는 실질적인 최상위 예외
+  - `RuntimeException`
+    - `UncheckedException`
+      - 컴파일러가 예외를 잡았는지 체크하지 않는 예외임
+
+
+
+## 예외 기본 규칙
+
+- 예외를 다루는 방식
+  - 잡아서 처리하거나
+  - 처리할 수 없어서 밖(호출한 곳)으로 던지거나
+- 예외를 잡거나 던지는 것은, 지정한 예외뿐만 아니라 그 예외의 자식들도 함께 처리함
+- 예외를 처리하지 못하고 계속 던진다면?
+  - 자바 `main()`쓰레드의 경우: 예외 로그를 출력하면서 시스템이 종료됨
+  - 웹 애플리케이션의 경우
+    - 여러 사용자의 요청을 처리하기에, 예외 하나 때문에 시스템이 종료되어선 안 됨
+    - 때문에 WAS가 해당 예외를 받아서 처리함: 주로 사용자에게 개발자가 지정한 오류 페이지를 보여줌
+
+
+
+## Checked, Unchecked Exception 기본 이해
+
+### `CheckedException`
+
+- `RuntimeException`을 제외한  `Exception`이 해당
+
+- 잡아서 처리하거나 밖으로 던지도록 선언하지 않으면 컴파일 오류가 발생
+
+  - 예외 처리 했는지를 컴파일러가 체크해주기 때문에 `CheckedException`
+
+- 예시 코드
+
+  ```java
+  @Slf4j
+  public class CheckedTest {
+  
+      @Test
+      @DisplayName("CheckedException 처리 - catch")
+      void catchCheckedException() {
+          var service = new Service();
+          service.callCatch();
+      }
+  
+      @Test
+      @DisplayName("CheckedException 처리하지 못한 경우 - throw만 함")
+      void throwCheckedException() {
+          var service = new Service();
+          assertThatThrownBy(() -> service.callThrow())
+                  .isInstanceOf(MyCheckedException.class);
+  
+      }
+  
+      /**
+       * Exception 상속 받은 예외는 CheckedException 된다.
+       */
+      static class MyCheckedException extends Exception {
+          public MyCheckedException(String message) {
+              super(message);
+          }
+      }
+  
+      /**
+       * CheckedException 경우
+       * 예외를 잡아서 처리하거나, 던지거나 둘 중 하나를 필수로 수행해야 함
+       */
+      static class Service {
+          Repository repository = new Repository();
+  
+          /**
+           * 예외를 잡아서 처리하는 코드
+           */
+          void callCatch() {
+              try {
+                  repository.call();
+              } catch (MyCheckedException e) {
+                  //예외 처리 로직
+                  log.info("예외 처리, message={}", e.getMessage(), e);
+              }
+          }
+  
+          /**
+           * CheckedException 밖으로 던지는 코드
+           * CheckedException 잡지 않고 밖으로 던지려면 "throws 해당 예외"를 메서드에 필수로 선언해야 한다.
+           * @Throws MyCheckedException
+           */
+          void callThrow() throws MyCheckedException {
+              repository.call();
+          }
+  
+      }
+  
+      static class Repository {
+          public void call() throws MyCheckedException {
+              throw new MyCheckedException("exception message");
+          }
+      }
+  }
+  ```
+
+- `Exception`을 상속받은 예외는 `CheckedException`
+
+- `RuntimeException`을 상속받은 예외는 `UncheckedException`
+
+- **`CheckedException`의 장단점**
+
+  - **개발자가 실수로 예외를 누락하지 않도록 컴파일러를 통해 문제를 잡아주는 안전 장치**
+  - 개발자가 모든 `CheckedException`을 처리해야 하기 때문에 지나치게 번거로움
+    - 어차피 해결할 방법이 없기에 신경쓰고 싶지 않은 예외까지 모두 챙겨야 함
+  - 의존관계에 의한 단점
+
+
+
+### `UncheckedException`
+
+- `RuntimeException`과 그 하위 예외 + `Error`
+
+- 컴파일러가 체크하지 않는 예외
+
+- `CheckedException`과의 차이점
+
+  - `throws`를 선언하지 않고, 생략할 수 있음, 생략 시에는 자동으로 예외를 던짐
+
+- 예시 코드
+
+  ```java
+  @Slf4j
+  public class UncheckedTest {
+  
+      @Test
+      @DisplayName("UncheckedException 처리 - catch")
+      void catchUnchecked() {
+          var service = new Service();
+          service.callCatch();
+      }
+  
+      @Test
+      @DisplayName("UncheckedException 처리 - throw")
+      void throwUnchecked() {
+          var service = new Service();
+          assertThatThrownBy(service::callThrow)
+                  .isInstanceOf(MyUncheckedException.class);
+      }
+  
+  
+      /**
+       * RuntimeException 상속 받은 예외는 UncheckedException
+       */
+  
+      static class MyUncheckedException extends RuntimeException {
+          public MyUncheckedException(String message) {
+              super(message);
+          }
+      }
+  
+      /**
+       * UncheckedException
+       * 예외를 잡거나 던지지 않아도 된다.
+       * 예외를 잡지 않으면 자동으로 밖으로 던짐
+       */
+      static class Service {
+          Repository repository = new Repository();
+  
+          /**
+           * 필요한 경우 예외를 잡아서 처리하면 된다.
+           */
+          void callCatch() {
+              try {
+                  repository.call();
+              } catch (MyUncheckedException e) {
+                  //예외 처리 로직
+                  log.info("예외 처리, message={}", e.getMessage(), e);
+              }
+          }
+  
+          /**
+           * 예외를 잡지 않아도 됨, 자연스럽게 상위로 전달됨
+           * CheckedException 과는 달리 throws 예외 선언이 불필요
+           */
+          void callThrow() {
+              repository.call();
+          }
+  
+      }
+  
+      static class Repository {
+          void call() {
+              throw new MyUncheckedException("UncheckedException message");
+          }
+      }
+  }
+  ```
+
+  - `UncheckedException`에도 `throws` 선언을 명시할 수 있음. 생략 가능
+
+    ```java
+            void call() throws MyUncheckedException {
+                throw new MyUncheckedException("UncheckedException message");
+            }
+    ```
+
+    - 대부분의 경우에는 생략하지만, 명시한 경우에는 개발자가 IDE를 통해 해당 예외가 발생함을 좀 더 편하게 인지할 수 있음
+
+- **`UncheckedException`의 장단점**
+
+  - 신경쓰고 싶지 않은 `UncheckedException`을 무시할 수 있음
+    - 신경쓰고 싶지 않은 예외의 의존관계를 참조하지 않아도 됨
+  - 개발자가 실수로 예외 처리를 누락할 수 있음
+
+- **Checked, Unchecked의 차이점**
+
+  - `throws`를 필수적으로 선언해야 하느냐의 차이가 핵심이다.
+
+
+
+## 예외 활용
+
+- **기본 원칙**
+  - **기본적으로 `UncheckedException`(`RuntimeException`) 사용하자**
+  - **반드시 잡아서 처리해야 하는 경우에만 `CheckedException` 사용하자**
+    - 예시
+      - 계좌 이체 실패 예외
+      - 결제시 포인트 부족 예외
+      - 포그인 ID, PW 불일치 예외
+    - 물론 **무조건** `CheckedException`을 사용해야 하는 것은 아니고, **실수로 예외 처리를 놓쳐선 안 되는 경우에 사용하는 걸 고려해보자.**
+
+
+
+### `CheckedException`의 문제점
+
+- `RuntimeException`을 사용해야 하는 것은 `CheckedException`의 문제점 때문
+
+  - `Repository`에서 `SQLException`을, `NetworkClient`가 `ConnectException`을 `Service`로 `throws` 한다고 생각해보자.
+    - 이런 심각한 오류를 `Service`에서 처리할 수 없기에 `Controller`로 던지고, 계속 던지는 일이 반복된다.
+    - 계속 위로 던진다고 해봐야 해결이 안 된다.
+  - 웹 어플리케이션의 경우 서블릿 오류 페이지나 스프링 MVC의 `ControllerAdvice`로 예외를 공통 처리한다.
+    - `CheckedException`은 사용자에게 예외의 원인을 설명하기가 어렵다.
+      - 어차피 특별한 오류 메시지가 필요한 것이 아니며,
+      - 자세히 설명하면 오히려 보안에 문제가 될 수도 있다.
+    - HTTP 상태코드 500을 보내서 보통 응답을 보내 준다.
+  - 이런 예외들은 별도의 오류 로그를 남기고, 개발자가 오류을 인지할 수 있게 알림(문자, 슬랙 등)을 보내줘야 한다.
+
+- 예시 코드
+
+  ```java
+  public class CheckedAppTest {
+  
+      @Test
+      void checkedExceptionApp() {
+          var controller = new Controller();
+          assertThatThrownBy(controller::request).isInstanceOf(Exception.class);
+      }
+  
+      static class Controller {
+          Service service = new Service();
+  
+          void request() throws SQLException, ConnectException {
+              service.businessLogic();
+          }
+      }
+  
+      static class Service {
+          Repository repository = new Repository();
+          NetWorkClient netWorkClient = new NetWorkClient();
+  
+          void businessLogic() throws ConnectException, SQLException {
+              repository.call();
+              netWorkClient.call();
+          }
+      }
+  
+      static class NetWorkClient {
+          void call() throws ConnectException {
+              throw new ConnectException("연결 실패");
+          }
+      }
+  
+      static class Repository {
+          void call() throws SQLException {
+              throw new SQLException("SQL 에러");
+          }
+      }
+  }
+  ```
+
+- **`CheckedException`의 문제 두 가지**
+  - **복구 불가능한 예외**
+    - 대부분의 예외는 복구가 불가능함
+    - DB 자체의 문제, 네트워크 연결 문제와 같은 것들은 복구할 수 없다.
+    - 특히 예외를 넘겨 받는 서비스나 컨트롤러는 문제를 해결할 수 없다.
+    - 이런 종류의 문제들은 공통적으로
+      - 오류 로그를 남기고
+      - 개발자가 빠르게 해당 오류를 인지하게 하며
+      - 클라이언트에게는 오류 페이지를 보여준다.
+    - 스프링 인터셉터, 스프링 `ControllerAdvice` 사용하면 이런 문제를 공통적으로 해결할 수 있다.
+  - **의존 관계에 대한 문제**
+    - `CheckedException`이기 때문에 어쨋든 해당 예외를 `throws` 해줘야 한다.
+    - `Service`, `Controller` 같은 윗 계층이 `SQLException`과 같은 하위 계층 예외에 의존하게 만든다.
+      - 하위 계층의 기술을 변경할 때 마다 위와 같은 코드를 모조리 바꿔야 한다.
+    - **본인이 처리할 수도 없는 예외에 의존하게 된다.**
+      - OCP, DI에 따라 클라이언트 코드 변경 없이 구현체를 변경할 수 있다는 장점을 발휘할 수 없게 된다.
+      - 만일 해당 예외들의 상위 예외인 `Exception`을 던져 버린다면 어떨까?
+        - 특정 예외에 의존한다는 문제는 해결되지만
+        - `Exception`을 던지는 순간 모든 예외를 밖으로 던지는 문제가 발생한다.
+          - **`CheckedException`의 장점 자체가 사라지게 된다.**
+          - **안티 패턴**
+
+
+
+### `RuntimeException` 사용을 통한 해결
+
+- 위의 상황에서, `RuntimeException`을 사용하게 된다면 별도의 선언이 필요 없기에 문제가 해결된다.
+
+- 예시 코드
+
+  ```java
+  public class UnCheckedAppTest {
+  
+      @Test
+      void unCheckedExceptionApp() {
+          var controller = new Controller();
+          assertThatThrownBy(controller::request).isInstanceOf(Exception.class);
+      }
+  
+      static class Controller {
+          Service service = new Service();
+  
+          void request() {
+              service.businessLogic();
+          }
+      }
+  
+      static class Service {
+          Repository repository = new Repository();
+          NetWorkClient netWorkClient = new NetWorkClient();
+  
+          void businessLogic() {
+              repository.call();
+              netWorkClient.call();
+          }
+      }
+  
+      static class NetWorkClient {
+          void call() {
+              try {
+                  throw new ConnectException("연결 실패");
+              } catch (ConnectException e) {
+                  throw new RuntimeConnectException(e);
+              }
+          }
+      }
+  
+      static class Repository {
+          void call() {
+              try {
+                  throw new SQLException("SQL 에러");
+              } catch (SQLException e) {
+                  throw new RuntimeSQLException(e);
+              }
+          }
+      }
+  
+      static class RuntimeSQLException extends RuntimeException {
+          public RuntimeSQLException(Throwable cause) {
+              super(cause);
+          }
+      }
+  
+      static class RuntimeConnectException extends RuntimeException {
+          public RuntimeConnectException(Throwable cause) {
+              super(cause);
+          }
+      }
+  }
+  ```
+
+  - `CheckedException`을 `UncheckedException`으로 변환해서 쓸모 없는 throws를 메서드에 선언해줄 필요가 없어졌다.
+
+- **예외 전환을 사용함으로써**
+
+  - 복구 불가능한 예외를 `Controller`나 `Service`가 신경쓰지 않아도 된다.
+
+  - `throws` 선언이 없어짐으로써 특정 예외에 대한 의존성이 사라졌다.
+
+    - 아래 계층의 기술이 변경된다고 해서 `Controller`나 `Service`에서 코드를 변경할 필요가 없다.
+    - 대신 예외 공통 처리 부분에서 처리해줘야 한다. (어차피 `CheckedException` 사용해도 필요한 부분)
+
+  - **단, `UnCheckedException`은 놓칠 위험이 있기 때문에 문서화가 중요하다!**
+
+    ```java
+    /**
+     * @throws ???Exception if ...
+     */
+    ```
+
+    - 경우에 따라서 `throws ???Exception` 형태로 명시도 해준다. (물론 생략도 가능하다.)
+
+
+
+## 예외 포함과 스택 트레이스
+
+- **예외를 전환할 때는 반드시 기존 예외를 포함해야 한다. 안 그러면 스택 트레이스를 찍을 때 문제가 발생한다.**
+
+  - **`new`로 예외를 새로 생성하는 방식으로 예외를 전환할 경우 기존의 스택 트레이스가 사라진다. 이 경우 오류 발생시 원인을 파악할 수 없다!**
+
+- **로그를 출력할 때 마지막 파라미터에 예외를 넣어주면 로그에 스택 트레이스를 출력할 수 있음**
+
+  ```java
+              log.error("예외 발생, 메시지: {}, ", e.getMessage(), e);
+  ```
+
+  - `e.printStackTrace()`: 스택 트레이스를 출력하지만, 로그를 남기는 것이 낫다.
