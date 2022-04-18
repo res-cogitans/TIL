@@ -1744,3 +1744,404 @@ RuntimeException <|-- IllegalArgumentException
   ```
 
   - `e.printStackTrace()`: 스택 트레이스를 출력하지만, 로그를 남기는 것이 낫다.
+
+
+
+# 스프링과 문제 해결 - 예외 처리, 반복
+
+## `CheckedException`과 인터페이스
+
+- 인터페이스 도입을 통한 추상화
+
+  - 구현체에 있는 `CheckedException`은 인터페이스의 메서드 시그니처까지 오염시킬 수 있다.
+
+    ```java
+    public interface MemberRepositoryEx {
+    
+        public Member save(Member member) throws SQLException;
+    
+        public Member findById(String memberId) throws SQLException;
+    
+        public void update(String memberId, int money) throws SQLException;
+    
+        public void delete(String memberId) throws SQLException;
+    
+    }
+    ```
+
+    - 인터페이스까지 Jdbc 의존적으로 되었다.
+      - 인터페이스의 목적에서 벗어났다.
+    - 구현 클래스 메서드에서 던지는 예외는 부모 클래스의 메서드에서 던지는 예외와 같거나 하위 타입이어야 한다.
+
+- 런타임 예외를 사용하여 위의 문제를 해결하자.
+
+
+
+## 런타임 예외 적용
+
+- `repository`
+
+  ```java
+  public class MemberRepositoryV4 implements MemberRepository {
+  ...
+      @Override
+      public Member save(Member member) {
+      ...
+              } catch (SQLException e) {
+              log.error("DB error", e);
+              throw new MyDbException(e);
+          } finally {
+              close(con, pstmt, null);
+          }
+  ...
+  ```
+
+- `repository`
+
+  ```java
+  @Slf4j
+  @RequiredArgsConstructor
+  public class MemberServiceV4 {
+  
+      private final MemberRepository memberRepository;
+  
+      @Transactional
+      public void accountTransfer(String fromId, String toId, int money) {
+          bizLogic(fromId, toId, money);
+      }
+  
+      private void bizLogic(String fromId, String toId, int money) {
+          Member fromMember = memberRepository.findById(fromId);
+          Member toMember = memberRepository.findById(toId);
+  
+          memberRepository.update(fromId, fromMember.getMoney() - money);
+          validate(toMember); //의도적으로 예외가 터지는 상황을 만들어보기 위한 학습용 코드
+          memberRepository.update(toId, toMember.getMoney() + money);
+      }
+  
+      private void validate(Member toMember) {
+          if (toMember.getMemberId().equals("ex")) {
+              throw new IllegalStateException("이체 중 예외 발생");
+          }
+      }
+  }
+  ```
+
+- 예외 누수 문제를 해결하였다.
+
+- 인터페이스에 의존할 수 있다.
+
+
+
+## 데이터 접근 예외 직접 만들기
+
+- DB 오류라도 특정 오류에 한해서는 복구를 시도하고 싶은 경우를 생각해보자.
+
+  - 예시
+    - 회원 가입 시 이미 ID가 존재하는 상황일 경우, ID 뒤에 추가적으로 수를 붙여서 새 ID를 만드는 방식
+  - 예외 발생 상황
+    - 데이터를 DB에 저장할 때 같은 ID가 이미 DB에 저장되어 있음
+    - DB는 오류 코드를 반환
+    - 오류 코드를 받은 JDBC 드라이버가 `SQLException`을 던짐
+    - `SQLException`에는 DB가 제공하는 `errorCode`가 존재
+
+- 오류 코드
+
+  - H2의 예시
+    - `23505`: 키 중복 오류
+    - `42000`: SQL 문법 오류
+  - DB에 따라 오류 코드가 다름, DB 메뉴얼을 참고해야함
+  - 서비스 계층에서 에러코드를 통해 키 중복을 인지한다면, 새로운 ID를 생성하여 다시 저장을 시도하여 예외 해결이 가능
+    그런데 오류 코드를 이용하기 위해 `SQLException`을 던진다면 서비스 계층을 더럽힌다.
+  - `Repository`에서 오류 코드에 따라 적절한 예외로 변환해서 던져줘야 한다.
+
+- `MyDuplicateKeyException`
+
+  ```java
+  public class MyDuplicateKeyException extends MyDbException {
+      ...
+  }
+  ```
+
+  - 기존 DB 예외를 상속받은 예외를 만듦
+    - DB 관련 예외 계층 형성
+  - 데이터 중복의 경우에만 사용하는 특수 예외
+  - 직접 정의한 예외이기에 특정 기술 종속적이지 않음
+
+- 예시 코드
+
+  ```java
+  @Slf4j
+  public class ExTranslatorV1Test {
+  
+      Repository repository;
+      Service service;
+  
+      @BeforeEach
+      void init() {
+          var dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+          repository = new Repository(dataSource);
+          service = new Service(repository);
+      }
+  
+      @Test
+      void duplicateKeySave() {
+          service.create("myId");
+          service.create("myId"); //동일 id 접근 시도
+      }
+  
+      @Slf4j
+      @RequiredArgsConstructor
+      static class Service {
+          private final Repository repository;
+  
+          void create(String memberId) {
+              try {
+                  repository.save(new Member(memberId, 0));
+                  log.info("saveId = {}", memberId);
+              } catch (MyDuplicateKeyException e) {
+                  log.info("키 중복, 복구 시도");
+                  String retryId = generateNewId(memberId);
+                  log.info("retryId = {}", retryId);
+                  repository.save(new Member(retryId, 0));
+              }
+          }
+  
+          private String generateNewId(String memberId) {
+              return memberId + new Random().nextInt(10);
+          }
+  
+      }
+  
+      @RequiredArgsConstructor
+      static class Repository {
+          private final DataSource dataSource;
+  
+          public Member save(Member member) {
+              String sql = "insert into member(member_id, money) values(?, ?)";
+              Connection con = null;
+              PreparedStatement pstmt = null;
+  
+              try {
+                  con = dataSource.getConnection();
+                  pstmt = con.prepareStatement(sql);
+                  pstmt.setString(1, member.getMemberId());
+                  pstmt.setInt(2, member.getMoney());
+                  pstmt.executeUpdate();
+                  return member;
+              } catch (SQLException e) {
+                  //H2 DB
+                  if (e.getErrorCode() == 23505) {
+                      throw new MyDuplicateKeyException(e);
+                  }
+                  else {
+                      throw new MyDbException(e);
+                  }
+              } finally {
+                  JdbcUtils.closeStatement(pstmt);
+                  JdbcUtils.closeConnection(con);
+              }
+          }
+      }
+  }
+  ```
+
+  - 에러 코드에 따라 Id값 충돌 에러인지를 인지하고, 그 경우에는 특수하게 정의된 `MyDuplicateKeyException`울 던지고
+  - `service` 계층에서 새 아이디 값을 만들어서 복구한다.
+
+- 문제점: DB마다 다른 에러 코드
+
+  - DB 변경할 때마다 에러 코드를 변경 해줘야 한다.
+  - 또한 DB 에러코드의 수가 매우 많은데, 그것들을 일일히 잡아주는 것은 너무 손이 많이 가는 일임
+
+
+
+## 스프링 예외 추상화
+
+- 스프링은 데이터 접근과 관련된 예외를 추상화하여 제공, 위의 DB 에러코드로 인한 문제 등을 해결할 수 있게 해준다.
+
+- 특정 기술에 종속적이지 않은 예외
+
+  - 종속적이지 않으며, 변환도 해줌
+    - JDBC, JPA 등 특정 기술 사용 시 발생하는 예외를 스프링이 제공하는 관련 예외로 변환해줌
+
+- 스프링 데이터 접근 예외 계층
+
+  ```mermaid
+  classDiagram
+  RuntimeException <|-- DataAccessException
+  
+  DataAccessException <|-- NonTransientDataAcessException
+  DataAccessException <|-- TransientDataAccessException
+  
+  NonTransientDataAcessException <|-- BadSqlGrammarException
+  NonTransientDataAcessException <|-- DataIntegrityViolationException
+  
+  TransientDataAccessException <|-- QueryTimeoutException
+  TransientDataAccessException <|-- OptimisticLockingFailureException
+  TransientDataAccessException <|-- PessimisticLookingFailureException
+  
+  DataIntegrityViolationException <|-- DuplicateKeyException
+  ```
+
+  - 분류
+    - `DataAccessException`: 스프링 제공 예외의 최상위 예외
+    - `TransientException`: 동일 SQL을 다시 시도했을 때 성공할 가능성이 있는 `일시적` 예외
+      - 예시: 쿼리 타임아웃, 락
+    - `NonTransientException`: 일시적이지 않음, 같은 SQL을 아무리 반복해서 시도해도 실패
+      - 예시: SQL 문법 오류, DB 제약조건 위배
+    - 스프링 메뉴얼에 모든 예외가 정의되어 있지 않기 때문에 코드를 직접 열어서 확인하는 것이 좋다.
+
+- **`ExceptionTranslator`**
+
+  - 예외를 상황에 걸맞게 일일히 변환하는 것은 현실성이 없다.
+
+  - 스프링은 예외 변환기를 제공한다.
+
+    ```java
+        @Test
+        void exceptionTranslator() {
+            String sql = "select bad grammar";
+    
+            Connection con = null;
+            PreparedStatement pstmt = null;
+    
+            try {
+                con = dataSource.getConnection();
+                pstmt = con.prepareStatement(sql);
+            } catch (SQLException e) {
+                var exceptionTranslator = new SQLErrorCodeSQLExceptionTranslator(dataSource);
+                DataAccessException resultException = exceptionTranslator.translate("select query", sql, e);
+                log.info("resultException = {}", resultException);
+    
+                assertThat(resultException.getClass()).isEqualTo(BadSqlGrammarException.class);
+            }
+        }
+    ```
+
+    - `translate()` 메서드
+      - 파라미터1: 읽을 수 있는 설명
+      - 파라미터2: 실행한 SQL
+      - 파라미터3: 발생한 `Exception`
+    - 적절한 스프링 데이터 접근 계층 예외로 변환헤서 반환
+
+- 원리
+
+  - 스프링이 각 DB마다 다른 `ErrorCode`를 다루는 방식
+
+  - `org.springframework.jdbc.support.sql-error-codes.xml`
+
+    ```xml
+    	<bean id="DB2" name="Db2" class="org.springframework.jdbc.support.SQLErrorCodes">
+    		<property name="databaseProductName">
+    			<value>DB2*</value>
+    		</property>
+    		<property name="badSqlGrammarCodes">
+    			<value>-007,-029,-097,-104,-109,-115,-128,-199,-204,-206,-301,-408,-441,-491</value>
+    		</property>
+    		<property name="duplicateKeyCodes">
+    			<value>-803</value>
+                ...
+          <bean id="H2" class="org.springframework.jdbc.support.SQLErrorCodes">
+    		<property name="badSqlGrammarCodes">
+    			<value>42000,42001,42101,42102,42111,42112,42121,42122,42132</value>
+    		</property>
+    		<property name="duplicateKeyCodes">
+    			<value>23001,23505</value>
+                ...
+    ```
+
+  - 스프링은 위 목록을 기반으로 `errorCode`가 어떤 스프링 접근 예외에 해당하는지 찾아냄
+
+- 스프링 예외 추상화 + 스프링 예외 변환기를 이용하여
+
+  - 오류 코드가 어떤 스프링 예외에 해당하는지 찾아내고, 해당 예외를 적절히 처리해주면 된다.
+  - 단 스프링에 대한 종속성이 생김
+
+- 이 방식을 적용한 `repository`
+
+  ```java
+  public class MemberRepositoryV4_2 implements MemberRepository {
+  
+      private final DataSource dataSource;
+      private final SQLExceptionTranslator exceptionTranslator;
+  
+      public MemberRepositoryV4_2(DataSource dataSource) {
+          this.dataSource = dataSource;
+          this.exceptionTranslator = new SQLErrorCodeSQLExceptionTranslator(dataSource);
+      }
+      ...
+      } catch (SQLException e) {
+          log.error("DB error", e);
+          throw exceptionTranslator.translate("save member", sql, e);
+      ...
+  ```
+
+  - `ErrorCode` 기반 `Translator` 외에 다른 `Translator`도 있다.
+
+
+
+## JDBC Template: JDBC 반복 문제 해결
+
+- `Repository`에서 JDBC를 사용함으로 인해 생기는 반복적인 코드를 해결해야 한다.
+
+- 이런 반복을 효과적으로 처리하는 방법: 템플릿 콜백 패턴
+
+- `JdbcTemplate`: 스프링이 JDBC의 반복 문제 해결을 위해 제공
+
+- 적용 `Repository`
+
+  ```java
+  /**
+   * Jdbc template 사용
+   */
+  @Slf4j
+  public class MemberRepositoryV5 implements MemberRepository {
+  
+      private final JdbcTemplate template;
+  
+      public MemberRepositoryV5(DataSource dataSource) {
+          this.template = new JdbcTemplate(dataSource);
+      }
+  
+      @Override
+      public Member save(Member member) {
+          String sql = "insert into member(member_id, money) values (?, ?)";
+          template.update(sql, member.getMemberId(), member.getMoney());  //업데이트된 멤버 수를 반환
+          return member;
+      }
+  
+      @Override
+      public Member findById(String memberId) {
+          String sql = "select * from member where member_id = ?";
+          return template.queryForObject(sql, memberRowMapper(), memberId);
+      }
+  
+      private RowMapper<Member> memberRowMapper() {
+          return (rs, rowNum) -> {
+              Member member = new Member();
+              member.setMemberId(rs.getString("member_id"));
+              member.setMoney(rs.getInt("monet"));
+              return member;
+          };
+      }
+  
+      @Override
+      public void update(String memberId, int money) {
+          String sql = "update member set money=? where member_id=?";
+          template.update(sql, money, memberId);  //업데이트된 멤버 수를 반환
+      }
+  
+      @Override
+      public void delete(String memberId) {
+          String sql = "delete member where member_id=?";
+          template.update(sql, memberId);  //업데이트된 멤버 수를 반환
+      }
+  }
+  ```
+
+  - 반복이 사라진 단순한 코드 +
+    - 트랜잭션을 위한 커넥션 동기화
+    - 예외 발생시 스프링 변환기 자동 실행
+
+  
