@@ -1920,3 +1920,562 @@ public enum RoleType {
 - `OneToMany`를 연관관계의 주인으로 설정할 수는 있다.
   - `Team.members`를 연관관계의 주인으로 삼는 것이 그 예다.
   - 하지만 성능과 관리 측면에서 좋지 않다.
+
+
+
+# 06장 다양한 연관관계 매핑
+
+- 기본적인 연관관계 매핑(05장)
+  - 연관관계 매핑의 고려 사항
+    - 다중성
+    - 단방향, 양방향
+    - 연관관계의 주인
+- 여러 연관관계 매핑에 대해 알아보자
+  - 다대일: 단방향, 양방향
+  - 일대다: 단방향, 양방향
+  - 일대일: 주 테이블(단방향, 양방향), 대상테이블(단방향, 양방향)
+  - 다대다: 단방향, 양방향
+
+
+
+## 6.1 다대일
+
+- FK는 항상 Many 쪽에 있음
+- 따라서 연관관계의 주인은 항상 Many
+
+
+
+### 6.1.1 다대일 단방향 [N:1]
+
+- 05장에서 다뤘던 `Member` -> `Team` 조회
+
+
+
+### 6.1.2 다대일 양방향[N:1, 1:N]
+
+- 05장에서 다뤘던 양방향 조회
+
+  - `Member` -> `Team`에 `Team` -> `Member` 조회 추가
+
+  - FK가 있는 쪽이 연관관계의 주인
+  - 양방향 연관관계는 항상 서로를 참조해야 함: 편의 메서드 이용하자.
+
+
+
+## 6.2 일대다
+
+- 다대일 관계의 반대
+- 하나 이상을 참조할 수 있기에 컬렉션을 사용
+
+
+
+### 6.2.1 일대다 단방향[1:N]
+
+- JPA2.0부터 지원함
+
+- FK는 Many 쪽 테이블에 있음
+
+- 때문에 일대다 단방향 매핑의 경우 매핑한 반대쪽 테이블의 FK를 관리하게 된다.
+
+- 예시 코드
+
+  - `Team`
+
+    ```java
+    @Entity
+    public class Team {
+        
+        ...
+            
+        @OneToMany
+        @JoinColumn(name = "TEAM_ID")	//MEMBER 테이블의 TEAM_ID (FK)
+        private List<Member> members = new ArrayList<Member>();
+        
+        ...
+    }
+    ```
+
+  - `Member`
+
+    ```java
+    @Entity
+    public class Member {
+        
+        @Id @GeneratedValue
+        @Column(name = "MEMBER_ID")
+        private Long id;
+        
+        private String username;
+        
+        ...
+    }
+    ```
+
+  - `저장 코드`
+
+    ```java
+        private void oneToManySave(EntityManager em) {
+            Member member1 = new Member();
+            member1.setUsername("testMemberA");
+            Member member2 = new Member();
+            member2.setUsername("testMemberB");
+    
+            Team team = new Team();
+            team.setName("OneToManyUni");
+            team.getMembers().add(member1);
+            team.getMembers().add(member2);
+    
+            em.persist(member1);
+            em.persist(member2);
+            em.persist(team);	//insert쿼리뿐만 아니라, update쿼리가 2번 나가게 됨
+        }
+    ```
+
+- `@JoinColumn`을 명시해야 함
+
+  - 명시하지 않을 경우 조인 테이블(joinTable) 전략을 사용하게 됨
+  - 조인 테이블 전략의 경우 테이블이 하나 추가된다는 단점이 있음
+  - 기본적으로는 조인 컬럼을 사용함이 낫다.
+
+- 단점
+
+  - 매핑 객체가 관리하는 FK가 다른 테이블에 있음
+  - 연관관계의 주인 테이블에 FK가 있다면 처음 해당 테이블을 등록할 때 연관관계를 한 번의 INSERT로 해결할 수 있지만,
+    위의 경우 추가로 UPDATE 문 실행해야 함
+
+- **성능도 관리도 부담스럽기에 다대일 양방향 매핑을 쓰자**
+
+
+
+### 6.2.2 일대다 양방향[1:N, N:1]
+
+- 실제로는 구현 불가능
+  - 관계가 양방향일 경우 반드시 `mappedBy` 속성을 통해 연관관계의 주인의 필드를 명시해줘야 함
+  - 그런데 `@ManyToOne` 애노테이션의 속성으로 `mappedBy`를 줄 수 없기 때문에 무조건 Many와 One이 양방향 관계일 경우 무조건 다대일 양방향일수밖에 없음
+
+- 흉내내는 방법: 일대다 단방향 + 다대일 단방향(읽기 전용)
+  - 사실은 두 관계이며, 두 관계가 단일한 FK를 관리하기 때문에 문제 발생할 수 있음 -> 읽기 전용으로 관리
+  - 일대다 단방향의 문제를 고스란히 가짐
+
+- 예시 코드
+
+  - `Team`: 동일하다!
+
+    ```java
+    @Entity
+    public class Team {
+        
+        ...
+        
+        @OneToMany
+        @JoinColumn(name = "TEAM_ID")
+        private List<Member> members = new ArrayList<>();
+        
+        ...
+    }
+    ```
+
+  - `Member`: 조회 전용 매핑이 추가되었다!
+
+    ```java
+    @Entity
+    public class Member {
+        
+        @Id @GeneratedValue
+        @Column(name = "MEMBER_ID")
+        private Long id;
+        
+        ...
+        @ManyToOne
+        @JoinColumn(name = "TEAM_ID", insertable = false, updatable = false)
+        private Team team;
+        ...
+    }
+    ```
+
+    
+
+
+
+
+## 6.3 일대일[1:1]
+
+- 다대일과 달리 어느 쪽이든 FK를 가질 수 있다 -> 어떤 테이블이 FK를 가질지 선택해야 한다.
+  - 주 테이블에 FK
+    - 주 객체가 대상 객체를 참조하듯이, 주 테이블에 FK를 놓음
+    - 객체의 참조는 **참조하는 주체가 참조되는 대상을 필드로 소유**하는 방식인데,
+      이 방식의 경우 **주 테이블이 FK를 소유**한다는 점에서 객체지향과 유사하다.
+      -> 객체지향 개발자들의 선호
+    - 주 테이블만 확인해도 FK를 확인하여, 연관관계를 알 수 있다는 장점
+    - 값이 없으면 FK에 `null` 허용
+  - 대상 테이블에 FK
+    - 전통적으로 DB 개발자들이 선호
+    - 테이블 관계를 1:1 -> 1:N으로 변경할 때 테이블 구조를 유지할 수 있다는 장점
+  - FK에는 UNIQUE 제약조건 붙여주자.
+
+
+
+### 6.3.1 주 테이블에 외래 키
+
+- 객체지향 개발자들이 선호, JPA 매핑이 편리
+
+
+
+#### 단방향
+
+- 예시: `Member`와 `Locker`
+
+  - `Member`
+
+    ```java
+    @Entity
+    public class Member {
+    
+        @Id @GeneratedValue
+        @Column(name = "MEMBER_ID")
+        private Long id;
+    
+        ....
+            
+        @OneToOne
+        @JoinColumn(name = "LOCKER_ID")
+        private Locker locker;
+        
+        ...
+    }
+    ```
+
+  - `Locker`
+
+    ```java
+    @Entity
+    public class Locker {
+    
+        @Id @GeneratedValue
+        @Column(name = "LOCKER_ID")
+        private Long id;
+    
+        private String name;
+    }
+    ```
+
+    - 다대일 관계와 유사
+
+
+
+#### 양방향
+
+- 코드
+
+  - `Locker`
+
+    ```java
+    @Entity
+    public class Locker {
+    
+        @Id @GeneratedValue
+        @Column(name = "LOCKER_ID")
+        private Long id;
+    
+        private String name;
+        
+        @OneToOne(mapped by = "locker")
+        private Member member;
+    }
+    ```
+
+- 양방향이기에 연관관계의 주인 설정해야 함
+  -> FK를 가진 것은 MEMBER 테이블이기에, `Member`의 `Member.locker`가 연관관계의 주인이다.
+
+  - 따라서 `Locker.member`에는 `mappedBy` 설정하여 연관관계의 주인이 아니라고 설정 
+
+
+
+### 6.3.2 대상 테이블에 외래 키
+
+#### 단방향
+
+- 1:1 관계에서, 대상 테이블에 외래 키가 있는 단방향 관계는 JPA가 지원하지 않으며, 매핑할 방법도 없음
+  - 이 경우
+    - 단방향 관계를 반대로 수정하거나
+    - 양방향 관계로 만들고 대상 테이블이 연관관계의 주인으로 설정해야 한다.
+  - JPA2.0: 1:N 단방향 관계에서 대상 테이블에 FK가 있는 매핑을 허용
+  - 1:1 단방향은 여전히 이런 방식 안 됨!
+
+
+
+#### 양방향
+
+- 예제: 객체 양방향 조회 + `Locker`에 FK 보관
+
+  - `Member`
+
+    ```java
+    @Entity
+    public class Member {
+    
+        @Id @GeneratedValue
+        @Column(name = "MEMBER_ID")
+        private Long id;
+    
+        ....
+            
+        @OneToOne(mapped by = "member")
+        private Locker locker;
+        
+        ...
+    }
+    ```
+
+  - `Locker`
+
+    ```java
+    @Entity
+    public class Locker {
+    
+        @Id @GeneratedValue
+        @Column(name = "LOCKER_ID")
+        private Long id;
+    
+        private String name;
+        
+        @OneToOne
+        @JoinColumn(name = "MEMBER_ID")
+        private Member member;
+    }
+    ```
+
+    - 주 엔티티가 아니라 대상 엔티티가 연관관계의 주인, 외래 키 관리
+
+- **프록시 사용시 주의사항**
+
+  - **FK를 직접 관리하지 않는 1:1 관계는 지연 로딩을 사용하더라도 즉시 로딩된다.**
+    - `Locker`에 값이 있는가를 `Member`에서 확인할 수는 없다. 때문에 프록시를 생성할 수 없다.
+    - 저 자리에 프록시 객체를 넣을지 `null`을 넣을지 모르기 때문!
+
+
+
+## 6.4 다대다[N:M]
+
+- RDB는 정규화된 테이블 2개로 다대다 관계를 표현할 수 없음
+- 연결 테이블을 이용해서 보통 구현한다.
+  - 중간 테이블을 생성, 일대다, 다대일 관계로 풀어낸다.
+- 객체 연결의 경우 연결을 위해 추가적인 무언가가 필요하지 않고, 서로 직접적으로 다대다 연관관계를 맺을 수 있다.
+
+
+
+### 6.4.1 다대다: 단방향
+
+- 예시: 여러 `Member`와 여러 `Product`의 관계
+
+  - `Member`
+
+    ```java
+    @Entity
+    public class Member {
+    
+        @Id @GeneratedValue
+        @Column(name = "MEMBER_ID")
+        private Long id;
+    
+        ...
+            
+        @ManyToMany
+        @JoinTable(name = "MEMBER_PRODUCT",
+                joinColumns = @JoinColumn(name = "MEMBER_ID"), 
+                inverseJoinColumns = @JoinColumn(name = "PRODUCT_ID"))
+        private List<Product> products = new ArrayList<>();
+        
+        ...
+    }
+    ```
+
+  - `Product`
+
+    ```java
+    @Entity
+    public class Product {
+    
+        @Id @Column(name = "PRODUCT_ID")
+        private Long id;
+    
+        private String name;
+    }
+    ```
+
+- `@ManyToMany`와 `@JoinTable`로 별도의 연결 엔티티를 정의할 필요 없이, 연결 테이블을 바로 매핑하였음.
+
+- `@JoinTable` 속성
+
+  - `name`: 연결 테이블을 지정(MEMBER_PRODUCT)
+  - `joinColumns`: 현재 방향(`Member`)와 매핑할 조인 컬럼 정보를 지정(MEMBER_ID)
+  - `inverseJoinColumns`: 연관관계의 반대 방향과 매핑할 조인 컬럼 정보를 지정(PRODUCT_ID)
+
+- 조회 시에는 연결 테이블과 `Product` 테이블을 조인한다.
+
+
+
+### 6.4.2 다대다: 양방향
+
+- `@ManyToMany`을 양 쪽에 사용하고, 원하는 쪽에 `mappdeBy`로 연관관계의 주인 설정(`mappedBy` 없는 쪽이 연관관계의 주인)
+
+- 예시 코드
+
+  - `Product`
+
+    ```java
+    @Entity
+    public class Product {
+    
+        @Id @Column(name = "PRODUCT_ID")
+        private Long id;
+    
+        private String name;
+        
+        @ManyToMany(mappedBy = "products")
+        private List<Member> members;
+    }
+    ```
+
+  - `Member`
+
+    ```java
+        public void addProduct(Product product) {
+            products.add(product);
+            product.getMembers().add(this);
+        }
+    ```
+
+    - 편의 메서드를 추가했다.
+
+
+
+### 6.4.3 다대다: 매핑의 한계와 극복, 연결 엔티티 사용
+
+- 위의 방법과 같이 `@ManyToMany`만으로 연결 테이블을 자동으로 생성해주는 방식은 (연결 엔티티를 따로 정의하지 않는 경우는)
+
+  - 도메인 모델이 단순해지고 편리하다.
+  - 하지만 실무에서 사용하기에는 한계가 있다: **연결 테이블에 추가적인 정보를 담을 수 없기 때문이다!**
+    - 위의 `Member`와 `Product`의 경우, 회원이 상품을 주문했을 때
+      - 단순히 주문자가 누구인지, 상품이 무엇인지만 표시하는 것으로 그치지 않고, (기존의 연결 테이블의 컬럼들)
+      - **주문 수량, 주문 날짜 등의 추가적인 정보를 담은 컬럼이 필요하다!**
+
+- 때문에 이 한계를 극복하기 위해서는 **별도의 연결 엔티티를 생성하고, 그것을 기준으로 일대다, 다대일 관계로 풀어야 한다.**
+
+- 예시 코드: 단방향(`Member` -> `Product`)
+
+  - `MemberProduct`: 연결 테이블
+
+    ```java
+    @Entity
+    @IdClass(MemberProductId.class)
+    public class MemberProduct {
+    
+        @Id
+        @ManyToOne
+        @JoinColumn(name = "MEMBER_ID")
+        private Member member;
+    
+        @Id
+        @ManyToOne
+        @JoinColumn(name = "PRODUCT_ID")
+        private Product product;
+    
+        private int orderAmount;
+    }
+    ```
+
+  - `MemberProductId`: 연결 테이블이 사용할 복합 기본 키
+
+    ```java
+    @EqualsAndHashCode
+    public class MemberProductId implements Serializable {
+    
+        private String member;
+        private String product;
+    }
+    ```
+
+  - `Member`
+
+    ```java
+        @OneToMany(mappedBy = "member")
+        private List<MemberProduct> memberProducts;
+    ```
+
+  - `Product`
+
+    ```java
+    @Entity
+    public class Product {
+    
+        @Id @Column(name = "PRODUCT_ID")
+        private Long id;
+    
+        private String name;
+    }
+    ```
+
+- 관계
+  - `Member`는 `MemberProduct`와 양방향 관계
+    - `MemberProduct`는 연관관계의 주인(Many 쪽이 연관관계의 주인이니까)
+    - `Member`가 `Product`를 조회하기 위해 양방향 관계인 것임
+- **연결 테이블**
+
+  - `@Id`: PK 매핑 + `@JoinColumn`: FK 매핑 -> 동시에 PK, FK 매핑
+  - `@IdClass`로 복합 기본 키 매핑
+- **복합 기본 키**
+  - 복합 키를 사용하려면 별도의 식별자 클래스를 만들어야함(`MemberProductId`)
+  - 특정 데이터를 식별하는 것이 의미가 없기에 사용함
+  - 복합 키 식별자 클래스 특징
+    - 별도의 식별자 클래스로 만들어야 함
+    - `Serializable`을 구현해야 함
+    - `equals`와 `hashCode` 구현해야 함
+    - 기본 생성자가 있어야 함
+    - 식별자 클래스는 `public` 이어야 함
+    - `@IdClass` 대신 `@EmbeddedId` 사용하는 방법도 있음
+- 식별 관계(Identifying Relationship)
+  - 부모 테이블의 PK를 받아서 자신의 PK + FK로 사용하는 것
+- 복합 키를 사용할 경우 매핑을 위해 수행할 작업이 많음
+  - 항상 식별자 클래스를 만들어야 함
+  - `@IdClass` or `@EmbbdedId` 사용
+  - 식별자 클래스의 `equals`, `hashCode`
+
+
+
+### 6.4.4 다대다: 새로운 기본 키 사용
+
+- DB가 생성해주는 키 값을 사용하는 방식
+
+- 간편하고,  거의 영구히 사용 가능하며, 비즈니스에 의존하지 않음
+
+- 코드
+
+  ```java
+  @Entity
+  public class Order {
+  
+      @Id @GeneratedValue
+      @Column(name = "ORDER_ID")
+      private Long id;
+  
+      @ManyToOne
+      @JoinColumn(name = "MEMBER_ID")
+      private Member member;
+  
+      @ManyToOne
+      @JoinColumn(name = "PRODUCT_ID")
+      private Product product;
+  
+      private int OrderAmount;
+  }
+  ```
+
+  
+
+### 6.4.5 다대다 연관관계 정리
+
+- 연결 테이블 생성 시 식별자를 어떻게 구성할지 정해야함
+  - 식별 관계: 받아온 식별자를 PK + FK로 사용
+  - 비식별 관계: 받아온 식별자는 FK로만 사용, 별도의 PK
+
