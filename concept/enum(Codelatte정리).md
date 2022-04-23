@@ -56,7 +56,8 @@ enum FoodCategory {
 - eat(enum만 전달가능), enum 안의 상수만 전달가능
 - switch문 사용 가능, 코드 가독성 향상.
 - IDE의 도움이 용이함
-- 
+
+
 
 ## enum의 특성
 

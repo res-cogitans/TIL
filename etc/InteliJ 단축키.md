@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿# InteliJ 단축키
+﻿﻿﻿﻿﻿﻿﻿# InteliJ 단축키
 
 - `InteliJ Cheat Sheet`검색하면 더 많은 정보를 찾을 수 있다.
 
@@ -26,7 +26,7 @@
 | Ctrl + Shift + A                  | action 찾기                            |
 | Alt + ↓ or ↑                      | 단계별 블록 지정                       |
 | Shift Shift                       | 파일명 검색                            |
-|                                   |                                        |
+| Ctrl + F6                         | 메서드 시그니처 변경                   |
 |                                   |                                        |
 |                                   |                                        |
 |                                   |                                        |

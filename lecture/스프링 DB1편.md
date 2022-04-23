@@ -1555,7 +1555,7 @@ RuntimeException <|-- IllegalArgumentException
     - 예시
       - 계좌 이체 실패 예외
       - 결제시 포인트 부족 예외
-      - 포그인 ID, PW 불일치 예외
+      - 로그인 ID, PW 불일치 예외
     - 물론 **무조건** `CheckedException`을 사용해야 하는 것은 아니고, **실수로 예외 처리를 놓쳐선 안 되는 경우에 사용하는 걸 고려해보자.**
 
 

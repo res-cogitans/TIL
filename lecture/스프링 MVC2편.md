@@ -4433,3 +4433,12 @@ public interface Converter<S, T> {
 
 - 컨버전 서비스의 적용 범위
   - `@RequestParam`, `@ModelAttribute`, `@PathVariable`, 뷰 템플릿 등
+
+
+
+## 파일 업로드
+
+### HTML 폼 전송 방식
+
+- `application/x-www-form-urlencoded`
+- `multipart/form-data`
