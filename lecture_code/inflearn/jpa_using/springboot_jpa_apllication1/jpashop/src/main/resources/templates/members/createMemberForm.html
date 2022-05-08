@@ -16,7 +16,7 @@
       <input type="text" th:field="*{name}" class="form-control"
              placeholder="이름을 입력하세요"
              th:class="${#fields.hasErrors('name')}? 'form-control
-fieldError' : 'form-control'">
+             fieldError' : 'form-control'">
       <p th:if="${#fields.hasErrors('name')}"
          th:errors="*{name}">Incorrect date</p>
     </div>

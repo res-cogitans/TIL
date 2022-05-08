@@ -2,8 +2,6 @@ package hello.itemservice.web.validation;
 
 import hello.itemservice.domain.item.Item;
 import hello.itemservice.domain.item.ItemRepository;
-import hello.itemservice.domain.item.SaveCheck;
-import hello.itemservice.domain.item.UpdateCheck;
 import hello.itemservice.web.validation.form.ItemSaveForm;
 import hello.itemservice.web.validation.form.ItemUpdateForm;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +54,7 @@ public class ValidationItemControllerV4 {
         }
 
         // 검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) { // 가독성을 위해 이중 부정을 없앴다.
+        if (bindingResult.hasErrors()) {
             log.info("errors = {} ", bindingResult);
             return "validation/v4/addForm";
         }
