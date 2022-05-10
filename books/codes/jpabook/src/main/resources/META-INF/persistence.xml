@@ -10,6 +10,8 @@
             <property name="javax.persistence.jdbc.password" value=""/>
             <property name="javax.persistence.jdbc.url"
                       value="jdbc:h2:tcp://localhost/~/test"/>
+
+            <!--                      value="jdbc:h2:mem:test"/>-->
             <property name="hibernate.dialect"
                       value="org.hibernate.dialect.H2Dialect"/>
 
@@ -18,8 +20,8 @@
             <property name="hibernate.format_sql" value="true"/>
             <property name="hibernate.use_sql_comments" value="true"/>
             <property name="hibernate.id.new_generator_mappings" value="true"/>
-            <property name="hibernate.hibernate.hbm2ddl.auto" value="create"/>
-
+            <property name="javax.persistence.schema-generation.database.action"
+                      value="drop-and-create" />
         </properties>
     </persistence-unit>
 </persistence>

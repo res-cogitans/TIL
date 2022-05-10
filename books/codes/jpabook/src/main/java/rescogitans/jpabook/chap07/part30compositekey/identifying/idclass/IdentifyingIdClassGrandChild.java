@@ -2,8 +2,8 @@ package rescogitans.jpabook.chap07.part30compositekey.identifying.idclass;
 
 import javax.persistence.*;
 
-@Entity
-@IdClass(IdentifyingIdClassGrandChildId.class)
+//@Entity
+//@IdClass(IdentifyingIdClassGrandChildId.class)
 public class IdentifyingIdClassGrandChild {
 
     @Id

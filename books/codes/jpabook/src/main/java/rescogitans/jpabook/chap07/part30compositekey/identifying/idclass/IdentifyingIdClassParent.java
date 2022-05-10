@@ -4,7 +4,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
-@Entity
+//@Entity
 public class IdentifyingIdClassParent {
 
     @Id @Column(name = "PARENT_ID")

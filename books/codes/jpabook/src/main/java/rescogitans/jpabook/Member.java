@@ -44,8 +44,8 @@ public class Member {
     private List<Product> products = new ArrayList<>();
 */
     
-    /* 다양한 연관관계 매핑
     private Integer age;
+    /* 다양한 연관관계 매핑
 
     @Enumerated(EnumType.STRING)
     private RoleType roleType;
