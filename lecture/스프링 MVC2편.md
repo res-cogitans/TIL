@@ -2373,6 +2373,7 @@ public String homeLoginV3Spring(
     - `ServletRequest/Response`는 Http 요청이 아닌 경우까지 고려된 인터페이스임. Http 사용할 것이기에 다운캐스팅 한 것임.
 
   - **`try` 블록 안에서 `chain.doFilter()`를 호출해준 데에 주목하라!**
+    
     - 다음 연쇄 필터를 호출 시도해 줘야 한다.
     - 연쇄 필터를 호출하지 않으면 결과적으로 서블릿 호출도 이뤄지지 않으며, 컨트롤러 호출도 일어나지 않음!
   - **로그를 남길 때 동일 식별자(UUID)를 남기게 해야 추적에 용이함. logback mdc를 참고하라.**
@@ -2570,7 +2571,7 @@ public String homeLoginV3Spring(
   - `preHandle()`: 컨트롤러 호출 전
     - 리턴 값이 `true`면 다음으로 진행
   - `postHandle()`: 컨트롤러 호출 이후(정확히는 핸들러 어댑터 호출 이후)
-  - `afterCompletion()`: 요청 완료 이후(뷰 렌더링 이후)
+  - `afterCompletion()`: 요청 완료 이후(뷰렌더링 이후)
 
 
 
@@ -3246,7 +3247,7 @@ public String homeLoginV3Spring(
 
   - html 페이지의 경우 오류 페이지로 대부분의 예외 처리가 가능하지만
 
-  - API의 경우 각 오류 상황에 맞는 오류 의답 스펙을 정하고 JSON으로 데이터를 내려주어야 한다.
+  - API의 경우 각 오류 상황에 맞는 오류 응답 스펙을 정하고 JSON으로 데이터를 내려주어야 한다.
 
 - `ApiController`
 
@@ -4442,3 +4443,399 @@ public interface Converter<S, T> {
 
 - `application/x-www-form-urlencoded`
 - `multipart/form-data`
+
+
+
+#### `application/x-www-form-urlencoded`
+
+- HTML 폼 데이터를 서버로 전송하는 가장 기본적인 방식
+
+- 브라우저가 생성한 요청 HTTP 메시지
+
+  ```HTTP
+  POST /save HTTP/1.1
+  Host: localhost:8080
+  Content-Type: application/x-www-form-urlencoded
+  
+  username=kim&age=20
+  ```
+
+  - `<Form>` 태그에 별도의 `enctype` 옵션이 없을 경우 웹 브라우저는 요청 HTTP 메시지 헤더에 `Content-Type...`을 추가함
+  - 폼에 입력한 항목은 HTTP Body에 **문자로** `&`로 구별하여 전달
+
+- 문제 상황
+
+  - **파일 전송의 경우 문자가 아니라 바이너리 데이터를 전송해야 함 -> 위의 방식으로는 부적합**
+  - 폼 전송 시에는 파일 뿐만 아니라 그 외 데이터를 전송해야 함
+    - ex) 폼 데이터로 이름, 나이, 첨부 파일이 동시에 오는 경우
+    - **문자와 바이너리를 동시에 전송해야 함**
+
+- 해결: **HTTP의 `multipart/form-data`**
+
+
+
+#### `multipart/form-data` 방식
+
+- `<form>` 태그에 별도의 `enctype="multipart/form-data"` 지정해주면 사용 가능
+
+  ```html
+  <form action="/save" method="post" enctype="multipart/form-data">
+      ...
+  </form>
+  ```
+
+- 웹 브라우저가 생성한 요청 HTTP 메시지
+
+  ```HTTP
+  POST /save HTTP/1.1
+  Host: localhost:8080
+  Content-Type: multipart/form-data; boundary=------XXX
+  Content-Length: 10457
+  
+  ------XXX
+  Content-Disposition: form-data; name="username"
+  
+  kim
+  ------XXX
+  Content-Disposition: form-data; name="age"
+  
+  20
+  ------XXX
+  Content-Disposition: form-data; name="file1"; filename="intro.png"
+  Content-Type: image/png
+  
+  1214141swe2149213qsf
+  ------XXX--
+  ```
+
+  - 끝 줄에는 `--` 추가됨
+
+- 다른 종류의 여러 파일 + 폼 내용을 전송 가능: 각각의 항목을 구분하여 한 번에 전송
+
+  - 항목 별로 분리되어 있음
+  - 폼의 일반 데이터도 항목별로 전송
+
+
+
+### 서블릿과 파일 업로드
+
+#### 원리
+
+- 컨트롤러 코드
+
+  ```java
+      @PostMapping("/upload")
+      public String saveFileV1(HttpServletRequest request) throws ServletException, IOException {
+          log.info("request = {}", request);
+  
+          String itemName = request.getParameter("itemName");
+          log.info("itemName = {}", itemName);
+  
+          Collection<Part> parts = request.getParts();
+          log.info("parts = {}", parts);
+  
+          return "upload-form";
+      }
+  ```
+
+  - `Collection<Part> parts = request.getParts();`: 멀티 파트 부분
+
+  - 로그
+
+    ```log
+    request = org.springframework.web.multipart.support.StandardMultipartHttpServletRequest@4406e001
+    itemName = Spring
+    parts = [org.apache.catalina.core.ApplicationPart@37968665, org.apache.catalina.core.ApplicationPart@36b457d7]
+    ```
+
+- `application.properties`에서 `logging.level.org.apache.coyote.http11=debug` 설정
+
+  - HTTP 메시지를 모두 로그로 볼 수 있음
+
+  ```HTTP
+  POST /servlet/v1/upload HTTP/1.1
+  Host: localhost:8080
+  ...
+  Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryEqAhqlbCumBGUCOl
+  ...
+  
+  ------WebKitFormBoundaryEqAhqlbCumBGUCOl
+  Content-Disposition: form-data; name="itemName"
+  
+  Spring
+  ------WebKitFormBoundaryEqAhqlbCumBGUCOl
+  Content-Disposition: form-data; name="file"; filename="clazz.png"
+  Content-Type: image/png
+  
+  PNG
+  ...
+  ------WebKitFormBoundaryEqAhqlbCumBGUCOl--
+  ```
+
+- 멀티파트 사용 옵션
+
+  - 업로드 사이즈 제한
+
+    ```properties
+    spring.servlet.multipart.max-file-size=1MB
+    spring.servlet.multipart.max-request-size=10MB
+    ```
+
+    - 업로드 사이즈 제한 가능(개별 파일 사이즈, 전체 파일 사이즈)
+
+    - 사이즈를 넘을 경우 예외: `SizeLimitExceededException` 발생
+
+  - `spring.servlet.multipart.enabled` 옵션
+
+    ```properties
+    spring.servlet.multipart.enabled=false
+    ```
+
+    - 위와 같이 `false`로 설정하면
+
+      ```log
+      request = org.apache.catalina.connector.RequestFacade@3e1f3ca9
+      itemName = null
+      parts = []
+      ```
+
+      - 서블릿 컨테이너가 멀티파트 관련 처리를 하지 않게 된다.
+
+    - 옵션 설정에 따라 `RequestFacade -> StandardMultipartHttpServletRequest`로 변경됨을 볼 수 있음
+
+    - 옵션이 `true`가 되었을 때 구체적으로 발생되는 일들
+
+      - `DispatcherServlet`에서 `MultipartResolver`를 실행
+        - `doDispatch()`의 `checkMultipart(request)`
+      - `MultipartResolver`는 멀티파트 요청에 대하여
+        - 서블릿 컨테이너가 전하는 `HttpServletRequest`를 `MultipartHttpServletRequest`로 변환해서 반환함
+        - `MultipartHttpServletRequest`는 `HttpServletRequest`의 자식 인터페이스
+      - 단, `MultipartFile`을 사용하는 것이 더 편리하기에 `MultipartHttpServletRequest` 잘 사용하지 않음
+
+
+
+#### 활용
+
+- 경로 설정
+
+  - 서버에 파일 업로드 하려면 실제 저장 경로가 필요
+
+  - `application.properties`
+
+    ```properties
+    file.dir=C:/users/username/files/
+    ```
+
+    - 해당 경로에 폴더를 미리 만들어두어야 함
+    - 마지막에 `/` 슬래시 포함된 것에 유의
+
+- 컨트롤러 코드
+
+  ```java
+      @PostMapping("/upload")
+      public String saveFileV2(HttpServletRequest request) throws ServletException, IOException {
+          log.info("request = {}", request);
+  
+          String itemName = request.getParameter("itemName");
+          log.info("itemName = {}", itemName);
+  
+          Collection<Part> parts = request.getParts();
+          log.info("parts = {}", parts);
+  
+          for (Part part : parts) {
+              log.info("==== PART ====");
+              log.info("name = {}", part.getName());
+              Collection<String> headerNames = part.getHeaderNames();
+              for (String headerName : headerNames) {
+                  log.info("header {}: {}", headerName, part.getHeader(headerName));
+              }
+  
+              //편의 메서드
+              //Content-Disposition
+              log.info("submittedFileName= = {}", part.getSubmittedFileName());
+              log.info("size = {}", part.getSize());
+  
+              //데이터 읽기(body)
+              InputStream inputStream = part.getInputStream();
+              String body = StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8);//문자 <-> 바이너리 데이터 변환은 항상 Charset 정의해야함
+  
+              //파일에 저장하기
+              if (StringUtils.hasText(part.getSubmittedFileName())) {
+                  String fullPath = fileDir + part.getSubmittedFileName();
+                  log.info("파일 저장 fullPath = {}", fullPath);
+                  part.write(fullPath);
+              }
+          }
+  
+          return "upload-form";
+      }
+  ```
+
+  
+
+### 스프링과 파일 업로드
+
+- 컨트롤러 코드
+
+  ```java
+      @PostMapping("/upload")
+      public String saveFile(@RequestParam String itemName,
+                             @RequestParam MultipartFile file) throws IOException {
+          log.info("itemName = {}", itemName);
+          log.info("multipartFile = {}", file);
+  
+          if (!file.isEmpty()) {
+              String fullPath = fileDir + file.getOriginalFilename();
+              log.info("파일 저장 fullPath = {}", fullPath);
+              file.transferTo(new File(fullPath));
+          }
+  
+          return "upload-form";
+      }
+  ```
+
+  - `@RequestParam`말고 `@ModelAttribute`에서도 `MultipartFile`을 동일하게 사용 가능
+
+
+
+#### 활용
+
+- 예제 코드
+
+  - `UploadFile`
+
+    ```java
+    @Data
+    @AllArgsConstructor
+    public class UploadFile {
+    
+        private String uploadFileName;
+        private String storeFileName;   //동일 uploadFileName 충분히 존재할 수 있기에 UUID 등으로 안 겹치게 만들어야
+    }
+    ```
+
+    - 서버에 동일한 명칭의 파일이 여럿 올라올 수 있기에 저장될 때의 파일 명을 별도로 사용
+
+  - `FileStore`
+
+    ```java
+    @Component
+    public class FileStore {
+    
+        @Value("${file.dir}")
+        private String fileDir;
+    
+        public List<UploadFile> storeFiles(List<MultipartFile> multipartFiles) throws IOException {
+            List<UploadFile> storeFileResult = new ArrayList<>();
+            for (MultipartFile multipartFile : multipartFiles) {
+                if (!multipartFile.isEmpty()) {
+                    storeFileResult.add(storeFile(multipartFile));
+                }
+            }
+            return storeFileResult;
+        }
+    
+        public UploadFile storeFile(MultipartFile multipartFile) throws IOException {
+            if (multipartFile.isEmpty()) {
+                return null;
+            }
+            //image.png
+            String originalFilename = multipartFile.getOriginalFilename();
+            //서버에 저장하는 파일명
+            String storeFileName = createStoreFileName(originalFilename);
+            multipartFile.transferTo(new File(getFullPath(storeFileName)));
+            return new UploadFile(originalFilename, storeFileName);
+        }
+    
+        private String createStoreFileName(String originalFilename) {
+            String uuid = UUID.randomUUID().toString();
+            // UUID 생성된 파일명에 확장자까지 더하는 작업
+            String ext = extractExt(originalFilename);
+            return uuid + "." + ext;
+        }
+    
+        private String extractExt(String originalFilename) {
+            int pos = originalFilename.lastIndexOf(".");
+            return originalFilename.substring(pos + 1);   //확장자
+        }
+    
+        public String getFullPath(String fileName) {
+            return fileDir + fileName;
+        }
+    }
+    ```
+
+    - 파일 저장(파일명 변환 + 확장자)
+
+  - `item-form.html`
+
+    ```html
+    ...
+          <li>첨부파일<input type="file" name="attachFile" ></li>
+          <li>이미지 파일들<input type="file" multiple="multiple"
+                            name="imageFiles" ></li>
+    ...
+    ```
+
+    - `multiple` 속성으로 파일이 여럿인지 전달 가능
+
+  - `ItemController`의 저장 부분
+
+    ```java
+        @PostMapping("items/new")
+        public String saveItem(@ModelAttribute ItemForm form, RedirectAttributes redirectAttributes) throws IOException {
+            UploadFile attachFile = fileStore.storeFile(form.getAttachFile());
+            List<UploadFile> storeImageFiles = fileStore.storeFiles(form.getImageFiles());
+    
+            //데이터베이스에 저장
+            Item item = new Item();
+            item.setItemName(form.getItemName());
+            item.setAttachFile(attachFile);
+            item.setImageFiles(storeImageFiles);
+            itemRepository.save(item);
+    
+            redirectAttributes.addAttribute("itemId", item.getId());
+    
+            return "redirect:/items/{itemId}";
+        }
+    ```
+
+    - 보통 파일은 DB가 아니라 스토리지에 저장
+      - AWS를 사용한다면 S3
+    - DB에는 파일 경로 정도만 저장, 그나마도 fullPath를 저장하지도 않음
+
+  - `ItemController`의 이미지 파일 연결 부분
+
+    ```java
+        @ResponseBody
+        @GetMapping("/images/{fileName}")
+        public Resource downloadImage(@PathVariable String fileName) throws MalformedURLException {
+            return new UrlResource("file:" + fileStore.getFullPath(fileName));
+        }
+    ```
+
+    - 취약한 보안 -> 보완 필요
+
+  - `ItemController`의 파일 다운로드 부분
+
+    ```java
+        @GetMapping("/attach/{itemId}")
+        public ResponseEntity<Resource> downloadAttach(@PathVariable Long itemId) throws MalformedURLException {
+            Item item = itemRepository.findById(itemId);
+            String storeFileName = item.getAttachFile().getStoreFileName();
+            String uploadFileName = item.getAttachFile().getUploadFileName();
+    
+            UrlResource resource = new UrlResource("file:" + fileStore.getFullPath(storeFileName));
+    
+            log.info("uploadFileName = {}", uploadFileName);
+    
+            String encodedUploadFileName = UriUtils.encode(uploadFileName, StandardCharsets.UTF_8);	//한글 등 인코딩
+            String contentDisposition = "attachment; filename=\"" + encodedUploadFileName + "\""; //리소스를 그냥 여는 것이 아니라 다운로드 하고 싶기에
+    
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                    .body(resource);
+        }
+    ```
+
+    - `UriUtils.encode(uploadFileName, StandardCharsets.UTF_8);`: 단, 옛날 웹 브라우저 등의 경우 다르게 처리해야 함
