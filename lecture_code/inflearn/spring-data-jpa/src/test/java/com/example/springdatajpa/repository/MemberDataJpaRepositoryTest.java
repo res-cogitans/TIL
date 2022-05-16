@@ -297,4 +297,9 @@ class MemberDataJpaRepositoryTest {
         List<Member> members = memberRepository.findLockByUsername(member1.getUsername());
         em.flush();
     }
+
+    @Test
+    void callCustom() {
+        List<Member> memberCustom = memberRepository.findMemberCustom();
+    }
 }

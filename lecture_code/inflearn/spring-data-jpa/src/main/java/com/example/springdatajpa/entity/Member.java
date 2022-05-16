@@ -16,7 +16,7 @@ import javax.persistence.*;
         query = "SELECT m FROM Member m WHERE m.username = :username"
 )
 @NamedEntityGraph(name = "Member.all", attributeNodes = @NamedAttributeNode("team"))
-public class Member {
+public class Member extends DataJpaBaseEntity {
 
     public Member(String username) {
         this.username = username;

@@ -13,7 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface MemberDataJpaRepository extends JpaRepository<Member, Long> {
+public interface MemberDataJpaRepository extends JpaRepository<Member, Long>, CustomMemberRepository {
 
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
 
