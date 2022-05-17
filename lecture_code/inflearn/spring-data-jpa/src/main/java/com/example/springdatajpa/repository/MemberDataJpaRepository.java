@@ -13,7 +13,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface MemberDataJpaRepository extends JpaRepository<Member, Long>, CustomMemberRepository {
+public interface MemberDataJpaRepository extends JpaRepository<Member, Long>,
+        CustomMemberRepository, JpaSpecificationExecutor<Member> {
 
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
 
@@ -56,7 +57,7 @@ public interface MemberDataJpaRepository extends JpaRepository<Member, Long>, Cu
     @Query("SELECT m FROM Member m")
     List<Member> findMemberEntityGraph();
 
-//    @EntityGraph(attributePaths = {"team"})
+    //    @EntityGraph(attributePaths = {"team"})
     @EntityGraph("Member.all")
     List<Member> findByAge(@Param("age") int age);
 
@@ -65,4 +66,19 @@ public interface MemberDataJpaRepository extends JpaRepository<Member, Long>, Cu
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Member> findLockByUsername(String username);
+
+    List<UsernameOnly> findProjectionByUsername(@Param("username") String username);
+
+    List<UsernameOnlyDto> findProjectionDtoByUsername(@Param("username") String username);
+
+    <T> List<T> findProjectionGenericByUsername(@Param("username") String username, Class<T> type);
+
+    @Query(value = "SELECT * FROM member WHERE username = ?", nativeQuery = true)
+    Member findByNativeQuery(String username);
+
+    @Query(value = "SELECT m.member_id as id, m.username, t.name as teamName" +
+            " FROM member m LEFT JOIN team t",
+            countQuery = "SELECT COUNT(*) FROM member",
+            nativeQuery = true)
+    Page<MemberProjection> findByNativeProjection(Pageable pageable);
 }

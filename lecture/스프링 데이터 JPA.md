@@ -1277,3 +1277,245 @@
   ```
 
   
+
+## 나머지 기능들
+
+- 실무에서 많이 사용되지는 않는 기능들
+
+
+
+### Specifications(명세)
+
+- "도메인 주도 설계(Domain-Driven Design)"에서 소개된 개념
+
+- 스프링 데이터 JPA는 JPA Criteria를 활용하여 이 개념을 지원
+
+- **술어(predicate)**
+
+  - `true` 혹은 `false`로 평가
+  - `WHERE`, `AND`, `OR`, `NOT` 등 연산자 조합하여 다양한 검색조건을 쉽게 생성(컴포지트 패턴)
+  - ex) 검색 조건 하나하나
+  - 스프링 데이터 JPA에서는 `Specification` 클래스로 정의
+
+- **사용 방법**
+
+  - 해당 리포지터리가 `JpaSpecificationExecutor<T>`를 구현하게끔 만든다.
+
+  - 엔티티에 대한 `Specification`을 만든다:
+
+    ```java
+    public class MemberSpec {
+    
+        public static Specification<Member> teamName(final String teamName) {
+            return (root, query, criteriaBuilder) -> {
+    
+                if (!StringUtils.hasLength(teamName)) {
+                    return null;
+                }
+    
+                Join<Member, Team> t = root.join("team", JoinType.INNER);//회원과 조인
+                return criteriaBuilder.equal(t.get("name"), teamName);
+            };
+        }
+    
+        public static Specification<Member> username(final String username) {
+            return (root, query, criteriaBuilder) -> {
+    
+                if (!StringUtils.hasLength(username)) {
+                    return null;
+                }
+                return criteriaBuilder.equal(root.get("username"), username);
+            };
+        }
+    }
+    ```
+
+  - 사용 예시
+
+    ```java
+            Specification<Member> spec = MemberSpec.username("member1").and(MemberSpec.teamName("teamA"));
+            List<Member> result = memberRepository.findAll(spec);
+    ```
+
+- **실무에서는 거의 사용 안 함! -> QueryDSL 사용하라!**
+
+
+
+### Query By Example
+
+- 공식 문서: https://docs.spring.io/spring-data/jpa/docs/current/reference/html/#query-by-example
+
+- 예시 코드
+
+  ```java
+          Member memberExample = new Member("member1", 50, teamA);	//probe
+          ExampleMatcher matcher = ExampleMatcher.matching()
+                  .withIgnorePaths("age");
+          Example<Member> example = Example.of(memberExample, matcher);
+  
+          List<Member> result = memberRepository.findAll(example);
+  ```
+
+- 설명
+
+  - `Probe`: 필드에 데이터가 있는 실제 도메인 객체
+  - `ExampleMatcher`: 특정 필드를 일치시키는 상세한 정보 제공, 재사용 가능
+  - `Example`: `Probe`와 `ExampleMatcher`로 구성, 쿼리를 생성하는데 사용
+
+- 장점
+
+  - 동적 쿼리를 편리하게 처리
+  - 도메인 객체를 그대로 사용
+  - DB를 RDB에서 NOSQL로 변경해도 코드 변경이 없게 추상화되어 있음
+  - 스프링 데이터 JPA의 `JpaRepository` 인터페이스에 이미 포함됨
+
+- 단점
+
+  - 조인은 가능하지만 내부 조인(INNER JOIN)만 가능, 외부 조인(LEFT JOIN) 불가
+  - 중첩 제약조건 안 됨
+  - 매칭 조건이 매우 단순함
+    - 문자는 `starts/contains;/ends/regex`
+    - 다른 속성은 정확한 매칭(`=`)만 지원
+
+- **실무에서 사용하기에는 매칭 조건이 너무 단순하며 LEFT 조인 불가 -> QueryDSL 사용하자!**
+
+
+
+### Projections
+
+- 엔티티 대신에 DTO를 편리하게 조회할 때 사용
+
+- 전체 엔티티가 아니라 특정 정보만 조회하고 싶을 때 사용
+
+- 예시 코드
+
+  - `UsernameOnly` 인터페이스 기반 프로젝션
+
+    ```java
+    public interface UsernameOnly {
+    
+        @Value("#{target.username + ' ' + target.age}")	//방법1: Open Projection, SpEL 사용
+        String getUsername();
+    
+    //    String getUsername();	//방법2: Closed Projection
+    }
+    ```
+
+    - 구현체를 생성하는 것이 아니라 인터페이스를 생성하는 방식
+    - 인터페이스 기반의 Closed Projection / Open Projection
+      - **Open Projection의 경우 엔티티 데이터를 통째로 가져옴: 최적화는 안 됨** (위의 경우 필요한 `username`만 가져오는 것이 아니라 `Member` 엔티티 데이터 전체를 가지고 온다)
+    - 실제 구현체는 스프링 데이터 JPA가 만들어짐: 프록시 객체
+    - 원하는 데이터만 가져올 수 있음(Closed)
+      - 조회 조건 메서드(username)과 조합하여 사용할 수 있음: + 조회 결과 타입을 어떤 것을 사용할지를 추가적으로 규정 가능
+
+  - `UsernameOnlyDto`: 클래스 기반 프로젝션
+
+    ```java
+    public class UsernameOnlyDto {
+    
+        private final String username;
+    
+        public UsernameOnlyDto(String username) {
+            this.username = username;
+        }
+    
+        public String getUsername() {
+            return username;
+        }
+    }
+    ```
+
+    - 생성자와 Getter
+      - **생성자의 파라미터명으로 매칭함**
+
+  - `NestedClosedProjections`: 중첩된 케이스
+
+    ```java
+    public interface NestedClosedProjections {
+    
+        String getUsername();
+        TeamInfo getTeam();
+    
+        interface TeamInfo {
+            String getName();
+        }
+    }
+    ```
+
+  - 리포지터리 코드
+
+    ```java
+        List<UsernameOnly> findProjectionByUsername(@Param("username") String username);
+    
+        List<UsernameOnlyDto> findProjectionDtoByUsername(@Param("username") String username);
+    
+        <T> List<T> findProjectionGenericByUsername(@Param("username") String username, Class<T> type);
+    ```
+
+    - 동일한 쿼리를 사용하는 경우 제네릭을 이용하여 유연하게 타입을 받을 수도 있다: 동적 프로젝션
+
+      ```java
+      List<NestedClosedProjections> resultOfNested = memberRepository.findProjectionGenericByUsername("member1", NestedClosedProjections.class);
+      ```
+
+- **주의사항**
+
+  - 프로젝션 대상이 Root 엔티티일 경우 JPQL SELECT 절을 최적화할 수 있음
+  - 프로젝션 대상이 Root가 아닐 경우
+    - LEFT OUTER JOIN 처리하며
+    - 모든 필드를 SELECT하여 엔티티로 조회한 후에 계산
+
+- 정리
+
+  - **프로젝션 대상이 Root 엔티티일 경우 유용**
+    - 프로젝션 대상이 Root 엔티티를 넘어가면 최적화 안 됨!
+  - 실무의 복잡한 쿼리를 해결하기에는 한계가 있음
+  - **단순할 때만 사용하고, 복잡하면 QueryDSL 사용할 것!**
+
+
+
+### 네이티브 쿼리
+
+- **가능한 한 사용하지 말자!**
+
+  - **네이티브 SQL을 DTO로 조회할 때는 JdbcTemplate이나 MyBatis 사용을 권장함**
+
+- 예시
+
+  ```java
+      @Query(value = "SELECT * FROM member WHERE username = ?", nativeQuery = true)
+      Member findByNativeQuery(String username);
+  ```
+
+- 특징
+
+  - 페이징 지원
+  - 반환 티입
+    - `Object[]`
+    - `Tuple`
+    - `DTO`(스프링 데이터 인터페이스 `Projections` 지원)
+  - 제약
+    - `Sort` 파라미터를 통한 정렬이 정상 동작하지 않을 수 있음: 직접 처리가 필요
+    - JPQL과 달리 애플리케이션 로딩 시점에 문법 확인 불가
+    - 동적 쿼리 불가
+
+- **Projections의 활용**
+
+  - 예시 코드
+
+    ```java
+        @Query(value = "SELECT m.member_id as id, m.username, t.name as teamName" +
+                " FROM member m LEFT JOIN team t",
+                countQuery = "SELECT COUNT(*) FROM member",
+                nativeQuery = true)
+        Page<MemberProjection> findByNativeProjection(Pageable pageable);
+    ```
+
+  - **페이징이 가능한 정적 네이티브 쿼리**
+
+- 하이버네이트 활용한 동적 네이티브 쿼리
+
+  - 스프링 JdbcTemplate, MyBatis, jooq 같은 외부 라이브러리 사용
+  - `em.createNativeQuery(sql)`
+
+  
