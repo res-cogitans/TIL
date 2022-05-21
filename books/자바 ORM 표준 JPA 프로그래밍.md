@@ -3675,3 +3675,268 @@ public enum RoleType {
 
 # 09장 값 타입
 
+- JPA의 데이터 타입
+  - 엔티티 타입
+    - `@Entity`로 정의하는 객체
+    - 식별자를 통한 주적 가능
+  - 값 타입
+    - 단순히 값으로 사용하는 자바 기본 타입 + 객체
+    - . `int`, `Integer`, `String`
+    - 식별자를 통한 추적 불가
+- 값 타입의 분류
+  - 기본값 타입(basic value type)
+    - 자바 기본 타입: `int`, `double`
+    - 래퍼 클래스: `Long`, `Double`
+    - `String`
+  - 임베디드 타입(embedded type): 복합 값 타입
+  - 컬렉션 값 타입(collection value type)
+
+
+
+## 9.1 기본값 타입
+
+- 식별자 없음
+- 생명주기를 엔티티에 의존
+- 공유해선 안 됨
+  - 자바의 기본 타입은 공유되지 않음
+  - 래퍼 클래스나 `String`은 객체지만 자바가 기본 타입처럼 사용할 수 있게 지원함
+
+
+
+## 9.2 임베디드 타입(복합 값 타입)
+
+- 새로운 값 타입을 직접 정의해서 사용
+
+- 예시 코드: `Address`
+
+  ```java
+  @Embeddable
+  public class Address {
+      
+      @Column(name = "city")	//매핑할 컬럼 정의 가능
+      private String city;
+      private String street;
+      private String zipcode;
+  }
+  ```
+
+- 장점: 객체지향적
+
+  - 응집도를 높음
+  - 재사용성 높음
+  - 코드를 더 명확하게 만듦
+  - 의미 있는 메서드 생성 가능
+
+- 임베디드 타입의 사용
+
+  - 값 타입을 사용하기 위한 애노테이션: 둘 중 하나 이상은 있어야 함
+    - `@Embeddable`: 값 타입의 정의
+    - `@Embedded`: 값 타입을 사용함을 표시
+  - 기본 생성자가 필수(`protected` 가능)
+
+- 엔티티와 임베디드 타입은 컴포지션(composition) 관계임
+
+  - 하이버네이트는 임베디드 타입을 컴포넌트(components)라 부름
+  - 임베디드 타입도 값 타입이기에 엔티티의 생명주기에 의존
+
+
+
+### 9.2.1 임베디드 타입과 테이블 매핑
+
+- 임베디드 타입은 그저 값이기 때문에, 임베디드 타입을 쓰건 안 쓰건 간에 매핑하는 테이블은 동일
+
+- 세밀한 매핑을 가능케 함: 잘 설계한 ORM 애플리케이션은 테이블의 수보다 객체의 수가 더 많음!
+
+- UML 표기
+
+  ```mermaid
+  classDiagram
+  class Member {
+  Long id
+  String name
+  Period workPeriod
+  Address homeAddress
+  }
+  <<entity>> Member
+  ```
+
+  - 기본 타입처럼 단순하게 표기하는 것이 편리
+
+
+
+### 9.2.2 임베디드 타입과 연관관계
+
+- 임베디드 타입은 값 타입을 포함하거나 엔티티를 참조할 수 있음
+
+  - 엔티티는 공유 가능하기에 참조되며, 값 타임은 소속되며, 공유 불가능하기에 포함
+
+- 예시코드
+
+  - `Member`
+
+    ```java
+    @Entity
+    public class Member {
+        ...
+        @Embedded Address address;
+        @Embedded PhoneNumber phoneNumber;
+        ...
+    }
+    ```
+
+  - `PhoneNumber`
+
+    ```java
+    @Embeddable
+    public class PhoneNumber {
+        String areaCode;
+        @ManyToOne
+        PhoneServiceProvider provider;	//엔티티 참조
+    }
+    ```
+
+  - 관계도
+
+    ```mermaid
+    classDiagram
+    direction LR
+    class Member
+    <<Entity>> Member
+    Member *-- PhoneNumber
+    Member *-- Address
+    <<Value>> Address
+    <<Value>> PhoneNumber
+    PhoneNumber o-- PhoneServiceProvider
+    <<Entity>> PhoneServiceProvider
+    ```
+
+
+
+### 9.2.3 `@AttributeOverride`: 속성 재정의
+
+- 특히, 임베디드 타입을 사용하다가 컬럼명이 중복될 경우에는 필수적으로 사용해야함
+
+- 예제 코드
+
+  ```java
+  @Entity
+  public class Member {
+      @Embedded
+      @AttributeOverrides({
+          @AttributeOverride(name = "city", column=@Column(name="COMPANY_CITY")),
+          ...
+      })
+      private Address companyAddress
+  }
+  ```
+
+- **`@AttributeOverrides`는 엔티티에 설정해야 함! 임베디드 타입이 임베디드 타입을 가지고 있더라도 마찬가지!**
+
+
+
+### 9.2.4 임베디드 타입과 `null`
+
+- 임베디드 타입이 `null`일 경우 매핑한 컬럼 값은 모두 `null`이 된다.
+
+
+
+## 9.3 값 타입과 불변 객체
+
+### 9.3.1 값 타입 공유 참조
+
+- 값 타입을 여러 엔티티에서 공유하면 위험: 특히 임베디드 타입
+- 동일 주소를 참조해서 할당했을 경우, 한 엔티티에서 그 값 타입을 변경했을 경우, 다른 엔티티의 값까지 변화: **부작용(side effect)**
+
+
+
+### 9.3.2 값 타입의 복사
+
+- 실제 인스턴스인 값을 공유하지 말고, **복사해서 사용하여 문제를 방지**
+- **임베디드 타입은 객체 타입이기에 공유 참조를 피할 수 없다.**
+- 근본적인 대안: **값 타입의 객체를 불변 타입으로 만들자: 수정이 불가능하게 만들자**
+
+
+
+### 9.3.3 불변 객체
+
+- **값 타입은 가능한 불변 객체로 설계하자: 부작용의 원천 차단**
+- 가장 간단한 구현법: 생성자로만 값을 설정, mutator 만들지 않기
+
+
+
+## 9.4 값 타입의 비교
+
+- 동일성이 아니라 동치성을 비교할 수 있게끔 `equals()` 재정의하자, 또 `equals()` 재정의했으니, `hashCode()`도 재정의하자.
+
+
+
+## 9.5 값 타입 컬렉션
+
+- 복수의 값 타입을 보관하고 싶을 경우
+
+  - 컬렉션에 보관하고, `@ElementCollection`, `@CollectionTable`을 사용
+
+- 예제 코드
+
+  - `Member`
+
+    ```java
+    @Entity
+    public class Member {
+        ...
+        @ElementCollection
+        @CollectionTable(name = "ADDRESS",
+                         joinColumns = @JoinColumn(name = "MEMBER_ID"))
+        private List<Address> addressHistory = new ArrayList<Address>();
+        ...
+    }
+    ```
+
+  - `Address`: 변화 없음!
+
+- 설명
+
+  - RDB는 컬럼 안에 컬렉션을 포함할 수 없기에, 별도의 테이블을 추가하고, `@CollectionTable`을 이용하여 테이블을 매핑
+  - 테이블 매핑정보는 `@AttributeOverride`를 사용해서 재정의 가능
+  - `@CollectionTable` 생략할 경우 기본값: `{엔티티 이름}_{컬렉션 속성 이름}`
+
+
+
+### 9.5.1 값 타입 컬렉션 사용
+
+- 예제 코드
+
+  ```java
+  //임베디드 값 타입
+  member.setHomeAddress(new Address("통영", "몽돌해수욕장", "660-123"));
+  
+  //기본 값 타입 컬렉션
+  member.getFavoriteFoods().add("짬뽕");
+  
+  //임베디드 값 타입 컬렉션
+  member.getAddressHistory().add(new Address("서울", "강남", "123-123"));
+  
+  em.persist(member);
+  ```
+
+- 값 타입 컬렉션은 영속성 전이 + 고아 객체 제거 기능을 필수로 갖는다고 볼 수 있음
+
+- 값 타입 컬렉션의 조인 시 페치 전략 기본값은 `LAZY`
+
+
+
+### 9.5.2 값 타입 컬렉션의 제약사항
+
+- 엔티티와 달리 값 타입은 추적이 불가능
+  - 그냥 값 타입의 경우 엔티티에 소속되어 있기에 엔티티를 통해 찾고, 변경하면 됨
+  - 값 타입 컬렉션의 경우 별도의 테이블에 보관되어 있음
+    - 따라서 값 타입 컬렉션의 변화를 반영할 DB의 원본 데이터를 찾기가 어려움
+    - 때문에 JPA 구현체들은 값 타입 컬렉션에 변경 사항이 발생시
+      - 값 타입 컬렉션이 매핑된 테이블의 연관된 모든 데이터를 삭제하고, 현재 값 타입 컬렉션 객체에 있는 모든 값을 DB에 다시 저장
+      - ex) `ID = 100`인 회원의 주소값 타입 컬렉션을 변경할 경우
+        테이블에서 회원 100과 관련된 데이터를 모두 삭제하고 현재 값을 다시 저장
+    - **실무에서는 값 타입 컬렉션이 매핑된 테이블에 데이터가 많을 경우 값 타입 컬렉션 대신에 일대다 관계를 고려하라**
+- 값 타입 컬렉션을 매핑하는 테이블의 PK: 모든 컬럼을 묶어서 구성
+  - PK 제약조건으로 인해 컬럼에 `null` 입력 불가
+  - 같은 값을 중복해서 저장하는 것도 불가
+- **그냥 일대다 관계에 영속성 전이 + 고아 객체 제거 사용하는게 낫다!**
