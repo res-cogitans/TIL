@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: spring security 01
+  thymeleaf:
+    cache: true
+  security:
+    user:
+      name: user
+      password: user123
+      roles: USER
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    cache-duration: PT1H
+server:
+  port: 8080

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="no-cache"/>
+    <title th:text="#{html.title}"></title>
+    <link rel="shortcut icon" type="image/x-icon" th:href="@{/assets/icons/favi.png}">
+</head>
+<body>
+index page<br/>
+<span sec:authentication="name"></span> 님 반갑습니다.
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="no-cache"/>
+    <title th:text="#{html.title}"></title>
+    <link rel="shortcut icon" type="image/x-icon" th:href="@{/assets/icons/favi.png}">
+</head>
+<body>
+<h1>내 정보</h1>
+<hr/>
+<span sec:authentication="name"></span> 님 반갑습니다.
+<div sec:authorize="hasRole('ROLE_USER')">
+    권한: USER
+</div>
+<div sec:authorize="hasRole('ROLE_ADMIN')">
+    권한: ADMIN
+</div>
+<ul>
+    <li><a th:href="@{/logout}">로그아웃</a></li>
+    <li><a th:href="@{/}">홈으로 가기</a></li>
+</ul>
+</body>
+</html>
