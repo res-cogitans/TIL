@@ -3940,3 +3940,1158 @@ public enum RoleType {
   - PK 제약조건으로 인해 컬럼에 `null` 입력 불가
   - 같은 값을 중복해서 저장하는 것도 불가
 - **그냥 일대다 관계에 영속성 전이 + 고아 객체 제거 사용하는게 낫다!**
+
+
+
+# 10장 객체지향 쿼리 언어
+
+- JPA는 복잡한 검색 조건을 사용하여 엔티티를 조회할 수 있는 다양한 쿼리 기술들을 지원
+- Criteria, QueryDSL 등은 JPQL 기반이기에 JPQL에 대한 학습이 기본이 되어야 함
+
+
+
+## 10.1 객체지향 쿼리 소개
+
+- 필요성
+  - JPA의 조회 방식
+    - 식별자로 조회: `em.find()`
+    - 객체 그래프 탐색
+  - 복잡한 검색 방법 필요
+    - 모든 엔티티를 메모리에 올려두고 복잡한 검색을 시행하는 것은 현실성이 없음
+    - ORM을 사용하기에 테이블을 대상으로 하지 않고, 엔티티 객체를 대상으로 하는 검색의 필요성
+- JPQL의 특징
+  - 테이블이 아닌 객체를 대상으로 하는 객체지향 쿼리
+  - SQL을 추상화하여 특정 DB SQL에 의존하지 않음
+- JPA에서 사용할 수 있는 검색 방식
+  - JPA가 공식 지원
+    - **JPQL(Java Persistence Query Language)**
+    - Criteria Query: JPQL을 편하게 작성하도록 도와주는 API, 빌더 클래스 모음
+    - Native SQL: JPQL 대신 SQL 사용
+  - JPA가 공식 지원하지는 않지만 유용한 기능
+    - QueryDSL: Criteria처럼 JPQL을 쉽게 작성하게끔 돕는 빌더 클래스 모음, 비표준 오픈소스 프레임워크
+    - JDBC 직접 사용, MyBatis 등 SQL 매퍼 프레임워크 사용: 필요할 경우 직접 사용 가능
+
+
+
+### 10.1.1 JPQL 소개
+
+- SQL과 비슷한 문법
+
+- ANSI 표준 SQL이 지원하는 기능을 유사하게 지원
+
+- SQL보다 간결
+
+- 예제 코드
+
+  ```java
+  List<Member> resultList = 
+      em.createQuery("SELECT m FROM Member m WHERE m.username = 'kim'", Member.class).getResultList();
+  ```
+
+  - `Member`: 테이블이 아니라 엔티티명
+  - `m.username`: 테이블 컬럼명이 아니라 엔티티 객체의 필드명
+
+- 과정
+
+  - `em.createQuery` 메서드에 실행할 JPQL과 반환할 엔티티의 클래스 타입을 넘겨줌
+  - JPA가 JPQL을 SQL로 변환, DB 조회
+
+
+
+### 10.1.2 Criteria 쿼리 소개
+
+- JPQL을 작성하는 빌더 클래스
+
+- `String`이 아닌 코드로(여기서는 자바 코드) 작성한다
+
+  - `String`으로 작성된 쿼리는 오타가 있어도 런타임 시점에 발견함
+  - Criteria처럼 코드로 JPQL을 작성할 경우 컴파일 시점에 오류 발견
+
+- `String`으로 작성한 JPQL에 비해 갖는 장점
+
+  - 컴파일 시점에 오류 발견
+  - IDE를 사용할 경우 코드 자동완성 지원
+  - 동적 쿼리를 작성하기 편함
+
+- 지원
+
+  - 하이버네이트를 비롯한 몇몇 ORM 프레임워크의 경우 이미 자신만의 Criteria를 지원해왔으며
+  - JPA의 경우 2.0부터 지원
+
+- 사용 코드
+
+  ```java
+  //사용 준비
+  CriteriaBuilder cb = em.getCriteriaBuilder();
+  CriteriaQuery<Member> query = cb.createQuery(Member.class);
+  
+  //루트 클래스
+  Root<Member> m = query.from(Member.class);
+  
+  //쿼리 생성
+  CriteriaQuery<Member> cq = query.select(m).where(cb.equal(m.get("username"), "kim"));
+  List<Member> resultList = em.createQuery(cq).getResultList();
+  ```
+
+  - 위의 경우 필드 명을 문자(`"username"`)로 작성하였음
+  - 저 부분도 문자가 아니라 코드로 작성하고 싶을 경우: 메타 모델(MetaModel) 사용
+
+- 메타 모델 API
+
+  - 자바의 애노테이션 프로세서(annotation processor): 애노테이션을 분석하여 클래스를 생성
+  - JPA가 애노테이션 프로세서 기능을 사용하여 `Member`엔티티에서 Criteria 전용 클래스 `Member_`를 생성: 이를 메타모델이라 함
+  - 메타 모델 사용시 `m.get(Member_username)` 형태로 사용 가능(문자가 아니라 코드로만 작성)
+
+- **많은 장점을 갖지만 장점을 상쇄할 만큼 지나치게 복잡하고 장황함 -> 가독성, 사용성 모두 떨어짐**
+
+
+
+### 10.1.3 QueryDSL 소개
+
+- Criteria처럼 JPQL 빌더 역할을 수행하지만, 훨씬 단순하고 사용하기 좋음
+
+- JPA 비표준 오픈소스 프로젝트
+
+  - JPA, JDO, 몽고 DB, Java Collection, Lucene, Hibernate Search도 거의 동일한 문법으로 지원
+
+- 사용 코드
+
+  ```java
+  //준비
+  JPAQuery query = new JPAQuery(em);
+  QMember member = QMember.member;
+  
+  //쿼리, 결과조회
+  List<Member> members = query.from(member)
+      .where(member.username.eq("kim"))
+      .list(member);
+  ```
+
+- QueryDSL도 애노테이션 프로세서를 이용하여 쿼리 전용 클래스를 만들어야 함: `QMember`는 `Member` 엔티티를 기반으로 생성한 QueryDSL 쿼리 전용 클래수
+
+
+
+### 10.1.4 네이티브 SQL 소개
+
+- SQL을 직접 사용
+
+- 벤더 의존적인 기능을 사용해야 할 경우
+
+  - 오라클의 `CONNECT BY`
+    - 특정 DB만 지원하는 SQL Hint(하이버네이트는 SQL Hint 지원)
+  - 표준화되어있지 않아 JPQL에서 지원하지 않는 기능들
+  - 이 외에 JPQL은 지원하지 않는 SQL 지원 기능들
+
+- 특정 DB에 의존적인 SQL을 사용한다는 단점: DB 변경시 수정 필요
+
+- 사용 코드
+
+  ```java
+  List<Member> resultList
+      = em.createNativeQuery("SELECT ID, AGE, NAME FROM MEMBER WHERE NAME = 'kim'", Member.class)
+      .getResultList();
+  ```
+
+
+
+### 10.1.5 JDBC 직접 사용, SQL 매퍼 프레임워크 사용
+
+- JDBC 커넥션에 직접 접근하고 싶을 경우
+
+  - JPA는 JDBC 커넥션을 획득하는 API를 지공하지 않음
+  - JPA 구현체가 제공하는 방법을 사용해야 함
+
+- 하이버네이트 사용 코드
+
+  ```java
+  Session session = em.unwrap(Session.class);
+  session.dowork(new Work() {
+      @Override
+      public void execute(Connection connection) throws SQLException {
+          //work...
+      }
+  });
+  ```
+
+- JDBC, MyBatis 등을 JPA와 함께 사용할 경우 영속성 컨텍스트를 적절한 시점에 강제로 플러시해줘야 한다.
+
+  - 위와 같은 기술들은 JPA를 우회하여 DB에 접근하는데, 이런 SQL에 대해서는 JPA가 인식하지 못 한다.
+  - 영속성 컨텍스트와 DB가 불일치 상태가 되어 데이터 무결성을 훼손할 수 있다.
+  - **JPA를 우회하여 SQL을 실행하기 직전에 영속성 컨텍스트를 수동으로 플러시하여 DB와 동기화하자.**
+  - 스프링 AOP를 적절히 활용하여, JPA 우회 메서드 호출 때마다 플러시를 호출하게 만든다면 위의 문제 깔끔하게 해결 가능
+
+
+
+## 10.2 JPQL
+
+### 10.2.1 기본 문법과 쿼리 API
+
+- SELECT, UPDATE, DELETE 문 사용 가능
+
+  - INSERT 문은 없음
+
+- 기본 문법
+
+  ```SQL
+  select_문 :: =
+  	select_절
+  	from_절
+  	[where_절]
+  	[groupby_절]
+  	[having_절]
+  	[orderby_절]
+  
+  update_문 :: = update_절 [where_절]
+  delete_문 :: = delete_절 [where_절]
+  ```
+
+
+
+#### SELECT 문
+
+- 대소문자 구분
+  - 엔티티와 속성은 대소문자를 구분함: `Member.username`
+  - JPQL 키워드는 대소문자를 구분하지 않음: `SELECT`, `FROM`, `AS`
+- 엔티티 이름
+  - 클래스 명이 아니라 엔티티 명을 사용(`@Entity(name="XXX")`)
+  - 엔티티명을 지정하지 않으면 클래스 명을 기본값으로 사용(추천)
+- 별칭은 필수(`AS`는 생략 가능)
+  - 하이버네이트의 경우
+    - 하이버네이트만의 HQL(Hibernate Query Language)를 제공함
+    - 이 경우 `m.username` 형태가 아니라 `username`으로 그냥 사용 가능
+  - JPA 표준 명세에서는 별칭(alias) 말고 식별 변수(identification variable)이라고 부름
+
+
+
+#### `TypeQuery`, `Query`
+
+- 반환 타입을 명확하게 지정할 수 있을 경우 `TypedQuery` 사용
+
+  ```java
+  TypedQuery<Member> query = em.createQuery(JPQL, Member.class);
+  ```
+
+- 반환 타입을 명확하게 지정할 수 없을 경우`Query`사용
+
+  ```java
+  Query query = em.createQuery(JPQL);
+  ```
+
+  - 이 경우 쿼리 결과는 `Object`(조회 대상이 하나일 경우), `Object[]`(조회 대상이 여럿일 경우)를 반환한다.
+
+
+
+#### 결과 조회
+
+- `query.getResultList()`: 결과를 컬렉션으로 반환, 결과가 없을 경우 빈 컬렉션을 반환
+- `query.getSingleResult()`: 결과가 정확히 하나일 경우 사용
+  - 결과가 없을 경우 `NoResultException` 반환
+  - 결과가 1개 초과한 경우 `NonUniqueResultException` 반환
+  - 위의 예외들은 `javax.persistence`의 예외(JPA 예외), 스프링 사용시 스프링 예외로 번역됨
+  - **결과가 정확히 하나가 아닐 경우 예외 발생함에 유의**
+
+
+
+### 10.2.2 파라미터 바인딩
+
+- 위치 기준 파라미터 바인딩만 지원하는 JDBC와 달리, 이름 기준 파라미터 바인딩도 지원
+
+- 이름 기준 파라미터(Named Parameters)
+
+  - 파라미터를 이름으로 구분
+
+  - 파라미터 앞에 :를 사용
+
+    ```java
+    String JPQL = "... WHERE m.username = :username";
+    ...
+    query.setParameter("username", usernameParam);
+    ```
+
+  - JPQL API는 메서드 체인방식으로 설계되어 있기에 다음이 가능
+
+    ```java
+    em.createQuery(JPQL, Member.class)
+        .setParameter("username", usernameParam)
+        .gerResultList();
+    ```
+
+- 위치 기준 파라미터
+
+  ```java
+  em.createQuery("... WHERE m.username = ?1", Member.class)
+      .setParameter(1, usernameParam)
+      .getResultList();
+  ```
+
+  - `?1`형태로 ? 다음에 위치 값을 주면 됨
+  - 위치 값은 1부터 시작
+
+- 이름 기준 파라미터 바인딩이 더 명확하다.
+
+- **파라미터 바인딩을 사용해야 하는 이유** 
+
+  - 사용하지 않는 경우
+
+    ```java
+    "SELECT m FROM Member m WHERE m.username '" + usernameParam + "''"
+    ```
+
+  - 위와 같은 경우 SQL 인젝션 공격을 받을 수 있음
+  - 성능상으로도 부적합
+    - JPA는 파라미터 바인딩 사용할 경우, 파라미터 값이 다르더라도 동일 SQL로 인식
+      이 경우 JPQL을 SQL로 파싱한 결과를 재사용 가능
+    - DB 또한 내부에서 실행한 SQL을 파싱해서 사용하는데, 같은 쿼리의 경우 파싱 결과 재사용 가능
+    - 애플리케이션, DB 모두 파싱 결과 재사용이 가능하기에 성능 향상
+
+
+
+### 10.2.3 프로젝션
+
+- 프로젝션(projection)
+
+  - SELECT 절에 조회할 대상을 지정하는 것
+  - `SELECT {프로젝션 대상} FROM`으로 대상을 선택
+
+- 프로젝션 대상
+
+  - 엔티티
+
+    ```sql
+    SELECT m FROM Member m
+    SELECT m.team FROM Member m
+    ```
+
+    - 원하는 객체를 바로 조회
+    - 컬럼을 일일히 나열하여 조회하는 SQL과는 다름
+    - **조회된 엔티티는 영속성 컨텍스트에서 관리됨**
+
+  - 임베디드 타입
+
+    - 엔티티와 유사하게 사용되지만, **조회의 시작점이 될 수 없음**
+
+      ```java
+      String query = "SELECT a FROM Address a";
+      ```
+
+      - 위와 같은 방식은 불가
+
+      ```java
+      String query = "SELECT o.address FROM Order o"
+      List<Address> addresses = em.createQuery(query, Address.class).getResultList();
+      ```
+
+      - 위와 같이 엔티티를 시작점으로 삼아서 임베디드 타입을 조회할 수 있음
+
+    - 임베디드 타입은 값 타입이기에 영속성 컨텍스트에서 관리되지 않음
+
+  - 스칼라 타입
+
+    - 숫자, 문자, 날짜와 같은 기본 데이터 타입들
+
+      ```java
+      List<String> usernames = em.createQuery("SELECT username FROM Member m", String.class)
+          .getResultList();
+      ```
+
+    - 중복 데이터를 제거하려면 `DISTINCT` 사용: `SELECT DISTINCT username FROM Member m`
+
+    - 통계 쿼리는 주로 스칼라 타입으로 조회함
+
+      ```java
+      Double orderAmountAvg = em.createQuery("SELECT AVG(o.oderAmount) FROM Order o", Double.class)
+          .GetSingleResult();
+      ```
+
+  - 여러 값 조회
+
+    - 프로젝션에 여러 값을 선택할 경우 `TypedQuery` 사용 불가, `Query` 사용해야 함
+
+    - 스칼라 타입의 여러 값 조회 예
+
+      ```java
+      Query query = em.createQuery("SELECT m.username, m.age FROM Member m");
+      List<Object[]> resultList = query.getResultList();
+      
+      for (Object[] row, : resultList) {
+          String username = (String) row[0];
+          Integer age = (Integer) row[1];
+      }
+      ```
+
+    - 엔티티 타입의 여러 값 조회 예
+
+      ```java
+      List<Object[]> resultList =
+          	em.createQuery("SELECT o.member, o.product, o.orderAmount FROM Order o")
+          	.getResultList();
+      
+      for (Object[] row : resultList) {
+          Member member = (Member) row[0]	//엔티티
+      }
+      ```
+
+  - NEW 명령어
+
+    - 실무에서는 위와 같이 `Object[]` 사용하지 않고 DTO로 변환하여 사용함
+
+      ```java
+      TypedQuery<UserDto> query = em.createQuery("SELECT new jpabook.jpql.UserDto(m.username, m.age) FROM Member m", UserDto.class);
+      List<UserDto> resultList = query.getResultList();
+      ```
+
+    - 주의사항
+
+      - 패키지 명을 포함한 전체 클래스명을 입력해야 함
+      - 순서와 타입이 일치하는 생성자가 필요
+
+
+
+### 10.2.4 페이징 API
+
+- 페이징 API용 SQL은 지루하고 반복적이며, DB마다 다른 문법을 사용한다는 문제점이 있음
+
+- JPA는 페이징을 다음 두 API로 추상화하여 위의 문제를 해결함
+
+  - `setFirstResult(int startPosition)`: 조회 시작 위치(0부터 시작)
+  - `setMaxResults(int maxResult)`: 조회할 데이터 수
+
+- 예제 코드
+
+  ```java
+  em.createQuery(JPQL, Member.class);
+      .setFirstResult(10)
+      .setMaxResults(20)
+  	.getResultList();
+  ```
+
+- 페이징 SQL을 더 최적화하고 싶을 경우 네이티브 SQL을 직접 사용해야 함
+
+
+
+### 10.2.5 집합과 정렬
+
+#### 집합 함수
+
+| 함수     | 설명                                                         |
+| -------- | ------------------------------------------------------------ |
+| COUNT    | 결과 수를 구함. 반환 타입: Long                              |
+| MAX, MIN | 최대, 최소 값을 구함. 문자, 숫자, 날짜 등에 사용             |
+| AVG      | 평균값을 구함. 숫자 타입만 사용 가능. 반환타입: Double       |
+| SUM      | 합을 구함. 숫자 타입만 사용 가능. <br />반환 타입: 정수합 Long, 소수합 Double, BigInteger 합 BigInteger, BigDecimal 합: BigDecimal |
+
+- 사용 방식
+
+  ```SQL
+  SELECT
+  	COUNT(m),
+  	SUM(m.age),
+  	AVG(m.age),
+  	MAX(m.age)),
+  	MIN(m.age)
+  FROM Member m
+  ```
+
+- 사용 시 참고사항
+
+  - `NULL`값은 무시하므로 통계에 잡히지 않음(DISTINCT가 정의되어 있어도 무시됨)
+
+  - 값이 없는데 SUM, AVG, MAX, MIN 사용하면 `NULL` 값이 됨, 단 COUNT의 경우 0이 됨
+
+  - DISTINCT를 집합 함수 안에 사용하여 중복 값을 제거하고 나서 집합을 구할 수 있음
+
+    ```SQL
+    SELECT COUNT( DISTINCT m.age ) FROM Member m
+    ```
+
+  - DISTINCT를 COUNT에서 사용할 때 임베디드 타입은 지원하지 않음
+
+
+
+#### GROUP BY, HAVING
+
+- GROUP BY: 통계 데이터를 구할 때 특정 그룹끼리 묶어줌
+
+- HAVING: GROUP BY와 함께 사용, GROUP BY로 그룹화한 통계 데이터를 기준으로 필터링
+
+- 문법과 예시
+
+  - 문법
+
+    ```SQL
+    groupby_절 ::= GROUP BY {단일값 경로 | 별칭} +
+    having_절 ::= HAVING 조건식
+    ```
+
+- 통계 쿼리, 리포팅 쿼리라 부름
+
+- 애플리케이션으로 여러 줄에 걸쳐 처리해야 하는 코드를 짧게 처리 가능
+
+- 보통 전체 데이터를 기준으로 처리하기에 실시간으로 사용하기에는 부담이 많음
+
+  - 결과가 많을 경우 통계 결과만 저장하는 테이블을 별도로 만들어 두고
+    사용자가 적은 시간에 통계 쿼리를 실행하여 결과를 보관하는 것이 좋음
+
+
+
+#### 정렬(ORDER BY)
+
+- 문법
+
+  ```SQL
+  orderby_절 ::= ORDER BY {상태필드 경로 | 결과 변수 [ASC | DESC]}
+  ```
+
+
+
+### 10.2.6 JPQL 조인
+
+- SQL조인과 기능은 같지만 문법은 약간 다름
+
+
+
+#### 내부 조인
+
+- INNER JOIN 사용, INNER는 생략 가능
+
+- 연관 필드를 사용하여 조인한다는 차이점
+
+  - JPQL의 조인
+
+    ```SQL
+    SELECT m
+    FROM Member m INNER JOIN m.team t
+    WHERE t.name = :teamName
+    ```
+
+    - 연관 필드: `m.team`
+
+  - SQL식 조인: 이런 식으로 JPQL을 사용하면 문법 오류 발생
+
+    ```SQL
+    FROM Member m JOIN Team t
+    ```
+
+
+
+#### 외부 조인
+
+- 문법
+
+  ```SQL
+  SELECT m
+  FROM Member m LEFT [OUTER] JOIN m.team t
+  ```
+
+  - OUTER는 생략 가능
+
+
+
+#### 컬렉션 조인
+
+- 일대다 관계나 다대다 관계처럼 컬렉션을 사용하는 곳에 조인
+
+- 예시 코드
+
+  ```SQL
+  SELECT t, m FROM Team t LEFT JOIN t.members m
+  ```
+
+  - 컬렉션 값 연관 필드로 외부 조인함: `t LEFT JOIN t.members m`
+  - 컬렉션 조인 시 JOIN 대신에 IN 사용 가능(컬렉션일 때만 사용가능): 과거 방식이기에 사용하지 말자
+
+
+
+#### 세타 조인
+
+- WHERE절 이용해서 가능
+
+- 세타 조인은 내부 조인만 지원
+
+- 전혀 관계없는 엔티티도 조인 가능
+
+- 예시 코드
+
+  ```SQL
+  SELECT COUNT(m) FROM Member m, Team t
+  WHERE m.username = t.name
+  ```
+
+
+
+#### JOIN ON절(JPA 2.1)
+
+- 조인할 때 ON 절 지원(Since JPA 2.1)
+
+  - 조인 대상을 필터링하고 조인
+  - 내부 조인의 ON 절 사용은 WHERE 절 사용과 결과가 동일하기에
+    ON 절은 보통 외부 조인에서만 사용
+
+- 예시 코드
+
+  ```SQL
+  SELECT m, t FROM Member m
+  LEFT JOIN m.team t ON t.name = 'A'
+  ```
+
+
+
+### 10.2.7 페치 조인
+
+- SQL의 조인 종류는 아님
+
+- JPQL에서 성능 최적화를 위해 지원하는 기능
+
+  - 연관된 엔티티나 컬렉션을 한 번에 조회
+  - JOIN FETCH 명령어로 사용
+
+- 문법
+
+  ```SQL
+  페치 조인 ::= [LEFT [OUTER] | INNER ] JOIN FETCH 조인경로
+  ```
+
+
+
+#### 엔티티 페치 조인
+
+- 예시 코드
+
+  ```SQL
+  SELECT m
+  FROM Member m JOIN FETCH m.team
+  ```
+
+  - 연관된 엔티티를 함께 조회
+  - 일반적인 JPQL 조인과 달리 별칭을 사용할 수 없음(하이버네이트의 경우 별칭 허용)
+
+- 객체 그래프를 유지하면서 조회
+
+  - 이 경우 지연 로딩을 설정했더라도 프록시가 아닌 실제 엔티티를 가지고 옴
+  - 때문에 ROOT 엔티티가 준영속 상태가 되더라도 연관된 엔티티 조회 가능
+
+
+
+#### 컬렉션 페치 조인
+
+- 예시 코드
+
+  ```SQL
+  SELECT t
+  FROM Team t JOIN FETCH t.members
+  WHERE t.name = '팀A'
+  ```
+
+  - 일대다 조인의 경우 결과 값이 증가할 수 있음
+
+
+
+#### 페치 조인과 DISTINCT
+
+- JPQL의 DISTINCT는 SQL에 DISTINCT 추가 + 애플리케이션에서 한 번 더 중복을 제거한다.
+- 일대다 컬렉션 페치 조인과 같은 경우 값이 증가할 수 있는데, 이런 경우에도 중복을 제거해줌
+
+
+
+#### 페치 조인과 일반 조인의 차이
+
+- **JPQL은 결과를 반환할 때 연관관계를 고려하지 않고, SELECT 절에 지정된 엔티티만 조회함**
+  - 때문에 지연 로딩 설정했을 경우 프록시나 초기화되지 않은 컬렉션 래퍼를 반환
+  - 즉시 로딩으로 설정했을 경우 즉시 로딩을 위해 쿼리를 한 번 더 실행
+- 페치 조인의 경우 연관된 엔티티도 한 번에 조회
+
+
+
+#### 페치 조인의 특징과 한계
+
+- SQL 호출 회수를 줄여 성능 최적화 가능
+- 글로벌 로딩 전략(`FetchType.LAZY`)보다 우선하여 적용됨
+- **글로벌 로딩 전략은 지연로딩으로, 최적화가 필요할 경우 페치 조인을 사용하는 것이 효과적**
+- 페치 조인 사용시 지연 로딩이 발생하지 않기에 준영속 상태로도 객체 그래프 탐색이 가능
+- 한계
+  - 페치 조인 대상에는 별칭을 줄 수 없음(JPA 표준 기준)
+    - SELECT, WHERE절, 서브 쿼리에 페치 조인 대상을 사용할 수 없음
+  - 단 하이버네이트 등 몇몇 JPA 구현체들은 별칭 지원
+    - 별칭을 사용할 경우 연관된 데이터 수가 달라지기에 데이터 무결성이 깨질 수 있음에 주의
+    - 2차캐시와 함께 사용할 때, 연관된 데이터 수가 달라진 상태에서 2차 캐시에 저장되면 
+      다른 곳에서 조회할 때도 연관된 데이터 수가 달라지는 문제가 발생할 수 있음
+  - 둘 이상의 컬렉션을 페치할 수 없음(구현체에 따라 달라짐)
+    - 컬렉션 * 컬렉션의 Cartesian 곱이 만들어지기에 결과값이 매우 커짐
+    - 하이버네이트의 경우 `MultipleBagFetchException` 발생
+  - 컬렉션을 페치 조인하면 페이징 API 사용 불가
+    - 컬렉션(일대다)가 아닌 단일 값 연관 필드(일대일, 다대일)들은 페치 조인을 사용해도 페이징 API 사용가능
+    - 하이버네이트에서 컬렉션을 페치 조인하고 페이징 API 사용시 경고 발생, 메모리에서 페이징 처리
+      - 이 경우 성능 이슈, 메모리 초과 문제 발생 가능하기에 위험
+- 정리
+  - 페치 조인은 객체 그래프를 유지할 때 사용하면 효과적
+  - 여러 테이블을 조인해서 엔티티 형태가 아닌 다른 결과를 내야 할 경우 
+    여러 테이블에서 필요한 필드만 조회하여 DTO로 반환하는 것이 더 효과적일 수 있음
+
+
+
+### 10.2.8 경로 표현식
+
+- 경로 표현식(Path Expression)
+  - `m.username`, `m.team` 등 `.` 이용하여 객체 그래프 탐색
+
+
+
+#### 용어 정리
+
+- 상태 필드(state field): 단순히 값을 저장하기 위한 필드
+- 연관 필드(association field): 연관관계를 위한 필드, 임베디드 타입 포함
+  - 단일 값 연관 필드: `@ManyToOne`, `@OneToOne`, 대상이 엔티티
+  - 컬렉션 값 연관 필드: `@OneToMany`, `@ManyToMany`, 대상이 컬렉션
+
+
+
+#### 경로 표현식과 특징
+
+- 경로에 따른 특징
+  - 상태 필드 경로: 경로 탐색의 끝, 더 탐색 불가
+  - 단일 값 연관경로: 묵시적으로 내부 조인 발생. 계속 탐색 가능
+  - 컬렉션 값 연관 경로: 묵시적으로 내부 조인 발생, 더 탐색 불가, 
+    단 FROM 절에서 조인을 통해 별칭을 얻을 경우 별칭으로 탐색 가능
+- 묵시적 조인
+  - **묵시적 조인은 모두 내부 조인**
+  - **외부 조인은 모두 명시적으로 JOIN 키워드 사용해야 함**
+- 컬렉션의 경우 `size` 기능을 통해 컬렉션의 크기를 구할 수 있음: 
+  `SELECT t.members.size FROM Team t`(COUNT 함수를 사용하는 SQL로 변환됨)
+
+
+
+#### 경로 표현식을 사용한 묵시적 조인 시 주의사항
+
+- 항상 내부 조인임
+- 컬렉션은 경로 탐색의 끝, 별칭을 얻어서 추가 탐색 가능
+- 경로 탐색은 주로 SELECT, WHERE절에서 사용하지만 묵시적 조인으로 인해 SQL의 FROM 절에 영향을 줌
+- 묵시적 조인은 조인이 발생하는 상황을 파악하기 힘들기에 성능 분석을 방해할 수 있음: 
+  **단순한 경우가 아니면, 성능이 중요하다면 명시적 조인을 사용하자**
+
+
+
+### 10.2.9 서브 쿼리
+
+- 서브 쿼리를 지원하지만 제약사항이 있음
+
+  - WHERE, HAVING 절에서만 사용 가능
+  - SELECT, FROM 절에서는 사용 불가
+    - 하이버네이트의 경우 SELECT 절의 서브 쿼리 허용, FROM 절은 지원 안 함
+    - 일부 JPA 구현체의 경우 FROM 절의 서브쿼리도 지원
+
+- 예시 코드
+
+  ```SQL
+  SELECT m FROM Member m
+  WHERE (SELECT COUNT(o) FROM Order o WHERE m = o.member) > 0
+  ```
+
+
+
+#### 서브 쿼리 함수
+
+- 서브쿼리는 다음 함수들과 같이 사용 가능
+  - `[NOT] EXISTS (subquery)`
+  - `{ALL | ANY | SOME} (subquery)`
+    - ANY와 SOME은 같은 의미
+  - `[NOT] IN (subquery)`
+    - 서브 쿼리의 결과 중 하나라도 같은 것이 있으면 참
+    - IN은 서브쿼리가 아닌 곳에서도 사용
+
+
+
+### 10.2.10 조건식
+
+#### 타입 표현
+
+| 종류        | 설명                                                         | 예제                                                         |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 문자        | 작은 따옴표 사이에 표현<br />작은 따옴표를 표현하고 싶다면<br />작은 따옴표 연속 두 개('') 사용 | `HELLO`<br />`She''s`                                        |
+| 숫자        | L(Long 타입 지정)<br />D(Double 타입 지정)<br />F(Float 타입 지정) | 10L<br />10D<br />10F                                        |
+| 날짜        | DATE {d 'yyyy-mm-dd'}<br />TIME {t 'hh-mm-ss'}<br />DATETIME {ts 'yyyy-mm-dd hh:mm:ss.f'} | {d '2012-03-24'}<br />{t '10-11-11'}<br />{ts '2012-03-24 10-11-11.123'}<br />m.createDate = {d '2012-03-24'} |
+| Boolean     | TRUE, FALSE                                                  |                                                              |
+| Enum        | 패키지명을 포함한 전체 이름을 사용해야 함                    | jpabook.MemberType.Admin                                     |
+| 엔티티 타입 | 엔티티의 타입을 표현, 주로 상속과 관련하여 사용              | TYPE(m) = Member                                             |
+
+
+
+#### 연산자 우선 순위
+
+1. 경로 탐색 연산(.)
+2. 수학 연산: +, -(단항 연산자), *, /, +, -
+3. 비교 연산: =, >, >=, <, <=, <>(다름), [NOT] BETWEEN, [NOT] LIKE, [NOT] IN, 
+   IS [NOT] NULL, IS [NOT] EMPTY, [NOT] MEMBER [OF], [NOT] EXISTS
+4. 논리 연산: NOT, AND, OR
+
+
+
+#### 논리 연산과 비교식
+
+- 논리 연산
+  - AND: 둘 다 만족하면 참
+  - OR: 둘 중 하나만 만족해도 참
+  - NOT: 조건식의 결과 반대
+- 비교식: =, >, >=, <, <=, <>
+
+
+
+#### Between, IN, Like, NULL 비교
+
+- Between 식: `X [NOT] BETWEEN A AND B`
+- IN 식: `X [NOT] IN`
+- Like 식: `[NOT] LIKE 패턴값 [ESCAPE 이스케이프 문자]`
+  - %: 아무 값들이 입력되어도 됨, 값이 없어도 됨
+  - _: 한 글자는 아무 값이 입력되어도 되지만 값이 있어야 함
+- NULL 비교식: `{단일값 경로 | 입력 파라미터} IS [NOT] NULL`
+  - NULL은 `=`로 비교하면 안 되고 꼭 IS NULL을 사용하여 비교해야 함
+
+
+
+#### 컬렉션 식
+
+- **컬렉션에서만 사용 가능한 기능, 컬렉션은 컬렉션 식만 사용 가능**
+
+- 빈 컬렉션 비교 식: `IS [NOT] EMPTY`
+
+- 컬렉션의 멤버 식: `{엔티티나 값} [NOT] MEMBER [OF] {컬렉션 값 연관 경로}`
+
+  - 예제 코드
+
+    ```SQL
+    SELECT t FROM Team t
+    WHERE :memberParam MEMBER OF t.members
+    ```
+
+
+
+#### 스칼라 식
+
+- 스칼라: 숫자, 문자, 날짜, case, 엔티티 타입(엔티티의 타입 정보) 등 가장 기본적인 타입
+
+- 수학 식
+
+  - 단항 연산자: +, -
+  - 사칙연산: +, -, *, /
+
+- 문자 함수
+
+  | 함수                                                         | 설명                                                         | 예제                            |
+  | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------- |
+  | CONCAT(문자1, 문자2, ...)                                    | 문자를 합함                                                  | CONCAT('A', 'B') = AB           |
+  | SUBSTRING(문자, 위치, [길이])                                | 위치부터 시작해 길이만큼 문자를 구함<br />길이 값이 없으면 나머지 전체 길이를 뜻함 | SUBSTRING('ABCDEF', 2, 3) = BCD |
+  | TRIM([[LEADING \| <br />TRAILING] \| BOTH] [트림 문자]<br />FROM] 문자) | LEADING: 왼쪽만<br />TRAILING: 오른쪽만<br />BOTH: 양쪽 다 트림 문자를 제거(기본값)<br />트림 문자의 기본값은 공백(SPACE) | TRIM('ABC ') = 'ABC'            |
+  | LOWER(문자)                                                  | 소문자로 변경                                                | LOWER('ABC') = 'abc'            |
+  | UPPER(문자)                                                  | 대문자로 변경                                                | UPPER('abc') = 'ABC'            |
+  | LENGTH(문자)                                                 | 문자 길이                                                    | LENGTH('ABC') = 3               |
+  | LOCATE(찾을 문자, 원본 문자, <br />[검색 시작 위치])         | 검색 위치부터 문자를 검색<br />1부터 시작, 못 찾으면 0 반환  | LOCATE('DE', 'ABCDEFG') = 4     |
+
+  - HQL의 경우 CONCAT 대신 || 사용 가능
+
+- 수학 함수
+
+  | 함수                        | 설명                                                         | 예제                          |
+  | --------------------------- | ------------------------------------------------------------ | ----------------------------- |
+  | ABS(수학식)                 | 절대값을 구함                                                | ABS(-10) = 10                 |
+  | SQRT(수학식)                | 제곱근을 구함                                                | SQRT(4) = 2.0                 |
+  | MOD(수학식, 나눌 수)        | 나머지를 구함                                                | MOD(4, 3) = 1                 |
+  | SIZE(컬렉션 값 연관 경로식) | 컬렉션의 크기를 구함                                         | SIZE(t.members)               |
+  | INDEX(별칭)                 | LIST 타입 컬렉션의 위치값을 구함<br />단 컬렉션이 @OrderColumn을 사용하는 LIST 타입일때만 사용 가능 | t.members m WHERE INDEX(m) >3 |
+
+- 날짜 함수
+
+  - DB의 현재 시간 조회
+
+    - `CURRENT_DATE`: 현재 날짜
+    - `CURRENT_TIME`: 현재 시간
+    - `CURRENT_TIMESTAMP`: 현재 날짜 시간
+
+  - 예시
+
+    ```sql
+    SELECT CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP FROM Team t
+    ```
+
+  - 예시: 종료 이벤트 조회
+
+    ```sql
+    SELECT e FROM Event e WHERE e.endDate < CURRENT_DATE
+    ```
+
+  - 하이버네이트: 년, 월, 일, 시간, 분, 초 값 구하기 기능
+
+    ```
+    YEAR, MONTH, DAY, HOUR, MINUTE, SECOND
+    ```
+
+    ```SQL
+    SELECT YEAR(CURRENT_TIMESTAMP) FROM Member;
+    ```
+
+  - 각 날짜 함수는 DB 방언에 등록되어 있음
+
+
+
+#### CASE 식
+
+- 특정 조건에 따라 분기
+
+- 종류
+
+  - 기본 CASE
+
+    - 문법
+
+      ```sql
+      CASE
+      	{WHEN <조건식> THEN <스칼라식>} +
+      	ELSE <스칼라식>
+      END
+      ```
+
+    - 예시
+
+      ```SQL
+      SELECT
+      	CASE WHEN m.age <= 10 THEN '학생요금'
+      		 WHEN m.age >= 60 THEN '경로요금'
+      		 ELSE '일반요금'
+      	END
+      FROM Member m
+      ```
+
+  - 심플 CASE
+
+    - 조건식을 사용할 수는 없지만 문법이 단순
+
+    - 문법
+
+      ```sql
+      CASE <조건대상>
+      	(WHEN <스칼라식1> THEN <스칼라식2>) +
+      	ELSE <스칼라식>
+      END
+      ```
+
+    - 예시
+
+      ```SQL
+      SELECT
+      CASE t.name
+      		WHEN '팀A' THEN '인센티브110%'
+      		WHEN '팀B' THEN '인센티브120%'
+      		ELSE '인센티브105%'
+      	END
+      FROM Team t
+      ```
+
+  - COALESCE
+
+    - 스칼라식을 차례로 조회하여 `null`이 아니면 반환
+
+    - 문법
+
+      ```sql
+      COALESCE (<스칼라식> {, <스칼라식>} +)
+      ```
+
+    - 예시: `m.username`이 `null`이면 '이름 없는 회원'을 반환
+
+      ```sql
+      SELECT COALESCE(m.username, '이름 없는 회원') FROM Member m
+      ```
+
+  - NULLIF
+
+    - 두 값이 같으면 `null`을 반환하고 다르면 첫 번째 값을 반환한다.
+
+    - 집합 함수는 `null`을 포함하지 않기에 일반적으로 집합 함수와 함께 사용
+
+    - 문법
+
+      ```sql
+      NULLIF(<스칼라식>, <스칼라식>)
+      ```
+
+    - 예시: `m.username`dl '관리자'일 경우 `null`을 반환, 나머지 경우는 본인의 이름을 반환
+
+      ```SQL
+      SELECT NULLIF(m.usernmae, '관리자') FROM Member m
+      ```
+
+
+
+### 10.2.11 다형성 쿼리
+
+- JPQL로 부모 엔티티를 조회하면 그 자식 엔티티도 함께 조회한다
+
+- TYPE
+
+  - 조회 대상을 특정 자식 타입으로 한정할 때 주로 사용
+
+  - 예시
+
+    ```SQL
+    SELECT i FROM Item i
+    WHERE TYPE(i) IN (Book, Movie)
+    ```
+
+- TREAT(JPA 2.1)
+
+  - 자바의 타입 캐스팅과 유사
+
+  - 부모 타입을 특정 자식 타입으로 다룰 때 사용
+
+  - JPA 표준: FROM, WHERE 절에서 사용 가능
+
+    - 하이버네이트의 경우 SELECT 절에서도 사용 가능
+
+  - 예시
+
+    ```SQL
+    SELECT i FROM Item i WHERE TREAT(i AS Book).author = 'kim'
+    ```
+
+
+
+### 10.2.12 사용자 정의 함수 호출(JPA 2.1)
+
+- 문법
+
+  ```SQL
+  function_invocation::= FUNCTION(function_name {, function_arg}*)
+  ```
+
+- 예시
+
+  ```SQL
+  SELECT FUNCTION('group_concat', i.name) FROM Item i
+  ```
+
+- 하이버네이트 구현체 사용 시
+
+  - 방언 클래스를 상속해서 구현하고, 사용할 DB 함수를 미리 등록해두어야 함
+
+    - 방언 상속 설정 코드
+
+      ```java
+      public class MyH2Dialect extends H2Dialect {
+          public MyH2Dialect() {
+              registerFunction( "group_concat", new StandardSQLFunction
+                              ("group_concat, StandardBasicTypes.STRING"));
+          }
+      }
+      ```
+
+    - 방언 등록 설정(`persistence.xml`)
+
+      ```xml
+      <property name="hibernate.dialect" value="hello.MyH2Dialect"/>
+      ```
+
+  - 축약 사용 가능
+
+    ```SQL
+    SELECT group_concat(i.name) FROM Item i
+    ```
+
+    
+
+### 10.2.13 기타 정리
+
+- `enum`은 `=` 비교 연산만 지원
+
+- 임베디드 타입은 비교를 지원하지 않음
+
+- **EMPTY STRING**
+
+  - JPA표준은 `''`을 길이 0인 Empty String으로 정했음
+  - DB에 따라 `''`을 `NULL`로 사용하기도 하기에 유의해야
+
+- NULL 정의
+
+  - 조건을 만족하는 데이터가 하나도 없으면 `NULL`
+
+  - `NULL`은 알 수 없는 값(unknown value)이다. `NULL`과 모든 수학적 계산 결과는 `NULL`이 된다.
+
+  - `Null == Null`은 알 수 없는 값이다.
+
+  - `Null is Null`은 참이다.
+
+  - **진리표에서의 NULL**(JPA 표준 명세)
+
+    - AND
+
+      | AND  | T    | F    | U    |
+      | ---- | ---- | ---- | ---- |
+      | T    | T    | F    | U    |
+      | F    | F    | F    | F    |
+      | U    | U    | F    | U    |
+
+    - OR
+
+      | OR   | T    | F    | U    |
+      | ---- | ---- | ---- | ---- |
+      | T    | T    | T    | T    |
+      | F    | T    | F    | U    |
+      | U    | T    | U    | U    |
+
+    - NOT: NOT(U)는 U
+
+
+
+### 10.2.14 엔티티 직접 사용
+
+- PK값
+
+  - JPQL에서 엔티티 객체를 직접 사용할 경우, SQL에서는 PK값을 사용
+
+  - 따라서 다음 두 JPQL은 동일한 SQL로 변환된다:
+
+    ```SQL
+    SELECT COUNT(m.id) FROM Member m
+    SELECT COUNT(m) FROM Member m
+    ```
+
+  - 엔티티를 직접 파라미터로 받는 경우도 마찬가지다.
+
+  - FK값의 경우도 마찬가지다.
+
+
+
+### 10.2.15 Named 쿼리: 정적 쿼리
+
+- JPQL 쿼리는 정적 쿼리와 동적 쿼리로 나눌 수 있음
+  - 동적 쿼리
+    - `em.createQuery(...)`처럼 JPQL을 문자로 직접 완성하여 넘기는 방식
+    - 특정 조건에 따라 런타임에 JPQL을 동적으로 구성 가능
+  - 정적 쿼리
+    - 미리 정의한 쿼리에 이름을 부여하여 필요할 때 사용: Named 쿼리
+    - 한 번 정의하면 변경할 수 없음
+    - 장점
+      - 애플리케이션 로딩 시점에 JPQL 문법을 체크, 파싱: 오류를 빠르게 확인 가능
+      - 사용 시점에서 파싱된 결과를 재사용: 성능상의 이점
+      - 정적 SQL을 생성하기에 DB의 조회 성능 최적화에도 이점
+    - `@NamedQuery` 애노테이션을 이용(자바 코드) OR xml 문서에 작성 가능
+
+
+
+#### 애노테이션에 정의
+
+- 명명시 `Member.findByUsername`  형태로 엔티티 이름을 앞에 붙이면
+  - 관리하기 편함
+  - Named 쿼리 자체가 영속성 유닛 단위로 관리되는 것이기에, 충돌 방지 가능
+  - `lockMode`: 쿼리 실행 시 락을 검
+  - `hints`: JPA 구현체에게 주는 힌트
+
+
+
+#### XML에 정의
+
+- 애노테이션 정의 방식보다 편리
+  - 자바로 멀티라인 문자를 다루기 까탈스럽기 때문
+  - `&`, `<`, `>`은 XML 예약문자이기 때문에 `&amp`, `&lt;`, `&gt;` 사용하면 됨
+    - `<![CDATA[]]>` 사용하는 방식으로 표현도 가능
+  - 
+    - `META_INF/orm.xml`이 기본 매핑 경로(이 경우 별도의 설정 불필요)
+    - 위와 다른 경로에 작성 시 `persistence.xml`에 `<mapping-file>` 설정해주자.
+
