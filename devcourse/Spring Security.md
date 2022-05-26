@@ -1,8 +1,8 @@
 # Spring Security
 
-## Spring Security Quick-start
+# Spring Security Quick-start
 
-### 웹 어플리케이션의 주요 보안 위협 요소
+## 웹 어플리케이션의 주요 보안 위협 요소
 
 - 인증(Authentication) 절차 미비
   - 인증(Authentication)은 인가(Authorization)와 함께 보안 관련 핵심 개념 중 하나
@@ -37,9 +37,9 @@
 
 
 
-### SpringBoot MVC 프로젝트에 Spring Security 적용해보기
+## SpringBoot MVC 프로젝트에 Spring Security 적용해보기
 
-#### 환경 설정
+### 환경 설정
 
 - `maven` vs `gradle`
 
@@ -118,7 +118,7 @@
 
 
 
-### 기본 로그인 계정 설정 추가
+## 기본 로그인 계정 설정 추가
 
 - 세팅된 애플리케이션을 실행해보면
 
@@ -181,7 +181,7 @@
 
 
 
-### Thymeleaf 확장
+## Thymeleaf 확장
 
 - 설정
 
@@ -236,90 +236,562 @@
 
 
 
+# Spring Security Architecture
+
+## 1일차 미션
+
+### 로그인 계정 추가해보기
+
+#### 계정 추가
+
+- `applications` 설정 파일을 수정하는 방식으로는 불가
+
+  - 설정 파일의 정보로 유저 하나를 만드는 식으로 구현이 되어 있기 때문임
+
+- `WebSecurityConfigure`
+
+  ```java
+      @Override
+      protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+          auth.inMemoryAuthentication()
+                  .withUser("user").password("user123").roles("USER")
+                  .and()
+                  .withUser("admin").password("admin123").roles("ADMIN");
+      }
+  ```
+
+  - 위와 같이 `User`를 등록해주고 로그인해보면, 에러페이지가 나온다.
+
+    - 403 에러가 아니라 500 에러임에 유의하자!
+
+    - 로그인을 처리하는 클래스: `DaoAuthenticationProvider`에서 예외가 발생했음
+
+      - `DaoAuthenticationProvider`
+
+        ```java
+        public class DaoAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
+        ...
+        ```
+
+      - `AbstractUserDetailsAuthenticationProvider`
+
+        ```java
+        public abstract class AbstractUserDetailsAuthenticationProvider implements AuthenticationProvider, InitializingBean, MessageSourceAware {
+        ...
+                public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+                Assert.isInstanceOf(UsernamePasswordAuthenticationToken.class, authentication, () -> {
+                    return this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.onlySupports", "Only UsernamePasswordAuthenticationToken is supported");
+                });
+                String username = this.determineUsername(authentication);
+                boolean cacheWasUsed = true;
+                UserDetails user = this.userCache.getUserFromCache(username);
+                if (user == null) {
+                    cacheWasUsed = false;
+        
+                    try {
+                        user = this.retrieveUser(username, (UsernamePasswordAuthenticationToken)authentication);
+        ...
+        ```
+
+        - `user = this.retrieveUser(username, (UsernamePasswordAuthenticationToken)authentication);`
+
+          - `User`를 조회해오는 로직(`DaoAuthenticationProvider`의 `retrieveUser`)
+
+            ```java
+                protected final UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+                    this.prepareTimingAttackProtection();
+            
+                    try {
+                        UserDetails loadedUser = this.getUserDetailsService().loadUserByUsername(username);
+            ```
+
+            - `UserDetails loadedUser = this.getUserDetailsService().loadUserByUsername(username);`
+
+              - `InMemoryUserDetailManager`에서 처리
+
+              - 이 때 `WebSecurityConfigure`에서 만든 설정에 따라 생성된 `InMemoryUserDetailManger`가 사용되는 것
+
+                ```java
+                    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+                        UserDetails user = (UserDetails)this.users.get(username.toLowerCase());
+                        if (user == null) {
+                            throw new UsernameNotFoundException(username);
+                        } else {
+                            return new User(user.getUsername(), user.getPassword(), user.isEnabled(), user.isAccountNonExpired(), user.isCredentialsNonExpired(), user.isAccountNonLocked(), user.getAuthorities());
+                        }
+                    }
+                ```
+
+                - 위에서 `User`를 조회해온다.
+
+        - 다시 `AbstractUserDetailsAuthenticationProvider`에서 `this.preAuthenticationChecks.check(user);` 수행
+
+          - 내부 클래스인 `DefaultPreAuthenticationChecks`에서 다음 수행
+
+            ```java
+                    public void check(UserDetails user) {
+                        if (!user.isAccountNonLocked()) {
+                            AbstractUserDetailsAuthenticationProvider.this.logger.debug("Failed to authenticate since user account is locked");
+                            throw new LockedException(AbstractUserDetailsAuthenticationProvider.this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.locked", "User account is locked"));
+                        } else if (!user.isEnabled()) {
+                            AbstractUserDetailsAuthenticationProvider.this.logger.debug("Failed to authenticate since user account is disabled");
+                            throw new DisabledException(AbstractUserDetailsAuthenticationProvider.this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.disabled", "User is disabled"));
+                        } else if (!user.isAccountNonExpired()) {
+                            AbstractUserDetailsAuthenticationProvider.this.logger.debug("Failed to authenticate since user account has expired");
+                            throw new AccountExpiredException(AbstractUserDetailsAuthenticationProvider.this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.expired", "User account has expired"));
+                        }
+                    }
+            ```
+
+            - 계정이 Locked, Disabled, Expired 되어있는지 체크
+
+        - 그 다음으로 `this.additionalAuthenticationChecks(user, (UsernamePasswordAuthenticationToken)authentication);` 수행
+
+          ```java
+              protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+                  if (authentication.getCredentials() == null) {
+                      this.logger.debug("Failed to authenticate since no credentials provided");
+                      throw new BadCredentialsException(this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials", "Bad credentials"));
+                  } else {
+                      String presentedPassword = authentication.getCredentials().toString();
+                      if (!this.passwordEncoder.matches(presentedPassword, userDetails.getPassword())) {
+                          this.logger.debug("Failed to authenticate since password does not match stored value");
+                          throw new BadCredentialsException(this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials", "Bad credentials"));
+                      }
+                  }
+              }
+          ```
+
+          - `this.passwordEncoder.matches(presentedPassword, userDetails.getPassword())`: 비밀번호 체크
+
+            - 가져온 회원 정보인 `userdetails`, 입력한 로그인 정보 `authentication`이 일치함에도 이 부분에서 문제 발생함
+
+          - `passwordEncoder`를 찾아보면: `DelegatingPasswordEncoder`
+
+            ```java
+                public boolean matches(CharSequence rawPassword, String prefixEncodedPassword) {
+                    if (rawPassword == null && prefixEncodedPassword == null) {
+                        return true;
+                    } else {
+                        String id = this.extractId(prefixEncodedPassword);
+                        PasswordEncoder delegate = (PasswordEncoder)this.idToPasswordEncoder.get(id);
+                        if (delegate == null) {
+                            return this.defaultPasswordEncoderForMatches.matches(rawPassword, prefixEncodedPassword);
+            ```
+
+            - `null`값 체크에 의해 `return this.defaultPasswordEncoderForMatches.matches(rawPassword, prefixEncodedPassword);`
+
+              - `DelegatePasswordEncoder.UnmappedIdPasswordEncoder`의 `maches` 호출
+
+                ```java
+                        public boolean matches(CharSequence rawPassword, String prefixEncodedPassword) {
+                            String id = DelegatingPasswordEncoder.this.extractId(prefixEncodedPassword);
+                            throw new IllegalArgumentException("There is no PasswordEncoder mapped for the id \"" + id + "\"");
+                        }
+                ```
+
+                - 여기서 예외 발생 -> 500에러
+                - `UnmappedIdPasswordEncoder`: 예외 발생용임, 기능적으로는 무의미
+                - **`PasswordEncoder`** 관련 설정이 필요
+
+
+#### PasswordEncoder
+
+- 주의 사항
+
+  - Spring Security 5에서는 `DelegatingPasswordEncoder`가 기본 `PasswordEncoder`로 사용됨
+
+  - `DelegatingPasswordEncoder`는 패스워드 해시 알고리즘별로 `PasswordEncoder`를 제공
+
+    - **해시 알고리즘에 따른 `PasswordEncoder`를 선택하기 위해 패스워드 앞에 `prefix`를 추가해야 함**
+
+      - 디폴트 알고리즘은 `bcrypt`
+
+      - 예시
+
+        ```
+        {bcrypt}$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG
+        {noop}password
+        {pbkdf2}5d923b44a6d129f3ddf3e3c8d29412723dcbde72445e8ef6bf3b508fbf17fa4ed4d6b99ca763d8dc
+        {sha256}97cde38028ad898ebc02e690819fa220e88c62e0699403e94fff291cfffaf8410849f27605abcbc0
+        ```
+
+      - `PasswordEncoderFactories`
+
+        ```java
+        public static PasswordEncoder createDelegatingPasswordEncoder() {
+        	String encodingId = "bcrypt";
+        	Map<String, PasswordEncoder> encoders = new HashMap<>();
+        	encoders.put(encodingId, new BCryptPasswordEncoder());
+        	encoders.put("ldap", new org.springframework.security.crypto.password.LdapShaPasswordEncoder());
+        	encoders.put("MD4", new org.springframework.security.crypto.password.Md4PasswordEncoder());
+        	encoders.put("MD5", new org.springframework.security.crypto.password.MessageDigestPasswordEncoder("MD5"));
+        	encoders.put("noop", org.springframework.security.crypto.password.NoOpPasswordEncoder.getInstance());
+        	encoders.put("pbkdf2", new Pbkdf2PasswordEncoder());
+        	encoders.put("scrypt", new SCryptPasswordEncoder());
+        	encoders.put("SHA-1", new org.springframework.security.crypto.password.MessageDigestPasswordEncoder("SHA-1"));
+        	encoders.put("SHA-256",
+        			new org.springframework.security.crypto.password.MessageDigestPasswordEncoder("SHA-256"));
+        	encoders.put("sha256", new org.springframework.security.crypto.password.StandardPasswordEncoder());
+        	encoders.put("argon2", new Argon2PasswordEncoder());
+        	return new DelegatingPasswordEncoder(encodingId, encoders);
+        }
+        ```
+
+    - `UserDetailsPasswordService`의 구현체(일반적으로는 `InMemoryUserDetailsManager`) 사용시
+
+      - 최초 로그인 1회 성공시 `{noop}` 타입에서 `bcrypt` 타입으로 `PasswordEncoder`가 변경됨
+
+- `password` 값에 `prefix` 추가하면: `.withUser("user").password("{noop}user123").roles("USER")` 정상적으로 로그인 되는 것을 볼 수 있음
+
+
+
+### 로그아웃, Cookie 기반 자동 로그인(Remember-Me) 기능 설정하기
+
+#### 로그아웃
+
+- `WebSecurityConfigure`에 설정 추가함
+
+  ```java
+  @Configuration
+  @EnableWebSecurity
+  public class WebSecurityConfigure extends WebSecurityConfigurerAdapter {
+  	...
+      protected void configure(HttpSecurity http) throws Exception {
+          http
+              ...
+              .logout()
+                  .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                  .logoutSuccessUrl("/")
+                  .invalidateHttpSession(true)
+                  .clearAuthentication(true)
+      }
+  ```
+
+  - 로그아웃 처리 path `"/logout"`(`LogoutFilter` 생성자에서 설정해주는 기본값임)
+  - 로그아웃 성공 후 리다이렉션 path `"/"`
+  - `.invalidateHttpSession(true)`, `.clearAuthentication(true)` 설정은 사실 생략해도 무방함
+    - `SecurityContextLogoutHandler`에 기본값 `true`로 설정되어 있기 때문
+
+- `LogoutFilter`: 로그아웃 기능을 담당
+
+  ```java
+  public class LogoutFilter extends GenericFilterBean {
+  ...
+      public LogoutFilter(LogoutSuccessHandler logoutSuccessHandler, LogoutHandler... handlers) {
+  ...
+      public void setLogoutRequestMatcher(RequestMatcher logoutRequestMatcher) {
+  ```
+
+  - `logoutSuccessHandler`: 로그아웃 성공 후 리다이렉션 path를 가지고 있음
+
+  - `SecurityContextLogoutHandler`
+
+    ```java
+    public class SecurityContextLogoutHandler implements LogoutHandler {
+    ...
+    	@Override
+    	public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+    		Assert.notNull(request, "HttpServletRequest required");
+    		if (this.invalidateHttpSession) {
+    			HttpSession session = request.getSession(false);
+    			if (session != null) {
+    				session.invalidate();
+    				if (this.logger.isDebugEnabled()) {
+    					this.logger.debug(LogMessage.format("Invalidated session %s", session.getId()));
+    				}
+    			}
+    		}
+    		SecurityContext context = SecurityContextHolder.getContext();
+    		SecurityContextHolder.clearContext();
+    		if (this.clearAuthentication) {
+    			context.setAuthentication(null);
+    		}
+    	}
+    ```
+
+    - 설정에 따라 `session.invalidate();`, `context.setAuthentication(null);` 수행
+
+  - `setLogoutRequestMatcher`: 설정의 `.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))`이 반영되는 부분
+
+    - 이것도 기본값임
+
+
+
+#### Cookie 기반의 자동 로그인 설정하기: Remember Me 기능
+
+- `WebSecurityConfigure`에 설정 추가함
+
+  ```java
+  @Configuration
+  @EnableWebSecurity
+  public class WebSecurityConfigure extends WebSecurityConfigurerAdapter {
+  	...
+      protected void configure(HttpSecurity http) throws Exception {
+          http
+              ...
+              .rememberMe()
+                  .rememberMeParameter("remember-me")
+                  .tokenValiditySeconds(300);
+      }
+  ```
+
+  - 로그인 화면에 가면 체크박스 추가됨: `<input type="checkbox" name="remember-me">`
+    - `name` 값은 `.rememberMeParameter()`의 설정과 일치
+
+- `Cookie` 기반의 `RememberMe` 관련 클래스들
+
+  - `AbstractAuthenticationProcessingFilter`
+
+    ```java
+    public abstract class AbstractAuthenticationProcessingFilter extends GenericFilterBean
+    		implements ApplicationEventPublisherAware, MessageSourceAware {
+    ...
+        private RememberMeServices rememberMeServices = new NullRememberMeServices();
+    
+    ...
+    	protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+    			Authentication authResult) throws IOException, ServletException {
+    		...
+    		this.rememberMeServices.loginSuccess(request, response, authResult);
+    		...
+    	}
+    ```
+
+  - `AbstractRememberMeServices`
+
+    ```java
+    public abstract class AbstractRememberMeServices
+    		implements RememberMeServices, InitializingBean, LogoutHandler, MessageSourceAware {
+        ...
+    	@Override
+    	public final void loginSuccess(HttpServletRequest request, HttpServletResponse response,
+    			Authentication successfulAuthentication) {
+    		if (!rememberMeRequested(request, this.parameter)) {
+    			this.logger.debug("Remember-me login not requested.");
+    			return;
+    		}
+    		onLoginSuccess(request, response, successfulAuthentication);
+    	}
+    ```
+
+  - `TokenBasedRememberMeServices`: 실제 토큰 생성하는 부분
+
+    ```java
+    public class TokenBasedRememberMeServices extends AbstractRememberMeServices {
+        ...
+    	@Override
+    	public void onLoginSuccess(HttpServletRequest request, HttpServletResponse response,
+    			Authentication successfulAuthentication) {
+    		...
+    		int tokenLifetime = calculateLoginLifetime(request, successfulAuthentication);
+    		long expiryTime = System.currentTimeMillis();
+    		// SEC-949
+    		expiryTime += 1000L * ((tokenLifetime < 0) ? TWO_WEEKS_S : tokenLifetime);
+    		String signatureValue = makeTokenSignature(expiryTime, username, password);
+    		setCookie(new String[] { username, Long.toString(expiryTime), signatureValue }, tokenLifetime, request,
+    				response);
+    		...
+    	}
+    ```
+
+  - `RememberMeAuthenticationFilter`: 자동 로그인 담당
+
+    ```java
+    public class RememberMeAuthenticationFilter extends GenericFilterBean implements ApplicationEventPublisherAware {
+        ...
+    	private void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    			throws IOException, ServletException {
+    		...
+    		Authentication rememberMeAuth = this.rememberMeServices.autoLogin(request, response);
+            ...
+    ```
+
+    - 브라우저가 종료된 이후 다시 접근할 때, `rememberMe` 설정 여부를 확인, 자동 로그인
+
+
+
 ## Spring Security Architecture
 
-### 1일차 미션
+- 스프링 시큐리티의 거시적 구조
 
-- **로그인 계정을 추가해보기**
+  - 웹 요청을 가로챈 후 사용자를 인증하고, 인증된 사용자가 적절한 권한을 가지고 있는지 확인함
 
-  - `applications` 설정 파일을 수정하는 방식으로는 불가
+  - `Filter`: 웹 요청을 가로챔
+  - `AuthenticationManager`: 사용자 인증 관련 처리
+  - `AccessDecisionManager`: 사용자가 해당 리소스에 접근할 수 있는 권한 있는지 확인
 
-    - 설정 파일의 정보로 유저 하나를 만드는 식으로 구현이 되어 있기 때문임
+![img](https://iyboklee.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fec0fd34a-8d5a-49eb-9a8a-4277d83232aa%2F2_1.png?table=block&id=50c470e5-d94d-4207-8e0f-8cf38435e3ed&spaceId=e1875985-78ea-4757-91b0-baa29d833ec6&width=2000&userId=&cache=v2)
 
-  - `WebSecurityConfigure`
+
+
+### FilterChainProxy (Spring Security 필터 체인)
+
+- 스프링 시큐리티의 실제적인 구현은 서블릿 필터를 통해 이뤄짐
+
+  - 서블릿 필터는 요청의 전처리, 후처리, 요청 자체를 리다이렉트하기도 함
+
+- `FilterChainProxy` 세부 내용의 설정
+
+  - `WebSecurityConfigurAdapter`의 구현체에서 설정
+
+  - 예제에서는 `WebSecurityConfigure` 클래스
 
     ```java
         @Override
-        protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-            auth.inMemoryAuthentication()
-                    .withUser("user").password("user123").roles("USER")
-                    .and()
-                    .withUser("admin").password("admin123").roles("ADMIN");
-        }
+        protected void configure(HttpSecurity http) throws Exception {
+            ...
     ```
 
-    - 위와 같이 `User`를 등록해주고 로그인해보면, 에러페이지가 나온다.
+  - 일반적으로 `@EnableWebSecurity` 함께 사용함
 
-      - 403 에러가 아니라 500 에러임에 유의하자!
+- 웹 요청은 필터 체인을 차례로 통과
 
-      - 로그인을 처리하는 클래스: `DaoAuthenticationProvider`에서 예외가 발생했음
+  - 요청은 모든 필터를 통과하지만, 모든 필터가 동작하지는 않음
+  - 동작 필요가 없을 경우 다음 필터로 요청을 바로 넘기기도 함
+  - 일반적으로 `springSecurityFilterChain` 이름으로 빈 등록됨
 
-        - `DaoAuthenticationProvider`
+- 웹 요청이 어떻게 `FilterChainProxy`로 전달되는가?
 
-          ```java
-          public class DaoAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
-          ...
-          ```
+  - `DelegatingFilterProxy`
+    - `SecurityFilterAutoConfiguration`에서 자동으로 등록됨
+    - 요청을 Target Filter Bean에 위임하는 역할
+    - 기본적으로 `SpringSecurityFilterChain`에게 전달
 
-        - `AbstractUserDetailsAuthenticationProvider`
+- 구조
 
-          ```java
-          public abstract class AbstractUserDetailsAuthenticationProvider implements AuthenticationProvider, InitializingBean, MessageSourceAware {
-          ...
-                  public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-                  Assert.isInstanceOf(UsernamePasswordAuthenticationToken.class, authentication, () -> {
-                      return this.messages.getMessage("AbstractUserDetailsAuthenticationProvider.onlySupports", "Only UsernamePasswordAuthenticationToken is supported");
-                  });
-                  String username = this.determineUsername(authentication);
-                  boolean cacheWasUsed = true;
-                  UserDetails user = this.userCache.getUserFromCache(username);
-                  if (user == null) {
-                      cacheWasUsed = false;
-          
-                      try {
-                          user = this.retrieveUser(username, (UsernamePasswordAuthenticationToken)authentication);
-          ...
-          ```
+  ```mermaid
+  flowchart TD
+  A[Client] <--> B
+  	subgraph FilterChain
+  	direction TB
+  	B[Filter] <--> C[DelegatingFilterProxy]
+  	C <--> D[Filter2]
+  	D <--> E[Servlet]
+  	end
+  	C --> F
+  	
+  	subgraph SecurityFilterChain
+  	direction TB
+  	F[Security Filter0] <--> G[Security Filter1] <--> H[Security FilterN]
+  	end
+  ```
 
-          - `user = this.retrieveUser(username, (UsernamePasswordAuthenticationToken)authentication);`
 
-            - `User`를 조회해오는 로직(`DaoAuthenticationProvider`의 `retrieveUser`)
+- 주요 Security Filter: **필터 체인 내에서의 상대적인 순서에 따라 정렬**
 
-              ```java
-                  protected final UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-                      this.prepareTimingAttackProtection();
-              
-                      try {
-                          UserDetails loadedUser = this.getUserDetailsService().loadUserByUsername(username);
-              ```
+  | 이름                                    | 설명                                                         |
+  | --------------------------------------- | ------------------------------------------------------------ |
+  | ChannelProcessingFilter                 | 웹 요청이 어떤 프로토콜로 (http 또는 https) 전달되어야 하는지 처리 |
+  | SecurityContextPersistenceFilter        | SecurityContextRepository를 통해 SecurityContext를 Load/Save 처리 |
+  | LogoutFilter                            | 로그아웃 URL로 요청을 감시하여 매칭되는 요청이 있으면 해당 사용자를 로그아웃 시킴 |
+  | UsernamePasswordAuthenticationFilter    | ID/비밀번호 기반 Form 인증 요청 URL(기본값: /login) 을 감시하여 사용자를 인증함 |
+  | DefaultLoginPageGeneratingFilter        | 로그인을 수행하는데 필요한 HTML을 생성함                     |
+  | RequestCacheAwareFilter                 | 로그인 성공 이후 인증 요청에 의해 가로채어진 사용자의 원래 요청으로 이동하기 위해 사용됨 |
+  | SecurityContextHolderAwareRequestFilter | 서블릿 3 API 지원을 위해 HttpServletRequest를 HttpServletRequestWrapper 하위 클래스로 감쌈 |
+  | RememberMeAuthenticationFilter          | 요청의 일부로 remeber-me 쿠키 제공 여부를 확인하고, 쿠키가 있으면 사용자 인증을 시도함 |
+  | AnonymousAuthenticationFilter           | 해당  인증 필터에 도달할때까지 사용자가 아직 인증되지 않았다면, 익명 사용자로 처리하도록 함 |
+  | ExceptionTranslationFilter              | 요청을 처리하는 도중 발생할 수 있는 예외에 대한 라우팅과 위임을 처리함 |
+  | FilterSecurityInterceptor               | 접근 권한 확인을 위해 요청을 AccessDecisionManager로 위임    |
 
-              - `UserDetails loadedUser = this.getUserDetailsService().loadUserByUsername(username);`
+  - [공식 문서](https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters)
 
-                - `InMemoryUserDetailManager`에서 처리
 
-                - 이 때 `WebSecurityConfigure`에서 만든 설정에 따라 생성된 `InMemoryUserDetailManger`가 사용되는 것
 
-                  ```java
-                      public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-                          UserDetails user = (UserDetails)this.users.get(username.toLowerCase());
-                          if (user == null) {
-                              throw new UsernameNotFoundException(username);
-                          } else {
-                              return new User(user.getUsername(), user.getPassword(), user.isEnabled(), user.isAccountNonExpired(), user.isCredentialsNonExpired(), user.isAccountNonLocked(), user.getAuthorities());
-                          }
-                      }
-                  ```
+## RequestCacheAwareFilter
 
-                  - 위에서 `User`를 조회해온다.
+- 인증 요청에 의해 가로채어진 원래 요청으로 이동하는 기능
+  - 캐시된 요청이 있다면 캐시된 요청을 처리, 없다면 현재 요청을 처리
+  - 예시: 익명 사용자가 권한을 필요로 하는 리소스에 접근 시도할 경우
+    - `AccessDecisionManager`에서 예외 발생
+    - `ExceptionTranslationFilter`가 접근 거부 예외를 처리
+    - 익명 사용자일 경우 해당 리소스로의 접근을 캐시 처리하고, 로그인 페이지로 이동
+    - 로그인이 성공하면 `RequestCacheAwareFilter`가 원래 요청 리소스로 리다이렉트
+- `FilterSecurityInterceptor`
+  - 인가 처리를 하는 `AccessDecisionManager`와 유관한 필터
+    - 접근 거부 예외가 발생하는 지점: `AccessDeniedException`
+    - `ExceptionTranslationFilter`가 이 예외를 catch (`handleSecurityException()`)
+      - 여기서 catch 하는 `SecurityException`은 구체적으로 `AuthenticationException`과 `AccessDeniedException`으로 나뉨
 
-          - 다시 `AbstractUserDetailsAuthenticationProvider`에서
+
+
+## ChannelProcessingFilter
+
+- 요청이 어떤 프로토콜로 전달되어야 하는지 처리
+- 전송 레이어 보안을 위해 SSL 인증서 생성, 애플리케이션에 적용(HTTPS)
+- HTTPS
+  - HTTP의 암호화 버전
+  - 데이터 암호화를 위해 SSL(Secure Sockets Layer) 사용
+  - SSL
+    - Netscape가 개발
+    - SSL 3.0부터 명칭이 TLS로 변경됨(다만 SSL이라 많이 부름)
+  - SSL 암호화를 위해 SSL 인증서 필요
+    - 서버는 SSL 인증서를 클라이언트에 전달
+    - 클라이언트는 전달받은 SSL 인증서를 검증, 신뢰할 수 있는 서버인지 확인
+    - 신뢰할 수 있는 경우 SSL 인증서 공개키를 이용해 실제 암호화에 사용될 암호화키를 암호화하여 서버에 전달
+      - 실제 암복호화는 대칭키 방식 사용
+      - 대칭키 공유를 위해 RSA 암호화 사용
+- SSL 인증서 생성
+  - 본래는 인증 기관에서 발급
+  - keytool 이용하여 임의로 SSL 인증서 생성 가능
+    - 로컬 테스트 용도로 사용 가능
+    - Java 설치 경로 bin 디렉토리 내에 있음
+
+
+
+### Keytool 이용한 SSL 인증서 생성
+
+- keystore 만들기
+  - `keytool -genkey -alias [keystore 별칭] -keyalg RSA -storetype PKCS12 -keystore [keystore 파일]`
+- keystore에서 인증서 추출하기
+  - ``keytool -export -alias [keystore 별칭] -keystore [keystore 파일] -rfc -file [인증서 파일]`
+- trust-store 만들기
+  - `keytool -import -alias [trust keystore 별칭] -file [인증서 파일] -keystore [trust keystore 파일]`
+
+
+
+### SSL 인증서 적용
+
+- keytool 이용해서 생성한 `keystore` 파일과 `truststore` 파일을 프로젝트 resource 디렉토리로 복사한다.
+
+- `application.yml` 설정 변경
+
+  ```yaml
+  server:
+    port: 443
+    ssl:
+      enabled: true
+      key-alias: prgrms_keystore
+      key-store: classpath:prgrms_keystore.p12
+      key-store-password: prgrms123
+      key-password: prgrms123
+      trust-store: classpath:prgrms_truststore.p12
+      trust-store-password: prgrms123
+  ```
+
+  - HTTPS니까 포트번호를 443으로 변경
+
+- `WebSecurityConfigure`
+
+  ```java
+      @Override
+      protected void configure(HttpSecurity http) throws Exception {
+          http
+              ...
+                  .and()
+              .requiresChannel()
+                  .anyRequest().requiresSecure()
+          ;
+      }
+  ```
+
+  - HTTPS 채널을 통해 처리해야 하는 요청을 정의 가능
+  - `FilterInvocationSecurityMetadataSource` 클래스에 HTTPS 프로토콜로 처리해야 URL 정보가 담김
+  - 실제적인 처리를 `ChannelDecisionManager` 클래스로 위임함
+
+- 실제 서비스에서는 WAS에 직접 인증서를 넣지 않음
+
+  - 일반적으로 앞단에 L4 / L7 로드밸런서를 두고, 로드밸런서에서 SSL 인증서를 처리함
+    = SSL 오버로딩
+  - WAS 서버가 비즈니스 로직 처리에만 리소스를 집중할 수 있게 됨
+
