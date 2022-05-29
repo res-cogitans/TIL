@@ -1,7 +1,8 @@
-package rescogitans.jpabook;
+package rescogitans.jpabook.active;
 
 import lombok.Getter;
 import lombok.Setter;
+import rescogitans.jpabook.active.Member;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;

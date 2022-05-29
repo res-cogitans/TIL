@@ -1,12 +1,9 @@
-package rescogitans.jpabook;
+package rescogitans.jpabook.active;
 
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 
 @Entity
 @Table(name = "MEMBER", uniqueConstraints = {
@@ -29,12 +26,21 @@ public class Member {
     @JoinColumn(name="TEAM_ID")
     private Team team;
 
-    @OneToOne
-    @JoinColumn(name = "LOCKER_ID")
-    private Locker locker;
+    @Override
+    public String toString() {
+        return "Member{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", team=" + team +
+                '}';
+    }
 
-    @OneToMany(mappedBy = "member")
-    private List<MemberProduct> memberProducts;
+    //    @OneToOne
+//    @JoinColumn(name = "LOCKER_ID")
+//    private Locker locker;
+
+//    @OneToMany(mappedBy = "member")
+//    private List<MemberProduct> memberProducts;
 
 /*  //@ManyToMany 이용하여 바로 연결 테이블을 생성하는 방식
     @ManyToMany

@@ -1,4 +1,6 @@
-package rescogitans.jpabook;
+package rescogitans.jpabook.chap01to06;
+
+import rescogitans.jpabook.active.Member;
 
 import javax.persistence.*;
 
