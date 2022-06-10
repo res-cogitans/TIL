@@ -4067,7 +4067,7 @@ public enum RoleType {
       .list(member);
   ```
 
-- QueryDSL도 애노테이션 프로세서를 이용하여 쿼리 전용 클래스를 만들어야 함: `QMember`는 `Member` 엔티티를 기반으로 생성한 QueryDSL 쿼리 전용 클래수
+- QueryDSL도 애노테이션 프로세서를 이용하여 쿼리 전용 클래스를 만들어야 함: `QMember`는 `Member` 엔티티를 기반으로 생성한 QueryDSL 쿼리 전용 클래스
 
 
 
@@ -5094,4 +5094,543 @@ public enum RoleType {
   - 
     - `META_INF/orm.xml`이 기본 매핑 경로(이 경우 별도의 설정 불필요)
     - 위와 다른 경로에 작성 시 `persistence.xml`에 `<mapping-file>` 설정해주자.
+
+
+
+## 10.3 Criteria
+
+- JPQL을 자바 코드로 작성하게 도와주는 빌더 클래스 API
+- 문자가 아닌 코드로 (특히 동적) JPQL을 작성 -> 컴파일 시점에 문법 오류를 확인
+- 실제 사용하기에는 복잡하고 장황하다는 점이 장점을 덮을 정도로 큼
+
+
+
+
+
+### Specifications
+
+- DDD에서 유래
+- predicate 연산
+
+
+
+#### Predicate
+
+- 0차논리: 명제논리
+
+  - P, Q
+
+  - 0항:zero-place predicates
+
+  - 0-arity(함수의 argument or operand)
+    $$
+    P \rightarrow Q
+    $$
+
+- 1차논리: 양화논리
+
+  - P(a) P가 predicate, R(a,b)의 R(individual constant)
+
+  $$
+  \exists x(Px\wedge Qx)
+  $$
+
+- 2차논리
+
+  - predicate가 predicate에 적용될 수 있음
+
+- 술어(튜플)
+
+  - **원자식** 또는 **원자** 는 단순히 용어 의 튜플에 적용된 술어입니다. *즉, 원자식은 P* a 술어와 *t* *n* *항에 대해 P* ( *t* 1 ,…, *t* *n* ) 형식의 공식입니다 .
+
+- 예시로 살펴보기
+
+  - 미성년자, 노인, 주말 기준으로 할인 적용
+    $$
+    \forall x \forall y (((Ux \vee Sx) \wedge \neg Wy) \rightarrow Dx)
+    $$
+
+  - Predicate인 $Ux, Sx, Wy$의 결합으로 비즈니스 로직을 표현
+
+- 전통적인 방식으로 접근 시 도메인 안에 해당 조건들을 명시
+
+  - `User` 안에 `Ux`, `Sx`에 해당하는 `isUnderage()`나 `isSenior()`등의 메서드를 만드는 식
+  - 하지만 비즈니스 로직은 복잡하고, 필연적으로 여러 도메인의 로직들을 함께 사용하게됨
+
+- Specification은 이런 문제를 해결하기 위함
+
+  - 코드
+
+    - `Specification` 인터페이스
+
+      ```java
+      public interface Specification<T> {
+          boolean isSatisfiedBy(T t);
+      }
+      ```
+
+    - `isUnderageSpecification`
+
+      ```java
+      public class IsUnderageSpecification extends CompositeSpecification<Discount> {
+          private static final Integer MAJORITY_AGE = 18;
+      
+          @Override
+          public boolean isSatisfiedBy(Discount person) {
+              return discount.getPerson().getAge() < MAJORITY_AGE;
+          }
+      }
+      ```
+
+    - `CompositeSpecification`
+
+      ```java
+      public abstract class CompositeSpecification<T> implements Specification<T> {
+          public CompositeSpecification<T> or(Specification<T> specification) {
+              return new OrSpecification<>(this, specification);
+          }
+      
+          public CompositeSpecification<T> and(Specification<T> specification) {
+              return new AndSpecification<>(this, specification);
+          }
+      
+          public CompositeSpecification<T> not() {
+              return new NotSpecification<T>(this);
+          }
+      }
+      ```
+
+    - `AndSpecification`
+
+      ```java
+      public class AndSpecification<T> extends CompositeSpecification<T> {
+      
+          private final Specification<T> left;
+          private final Specification<T> right;
+      
+          public AndSpecification(Specification<T> pLeft, Specification<T> pRight) {
+              this.left = pLeft;
+              this.right = pRight;
+          }
+      
+          public boolean isSatisfiedBy(T t) {
+              return left.isSatisfiedBy(t) && right.isSatisfiedBy(t);
+          }
+      }
+      ```
+
+    - `DiscountSpecification`
+
+      ```java
+      public class DiscountSpecification extends CompositeSpecification<Person> {
+      
+          CompositeSpecification<Person> isUnderage
+       = new IsUnderageSpecification();
+          CompositeSpecification<Person> isSenior
+       = new IsSeniorSpecification();
+          CompositeSpecification<Person> isWeekend 
+      = new IsWeekendSpecification();
+      
+          @Override
+          public boolean isSatisfiedBy(Person person) {
+              return isUnderage
+                      .and(isWeekend)
+                      .or(isSenior)
+                      .isSatisfiedBy();
+          }
+      }
+      ```
+
+      - 위의 Specification 들을 결합하여 조건을 간단하게 만들 수 있음
+
+  - 복잡한 조건문을 이해하기 쉬운 각각의 비즈니스 로직으로 쪼갠다!
+
+  - 테스트에 용이
+
+  - 재사용하기 좋음
+
+  - 도메인 로직이 여러 클래스로 분리된다는 단점
+
+
+
+
+### Criteria vs QueryDSL
+
+- Fluent API
+  - 메서드 체이닝을 생각하자
+- 결국 QueryDSL도 predicate 사용한다.
+
+
+
+- 개발자가 올린 비교
+
+- ```java
+  CriteriaQuery query = builder.createQuery();
+  Root<Person> men = query.from( Person.class );
+  Root<Person> women = query.from( Person.class );
+  Predicate menRestriction = builder.and(
+      builder.equal( men.get( Person_.gender ), Gender.MALE ),
+      builder.equal( men.get( Person_.relationshipStatus ),
+  RelationshipStatus.SINGLE ));
+  Predicate womenRestriction = builder.and(
+      builder.equal( women.get( Person_.gender ), Gender.FEMALE ),
+      builder.equal( women.get( Person_.relationshipStatus ),
+  RelationshipStatus.SINGLE ));
+  query.where( builder.and( menRestriction, womenRestriction ) );
+  ```
+
+  - 크리테리아
+    - 루트
+    - Predicate
+    - query에 where 적용
+
+  ```java
+  JPAQuery query = new JPAQuery(em);
+  QPerson men = new QPerson("men");
+  QPerson women = new QPerson("women");
+  query.from(men, women).where(
+        men.gender.eq(Gender.MALE),
+        men.relationshipStatus.eq(RelationshipStatus.SINGLE),
+        women.gender.eq(Gender.FEMALE),
+        women.relationshipStatus.eq(RelationshipStatus.SINGLE));    
+  ```
+
+  - Q.. 만들기
+  - 바로 쿼리 만들면서
+    - 플루언트
+
+
+
+### 10.3.1 Criteria 기초
+
+- Criteria API: `javax.persistence.criteria`
+
+- 예시 코드
+
+  ```java
+          //JPQL: SELECT m FROM Member m
+  
+          CriteriaBuilder cb = em.getCriteriaBuilder();  //Criteria 쿼리 빌더
+  
+          //Criteria 생성, 반환 타입 지정
+          CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+  
+          Root<Member> m = cq.from(Member.class); //FROM 절
+          cq.select(m);   //SELECT 절
+  
+          TypedQuery<Member> query = em.createQuery(cq);
+          List<Member> members = query.getResultList();
+  ```
+
+- 검색 조건과 정렬
+
+  ```java
+  //JPQL
+  //SELECT m FROM Member m
+  //WHERE m.username='회원1'
+  //ORDER BY m.age DESC
+  
+  CriteriaBuilder cb = em.getCriteriaBuilder();
+  
+  CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+  Root<Member> m = cq.from(Member.class);	//FROM 절 생성
+  
+  //검색 조건 정의
+  Predicate usernameEqual = cb.equal(m.get("username"), "회원1");
+  
+  //정렬 조건 정의
+  Order ageDesc = cb.desc(m.get("age"));
+  
+  //쿼리 생성
+  cq.select(m)
+      .where(usernameEqual)	//WHERE 절 생성
+      .orderBy(ageDesc);		//ORDER BY 절 생성
+  
+  List<Member> resultList = em.createQuery(cq).getResultList();
+  ```
+
+
+- 쿼리 루트(Query Root)
+
+
+  - `Root<Member> m cq.from(Member.class)`: m이 쿼리 루트
+
+  - 조회의 시작점
+
+  - Criteria에서만 사용되는 특수 별칭, 엔티티에만 부여 가능
+
+- 숫자 타입 검색
+
+  ```java
+  ...
+  //타입 정보 필요
+  Predicate ageGt = cb.greaterThan(m.<Integer>get("age"), 10);
+  
+  cq.select(m);
+  cq.where(ageGt);
+  cq.orderBy(cb.desc(m.get("age")));
+  ```
+
+  - `m.get("age")`로는 타입 정보 추론 불가하기에, 제네릭으로 표기(일반적으로 `String` 등 문자 타입은 지정 불필요)
+  - `greaterThan()` 대신 `gt()` 가능
+
+
+
+### 10.3.2 Criteria 쿼리 생성
+
+- 반환 타입
+
+  - 지정
+
+    ```java
+    CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+    ```
+
+  - `Object`
+
+    ```java
+    CriteriaQuery<Object> cq = cb.createQuery();
+    ```
+
+    - 반환 타입을 지정할 수 없는 경우
+    - 반환 타입이 둘 이상인 경우(이 경우 `Object[].class` 이용하여 배열로 반환받는 것이 나음)
+
+  - 튜플
+
+    ```java
+    CriteriaQuery<Tuple> cq = cb.creatTupleQuery();
+    
+    Root<Member> m = cq.from(Member.class);
+    
+    cq.multiselect(
+        m.get("username").alias("username"),
+        m.get("age").alias("age")
+    );
+    
+    List<Tuple> resultList = em.createQuery(cq).getResultList();
+    
+    for(Tuple tuple : resultList) {
+        String username = tuple.get("username", String.class);
+        Integer age = tuple.get("age", Integer.class);
+    }
+    ```
+
+    - `Map`과 유사하게 별칭을 이용하여 둘 이상의 반환 타입을 편리하게 조회할 수 있음
+    - `cq.multiselect`: 여러 대상을 조회
+    - `alias()`: 별칭 지정, 별칭은 필수
+
+
+
+### 10.3.3 조회
+
+- DISTINCT: `cq.distinct(true)`
+
+- JPQL의 NEW, `construct()`: 생성자 구문
+
+  ```java
+  cq.select(cb.construct(MemberDto.class, m.get("username"), m.get("age")));
+  ```
+
+  - 패키지명까지 다 적어야 하는 JPQL과 달리 편리하게 사용 가능(코드 기반이기 때문)
+
+
+
+### 10.3.4 집합
+
+- GROUP BY
+
+  ```java
+  cq.groupBy(m.get("team").get("name"));
+  ```
+
+  - JPQL로는 `group by m.team.name`
+
+- HAVING
+
+  ```java
+  cq.groupBy(m.get("team").get("name"))
+      .having(cb.gt(minAge, 10));
+  ```
+
+
+
+### 10.3.5 정렬
+
+- `cb.desc()`, `cb.asc()`
+
+
+
+### 10.3.6 조인
+
+```java
+Root<Member> m = cq.from(Member.class);
+Join<Member, Team> t = m.join("team", JoinType.INNER);
+
+cq.multiSelect(m, t)
+    .where(cb.equal(t.get("name"), "팀A"));
+```
+
+- 쿼리 루트에서 `join()`메서드 사용하여 조인, 별칭(`t`) 부여
+- `JoinType`: `INNER`, `LEFT`, `RIGHT` 지원
+
+- 페치 조인: `m.fetch("team", JoinType.LEFT)`
+
+
+
+### 10.3.7 서브 쿼리
+
+- 메인 쿼리와 서브 쿼리가 무관한 경우
+
+  ```java
+  Subquery<Member> mainQuery = cb.createQuery(Member.class);
+  Subquery<Double> subQuery = mainQuery.subquery(Double.class);
+  
+  Root<Member> m2 = subQuery.from(Member.class);
+  subQuery.select(cb.avg(m2.<Integer>get("age")));
+  
+  //메인 쿼리
+  Root<Member> m = mainQuery.from(Member.class);
+  mainQuery.select(m)
+      .where(cb.ge(m.<Integer>ger("age"), subQuery));
+  ```
+
+- 메인 쿼리와 서브 쿼리가 유관한 경우
+
+  ```java
+  Subquery<Member> mainQuery = cb.createQuery(Member.class);
+  Root<Member> m = mainQuery.from(Member.class);
+  
+  Subquery<Team> subQuery = mainQuery.subquery(Team.class);
+  Root<Member> subM = subQuery.correlate(m);	//메인 쿼리의 별칭을 가져옴)
+  ```
+
+  - `correlate()`: 메인 쿼리의 별칭을 서브 쿼리에서 사용 가능
+
+
+
+### 10.3.8 IN 식
+
+```java
+cq.select(m)
+    .where(cb.in(m.get("username"))
+          .value("회원명1")
+          .value("회원명2"));
+```
+
+
+
+### 10.3.9 CASE 식
+
+- `selectCase()`, `when()`, `otherwise()`
+
+  ```java
+  cq.multiselect(
+      m.get("Username"),
+      cb.selectCase()
+      	.when(cb.ge(m<Integer>get("age"), 60), 600)
+      	.when(cb.le(m<Integer>get("age"), 15), 500)
+     		.otherwise (1000)
+  );
+  ```
+
+
+
+### 10.3.10 파라미터 정의
+
+```java
+cq.select(m)
+    .where(cb.equal(m.get("username"), cb.parameter(String.class, "usernameParam")));
+
+List<Member> resultList = em.createQuery(cq)
+    .setParameter("usernameParam", "회원1")
+    .getResultList();
+```
+
+- 하이버네이트의 경우 파라미터 정의 없이 바로 값을 입력해도, 실제 SQL에서 PreparedStatement에 파라미터 바인딩 사용함
+
+
+
+### 10.3.11 네이티브 함수 호출
+
+```java
+Expression<Long> function = cb.function("SUM", Long.class,m.get("age"));
+cq.select(function);
+```
+
+- 하이버네이트 구현체의 경우 방언에 사용자정의 SQL 함수를 등록해야 호출 가능
+
+
+
+### 10.3.12 동적 쿼리
+
+- `String` 기반의 JPQL보다 안정적
+
+- 예제 코드
+
+  ```java
+  //검색 조건
+  Integer age = 10;
+  String username = null;
+  String teamName = "팀A";
+  
+  //쿼리 생성
+  CriteriaBuilder cb = em.getCriteriaBuilder();
+  CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+  
+  Root<Member> m = cq.from(Member.class);
+  Join<Membe, Team> t = m.join("team");
+  
+  List<Predicate> criteria = new ArrayList<Predicate>();
+  
+  if (age != null) criteria.add(cb.equal(m.<Integer>get("age"),
+                                        cb.parameter(Integer.class, "age")));
+  if (username != null) criteria.add(cb.equal(m.get("username"),
+                                        cb.parameter(String.class, "username")));
+  if (teamName != null) criteria.add(cb.equal(t.get("name"),
+                                        cb.parameter(String.class, "teamName")));
+  
+  cb.where(cb.and(criteria.toArray(new Predicate[0])));
+  TypedQuery<Member> query = em.createQuery(cq);
+  if (age != null) query.setParameter("age", age);
+  if (username != null) query.setParameter("username", username);
+  if (teamName != null) query.setParameter("teamName", teamName);
+  
+  List<Member> resultList = query.gerResultList();
+  ```
+
+  
+
+### 10.3.14 Criteria 메타 모델 API
+
+- 완전한 코드 기반으로 만들기 위함
+
+  - `m.get("age")`의 `"age"`는 문자열
+
+- 사용
+
+  - 예시 코드
+
+    ```java
+    cq.select(m)
+        .where(cb.gt(m.get(Member_.age), 20))
+        .orderBy(cb.desc(m.get(Member_.age)));
+    ```
+
+  - 메타 모델 클래스: `Member_`
+
+    ```java
+    @Generated(value = "org.hibernate.jpamodelgen.JPAMetaModelEntityProcessor")
+    @StaticMetamodel(Member.class)
+    public abstract class Member_ {
+        public static volatile SinglularAttribute<Member.Long> id;
+        public static volatile SinglularAttribute<Member.String> username;
+        ...
+    }
+    ```
+
+    - 표준(CANONICAL) 메타 모델 클래스
+
+    - 자동 생성기가 엔티티 클래스를 기반으로 생성해줌
+
+      
 
