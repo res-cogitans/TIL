@@ -1,5 +1,9 @@
 # 자바 ORM 표준 JPA 프로그래밍
 
+## 목차
+
+[TOC]
+
 # 01장 JPA 소개
 
 - JPA를 사용하지 않을 경우
@@ -148,7 +152,7 @@ public class MemberDAO {
   String memberId = "helloId";
   Member member1 = jpa.find(Member.class, memberId);	//조회
   ...
-  Member member2 = fpa.find(Member.class, memberId);
+  Member member2 = jpa.find(Member.class, memberId);
   member.setName("변경된 이름");						//수정
   ...
   Member member3 = jpa.find(Member.class, memberId);
