@@ -216,7 +216,7 @@
   - JSON으로 하이퍼링크를 표현하는 방법들을 정의한 명세들을 활용
     - JSON API, HAL, UBER, Siren, Collection + json ...
     - 단, 기존 API를 많이 고쳐야 한다: 침투적
-- HTTP 헤더를 잉요
+- HTTP 헤더를 이용
   - Link, Location 등의 헤더로 링크를 표현
   - 단점: 정의된 relation만 활용한다면 표현에 한계가 있음
 
@@ -312,3 +312,6 @@
 
 - https://softwareengineering.stackexchange.com/questions/324730/mvc-and-restful-api-service
 - https://meetup.toast.com/posts/92
+
+
+

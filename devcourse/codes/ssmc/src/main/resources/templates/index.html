@@ -10,5 +10,6 @@
 <body>
 index page<br/>
 <span sec:authentication="name"></span> 님 반갑습니다.
+<span th:text="${#authentication.getAuthorities()}"/>
 </body>
 </html>

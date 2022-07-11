@@ -36,18 +36,31 @@ public class WebSecurityConfigure extends WebSecurityConfigurerAdapter {
                 .defaultSuccessUrl("/")
                 .permitAll()
                 .and()
+            /**
+             *  로그아웃 설정
+             */
             .logout()
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
                 .logoutSuccessUrl("/")
                 .invalidateHttpSession(true)
                 .clearAuthentication(true)
                 .and()
+            /**
+             * remember me 설정
+             */
             .rememberMe()
                 .rememberMeParameter("remember-me")
                 .tokenValiditySeconds(300)
                 .and()
+            /**
+             * HTTP 요청을 HTTPS 요청으로 리다이렉트
+             */
             .requiresChannel()
                 .anyRequest().requiresSecure()
+                .and()
+            .anonymous()
+                .principal("thisIsAnonymousUser")
+                .authorities("ROLE_ANONYMOUS", "ROLE_UNKNOWN")
         ;
     }
 }
