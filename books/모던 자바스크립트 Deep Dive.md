@@ -1004,3 +1004,413 @@ x = 1, y = 2, z = 3;	// -> 3
   - switch 코드 블록
 
 - `continue`문
+
+
+
+# 09장 타입 변환과 단축 평가
+
+## 9.1 타입 변환이란?
+
+- 타입 변환은 기존 값을 변경하는 것은 아님
+  - 원시 값은 immutable value이기에 변경 불가
+  - 타입 변환은 새 원시 값을 생성하는 것임
+  - **자바스크립트 엔진은 암묵적 타입 변환이 발생하면
+    새로운 값을 만들어 한 번 사용하고 버림**
+
+
+
+## 9.3 암묵적 타입 변환
+
+- 문자열 연산자 `+`
+
+- 숫자 타입 변환 시에는 prefix `+`
+
+  - 단 객체, 빈 배열이 아닌 배열, `undefined`의 경우 `NaN`
+
+- 불리언 타입의 경우
+
+  - `Falsy` 값
+    - `false`
+    - `undefined`
+    - `null`
+    - `0, -0`
+    - `NaN`
+    - `''`(빈 문자열)
+
+  - `Falsy` 값 외의 모든 값은 `Truthy` 값
+
+
+
+## 9.3 명시적 타입 변환
+
+- 문자열로 변환
+
+  - (`new` 연산자 없이) `String` 생성자 함수 호출 `String(toConverted)`
+
+  - `Object.prototype.toString` `toConverted.toString()`
+  - 문자열 연결 연산자(`+`)
+
+- 숫자로 변환
+  - (`new` 연산자 없이) `Number`생성자 함수 호출
+  - (문자열만 가능) `parseInt`, `parseFloat`
+  - `+` 단항 산술 연산자
+  - `*` 산술 연산자
+- 불리언으로 변환
+  - (`new` 연산자 없이) `Boolean` 생성자 함수 호출
+  - 부정 논리 연산자(`!`) 두 번 사용하기
+
+
+
+## 9.4 단축 평가
+
+### 9.4.1 논리 연산자를 사용한 단축 평가
+
+- `||`이나 `&&` 연산자 표현식의 평가 결과는 불리언 값이 아닐 수 있음
+
+  - 두 개의 피연산자 중 어느 한쪽으로 평가됨
+
+- 논리곱(`&&`)
+
+  - 좌항에서 우항으로 평가가 진행
+
+    ```javascript
+    'Cat' && 'Dog'	// -> 'Dog'
+    ```
+
+    - AND 연산의 경우 앞이 Truthy일 경우 뒤의 값에 따라 결정되니까
+
+- 논리합(`||`)
+
+  - 좌항에서 우항으로 평가 진행
+
+    ```javascript
+    'Cat' || 'Dog'	// -> 'Cat'
+    ```
+
+- 단축 평가(short-ccircuit evaluation)
+
+  - 논리곱, 논리합 연산자는 피연산자를 타입 변환하지 않고 그대로 반환
+
+  - 경우에 따라 `if`문을 대체 가능
+
+    ```javascript
+    var done = true;
+    var message = '';
+    
+    if (done) message = '완료';
+    
+    // 상단의 if문과 동일 동작
+    message = done && '완료';
+    ```
+
+- 단축 평가의 활용
+
+  - `null`이나 `undefined` 체크
+
+    ```java
+    var elem = null;
+    
+    var value = elem && elem.value;
+    ```
+
+  - 매개변수 기본값 설정
+
+    ```javascript
+    function getStringLength(str) {
+        str = str || '';
+        return str.length;
+    }
+    
+    // Since ES6
+    function getStringLength(str = '') {
+        return str.length;
+    }
+    ```
+
+    
+
+### 9.4.2 옵셔널 체이닝 연산자
+
+- Since ES11(ECMAScript2020)
+
+- 옵셔널 체이닝 연산자(optional chaining operator) `?.`
+
+  - 좌항 피연산자가 `null` 혹은 `undefined`이면 `undefined` 반환
+  - 아닐 경우 우항의 프로퍼티 참조를 이어감
+
+- 용례
+
+  ```javascript
+  var elem = null;
+  
+  var value = elem?.value;
+  console.log(value);	//undefined
+  ```
+
+  - 이전에는 단축평가를 이용했음
+
+    ```javascript
+    var elem = null;
+    
+    var value = elem && elem.value;
+    console.log(value);	//null
+    ```
+
+- 논리 연산자 `&&`과의 비교
+  - 논리 연산자 `&&`의 경우
+    - 좌항 피연산자가 Falsy값이면 좌항 피연산자를 그대로 반환
+    - 번외: `0`이나 `''`은 객체로 평가하기도 하기에 주의
+  - 옵셔널 체이닝 연산자의 경우
+    - 좌항 피연산자가 Falsy 값이라도
+      `null`이나 `undefined`가 아닐 경우 우항의 프로퍼티 참조를 이어감
+
+
+
+### 9.4.3 null 병합 연산자
+
+- nullish coalescing 연산자 `??`
+  - 좌항 피연산자가 `null`이거나 `undefined`인 경우 우항 피연산자를 반환
+    그렇지 않을 경우 좌항 피연산자를 반환
+  - 기본값 설정용으로 유용
+- 논리 연산자 `||`과의 비교
+  - 논리 연산자 단축평가를 이용할 경우
+    - Falsy값 중에 유효한 값이 있을 경우 문제 발생 가능
+    - 만약 0이나 ''을 의미 있는 값으로 쓴다면?
+  - `null` 병합 연산자의 경우
+    - `null`과 `undefined`만 체크, 아닐 경우 좌항 그대로 반환
+
+
+
+## 10장 객체 리터럴
+
+## 10.1 객체란?
+
+- 자바스크립트는 객체 기반 프로그래밍 언어
+
+  - 원시 값을 제외한 나머지 값은 모두 객체
+    - 원시 타입 값은 불변값이지만
+    - 객체 타입 값은 가변(mutable value)
+  - 객체는 0개 이상의 프로퍼티로 구성된 집합
+
+- 프로퍼티
+
+  - 프로퍼티는 키와 값으로 구성
+
+    ```java
+    var person = {
+        name: 'Lee',
+        age: 20
+    }
+    ```
+
+    - `name`, `age`는 키, `'Lee'`, `20`은 값
+
+  - 모든 값은 프로퍼티 값이 될 수 있음
+    - 자바스크립트의 함수는 일급 객체이기에 값으로 취급 가능
+    - 프로퍼티 값인 함수는 메서드라 부름
+
+
+
+## 10.2 객체 리터럴에 의한 객체 생성
+
+- **자바스크립트의 객체 생성 방식**
+  - **객체 리터럴** - 가장 일반적!
+  - `Object` 생성자 함수
+  - 생성자 함수
+  - `Object.create` 메서드
+  - 클래스(ES6)
+
+- 객체 리터럴을 이용한 생성 방식
+
+  ```javascript
+  var person = {
+      name: 'Lee',
+      sayHello: function() {
+          console.log('Hello! My name is ${this.name}');
+      }
+  };	//세미콜론 주의!
+  
+  console.log(typeof person);		//object
+  console.log(person);	//{name: 'Lee', sayHello: f}
+  
+  var empty = {};	//빈 객체
+  ```
+
+  - 빈 중괄호의 경우 빈 객체를 생성
+  - 객체 리터럴의 중괄호는 코드 블록이 아니고,
+    값으로 평가받는 표현식이기에 세미콜론을 붙이자!
+
+- 자바스크립트의 객체의 경우
+  - 객체 생성 이후에 프로퍼티를 동적으로 추가할 수도 있음
+
+
+
+## 10.3 프로퍼티
+
+- 프로퍼티 키
+
+  - 빈 문자열을 포함한 모든 문자열 혹은 심벌 값
+
+  - 일반적으로는 문자열 사용
+
+  - 주의사항
+
+    - 문자열이기에 따옴표 붙여야 함
+    - 단, 자바스크립트 식별자 네이밍 규칙을 따를 경우 생략 가능
+    - 식별자 네이밍 규칙을 따르지 않은 프로퍼티 키의 따옴표를 생략할 경우
+      표현식으로 해석함(ex. `last-name`은 `-`연산자가 있는 표현식으로 해석됨)
+    - 빈 문자열도 사용 가능하지만 부적합
+    - 문자열이나 심벌 이외의 값을 사용해도 암묵적 타입 변환 발생
+    - 예약어도 사용 가능하지만 권장하지 않음
+    - 이미 존재하는 프로퍼티 키를 중복 선언할 경우 덮어쓰게 됨
+      - 에러 발생하지 않기에 주의!
+
+  - **프로퍼티 키를 동적으로 생성할 수도 있음**
+
+    - 단 이 경우에는 프로퍼티 키로 사용할 표현식을 대괄호로 묶어야 함
+
+      ```javascript
+      var obj = {};
+      var key = 'hello';
+      
+      // Since ES5
+      obj[key] = 'world';
+      
+      // Since ES6
+      var obj = {[key]: 'world'};
+      ```
+
+
+
+## 10.4 메서드
+
+- 자바스크립트의 함수는 일급 객체이기에 프로퍼티 값으로 사용 가능
+- 메서드 내부에서 사용하는 `this`는 객체 자신을 가리키는 참조변수
+
+
+
+## 10.5 프로퍼티 접근
+
+- 방식
+  - 마침표 표기법(dot notation)
+    - `person.name`
+  - 대괄호 표기법(bracket notation)
+    - `person['name']`
+    - 이 경우 반드시 프로퍼티 키를 따옴표로 감싼 문자열로 전달
+      - 그렇지 않을 경우 식별자로 해석됨
+    - **네이밍 규칙을 준수하지 않은 프로퍼티 키의 경우 반드시 대괄호 표기법을 사용해야**
+- 존재하지 않는 프로퍼티에 접근할 경우 `undefined`를 반환
+  - `ReferenceError` 발생 안 함
+
+
+
+## 10.8 프로퍼티 삭제
+
+- `delete` 연산자
+  - 객체의 프로퍼티를 삭제 `delete person.age;`
+  - 존재하지 않는 프로퍼티를 삭제 시도할 경우 에러 없이 무시됨
+
+
+
+## 10.9 ES6에서 추가된 객체 리터럴의 확장 기능
+
+### 10.9.1 프로퍼티 축약 표현
+
+- 기존의 프로퍼티 표현 방식
+
+  ```javascript
+  var x = 1, y = 2;
+  
+  var obj ={
+      x: x,
+      y: y
+  };
+  ```
+
+  
+
+- 프로퍼티 축약 표현
+
+  - Since ES6
+
+    ```javascript
+    let x = 1, y = 2;
+    
+    const obj = {x, y};
+    ```
+
+  - 프로퍼티 값으로 변수를 사용하는 경우
+    변수명과 프로퍼티 키가 동일할 때, 프로퍼티 키를 생략(properly shorthand) 가능
+
+    - 프로퍼티 키는 변수명으로 자동생성
+
+
+
+### 10.9.2 계산된 프로퍼티 이름
+
+- 기존 방식
+
+  ```javascript
+  var prefix = 'prop';
+  var i = 0;
+  
+  var obj = {};
+  
+  obj[prefix  + '-' + ++i] = i;
+  ...
+  ```
+
+- computed property name
+
+  - Since ES6
+
+  - 문자열 / 문자열로 변환 가능한 표현식을 이용해
+    프로퍼티 키를 동적 생성
+
+  - 프로퍼티 키로 사용할 표현식은 대괄호로 묶어야 함
+
+    ```java
+    const prefix = 'prop';
+    let i = 0;
+    
+    const obj = {
+        [`${prefix}-${++i}`]: i,
+        [`${prefix}-${++i}`]: i,
+        [`${prefix}-${++i}`]: i,
+    };
+    
+    console.log(obj);	//{prop-1: 1, prop-2: 2, ...}
+    ```
+
+
+
+### 10.9.3 메서드 축약 표현
+
+- 기존 방식
+
+  ```javascript
+  var obj {
+      ...
+      sayHello: function() {
+          ...
+      }
+  };
+  ```
+
+- 메서드 축약 표현
+
+  - Since ES6
+
+  - `function` 키워드 생략 가능
+
+  - **단, 이 방식으로 동작한 메서드는 프로퍼티에 할당한 함수와 다르게 동작함!!!**
+
+    ```javascript
+    const obj = {
+        ...
+        sayHello() {
+            ...
+        }
+    };
+    ```
+
