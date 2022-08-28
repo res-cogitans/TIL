@@ -727,7 +727,24 @@
 ### 스프링 부트와 임베디드 모드
 
 - 스프링부트는 DB에 대한 별도의 설정이 없으면 임베디드 DB 사용한다.
+
 - (테스트와 관련된) 기존의 빈 등록과 `application.properties` 설정을 모두 없애도 정상 작동함
-- 별다른 설정 정보가 없을 경우 스프링부트가 임베디드 모드 데이터소스를 만들어서 제공
+
+- 별다른 설정 정보가 없을 경우 스프링 부트가 임베디드 모드 데이터소스를 만들어서 제공
+
   - 자동 생성될 경우 `jdbc:h2:mem:`이후에 임의의 이름이 들어가 있음
+
     - 여러 데이터 소스 사용 시 충돌 방지를 위해 지어 준 임의의 이름임
+
+    - 스프링 부트 기본으로 제공하는 이름인 `jdbc:h2:mem:testdb`로 고정하고 싶을 경우
+
+      ```properties
+      spring.datasource.generate-unique-name=false
+      ```
+
+- [관련 공식문서 링크](https://docs.spring.io/spring-boot/docs/current/reference/html/data.html#data.sql.datasource.embedded)
+  - H2, HSQL, Derby 지원함
+
+
+
+# 데이터 접근 기술 - MyBatis
