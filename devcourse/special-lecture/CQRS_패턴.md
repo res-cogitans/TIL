@@ -43,7 +43,6 @@ graph TD
 A(주문 서버) --> B[(최근 한달 이내 주문: <br>전체 주문 데이터 저장: <br>RDS)]
 A(주문 서버) --> C[(한 달 이전 주문:<br>전체 주문 데이터 저장 <br>Mongo)]
 A(주문 서버) --> D[(2016년 부터 주문:<br> 최소한의 필드 저장:<br> 리스팅용)]
-
 ```
 
 - 주문 서비스 -> EventNoti -> OrderMongoSync -> 주문 이벤트 처리기 -> Atlas Mongo -> 주문 BATCH

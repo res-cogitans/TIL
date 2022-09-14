@@ -1,9 +1,5 @@
----
+# HTML의 모든것(생활코딩)
 
-
----
-
-<h1 id="기본을-확실히-html의-모든것생활코딩">기본을 확실히!! HTML의 모든것(생활코딩)</h1>
 <ul>
 <li><strong>H</strong>yper<strong>T</strong>ext<strong>M</strong>arkup<strong>L</strong>anguage<br>
 : 하이퍼텍스트(링크) + 마크업 문법/형식 + 언어</li>
@@ -26,6 +22,7 @@ GML(1960말)-&gt; SGML-&gt;SGMLguid(19개태그)-&gt;HTML(+1태그(<code>&lt;a&g
 <pre class=" language-html"><code class="prism  language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>a</span> <span class="token attr-name">href</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>https://github.com/res-cogitans/res-cogitans.github.io<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span>
 내 깃헙 저장소<span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>a</span><span class="token punctuation">&gt;</span></span>
 </code></pre>
+
 <a href="https://github.com/res-cogitans/res-cogitans.github.io" target="blank" title="html은 금방 배운다">
 내 깃헙 저장소</a>
 <pre class=" language-html"><code class="prism  language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>a</span> <span class="token attr-name">href</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>속성값<span class="token punctuation">"</span></span> <span class="token attr-name">target</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>속성값<span class="token punctuation">"</span></span> <span class="token attr-name">title</span><span class="token attr-value"><span class="token punctuation">=</span><span class="token punctuation">"</span>Html은 금방배운다<span class="token punctuation">"</span></span><span class="token punctuation">&gt;</span></span> <span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>a</span><span class="token punctuation">&gt;</span></span>
@@ -443,4 +440,3 @@ label 선택(클릭)을 통해 관련 form으로 이동하게 함. (직관적)</
 <li>입력 필수값은 <code>required</code> 속성을 넣으면 됨</li>
 <li><code>pattern="정규표현식"</code></li>
 </ul>
-

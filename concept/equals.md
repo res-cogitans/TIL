@@ -1,4 +1,6 @@
-# InteliJ의 `equals()`와 `hashCode()` 오버라이딩에 대한 안내문
+# equals
+
+## InteliJ의 `equals()`와 `hashCode()` 오버라이딩에 대한 안내문
 
 generate equals() and hashCode()
 
@@ -14,7 +16,7 @@ While generally incompliant to Object.equals() specification accepting subclasse
 
 
 
-# JavaDocs의 `equals()`
+## JavaDocs의 `equals()`
 
 public boolean equals([Object](https://docs.oracle.com/en/java/javase/16/docs/api/java.base/java/lang/Object.html) obj)
 
