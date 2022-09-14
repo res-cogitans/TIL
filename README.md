@@ -10,8 +10,8 @@ _74 TILs and counting..._
 
 ### 2 most recent TILs
 
-- [스프링 핵심 원리 - 고급편](lecture/스프링 핵심 원리 - 고급편.md) - Tue Jul 12 03:05:49 2022 +0900
-- [단위 테스트(Unit Testing)](books/단위 테스트.md) - Thu Jun 23 23:36:50 2022 +0900
+- [﻿# 자바의 정석](books/자바의정석_정리.md) - Thu Sep 15 02:29:43 2022 +0900
+- [핵심 데이터 모델링](books/핵심_데이터_모델링.md) - Thu Sep 15 02:29:43 2022 +0900
 
 ### Categories
 
@@ -31,21 +31,21 @@ _74 TILs and counting..._
 - [## 소수 찾기](algorithm/소수 찾기.md)
 
 ### [books](#books)
-- [단위 테스트(Unit Testing)](books/단위 테스트.md)
-- [모던 자바스크립트 Deep Dive](books/모던 자바스크립트 Deep Dive.md)
-- [이펙티브 자바](books/이펙티브 자바.md)
-- [자바 ORM 표준 JPA 프로그래밍](books/자바 ORM 표준 JPA 프로그래밍.md)
-- [자바의정석 정리](books/자바의정석 정리.md)
-- [클린 코드](books/클린 코드.md)
-- [Test-Driven Development By Example](books/테스트 주도 개발.md)
-- [핵심 데이터 모델링](books/핵심 데이터 모델링.md)
+- [단위 테스트(Unit Testing)](books/단위_테스트.md)
+- [모던 자바스크립트 Deep Dive](books/모던_자바스크립트_Deep_Dive.md)
+- [이펙티브 자바](books/이펙티브_자바.md)
+- [자바 ORM 표준 JPA 프로그래밍](books/자바_ORM_표준_JPA_프로그래밍.md)
+- [﻿# 자바의 정석](books/자바의정석_정리.md)
+- [클린 코드](books/클린_코드.md)
+- [테스트 주도 개발](books/테스트_주도_개발.md)
+- [핵심 데이터 모델링](books/핵심_데이터_모델링.md)
 
 ### [concept](#concept)
 - [Collection(Codelatte)](concept/Collection(Codelatte).md)
-- [Collections Framework](concept/Collections Framework.md)
-- [Generics, Enumeration, Annotation](concept/Generics,Enumeration,Annotation.md)
-- [초기화 블록Initialization Block](concept/Initialization Block.md)
-- [UnitTest](concept/Martin Fowler, UnitTest.md)
+- [﻿# Collections Framework](concept/Collections Framework.md)
+- [﻿# Generics, Enumeration, Annotation](concept/Generics,Enumeration,Annotation.md)
+- [# 초기화 블록Initialization Block](concept/Initialization Block.md)
+- [[UnitTest](https://martinfowler.com/bliki/UnitTest.html)](concept/Martin Fowler, UnitTest.md)
 - [Null, 예외처리(Codelatte 정리)](concept/Null, 예외처리(Codelatte 정리).md)
 - [Object 클래스](concept/Object 클래스.md)
 - [---](concept/Optional.md)
