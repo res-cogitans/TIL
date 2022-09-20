@@ -4,14 +4,14 @@
 학습 내용에 대한 정리
 
 
-_72 TILs and counting..._
+_65 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
-- [Spring Boot](devcourse/3.1.스프링부트_시작.md) - Thu Sep 15 03:17:07 2022 +0900
-- [﻿# 분할 정복](algorithm/분할_정복.md) - Thu Sep 15 03:17:07 2022 +0900
+- [﻿# Collections Framework](concept/Collections_Framework.md) - Wed Sep 21 00:41:42 2022 +0900
+- [부동소수점과 형변환](concept/부동_소수점과_형변환.md) - Wed Sep 21 00:41:42 2022 +0900
 
 ### Categories
 
@@ -40,28 +40,21 @@ _72 TILs and counting..._
 - [핵심 데이터 모델링](books/핵심_데이터_모델링.md)
 
 ### [concept](#concept)
-- [Collection(Codelatte)](concept/Collection(Codelatte).md)
-- [﻿# Collections Framework](concept/Collections Framework.md)
+- [﻿# Collections Framework](concept/Collections_Framework.md)
 - [﻿# Generics, Enumeration, Annotation](concept/Generics,Enumeration,Annotation.md)
-- [# 초기화 블록Initialization Block](concept/Initialization Block.md)
-- [[UnitTest](https://martinfowler.com/bliki/UnitTest.html)](concept/Martin Fowler, UnitTest.md)
-- [Null, 예외처리(Codelatte 정리)](concept/Null, 예외처리(Codelatte 정리).md)
-- [Object 클래스](concept/Object 클래스.md)
+- [# 초기화 블록Initialization Block](concept/Initialization_Block.md)
+- [[UnitTest](https://martinfowler.com/bliki/UnitTest.html)](concept/Martin_Fowler의_UnitTest글_일부_번역.md)
 - [---](concept/Optional.md)
 - [RESTful](concept/RESTful.md)
 - [org.springframework.web.bind.annotation](concept/RequestParam.md)
-- [Secrets of equals() - Part 2](concept/Secrets of equals() (번역).md)
+- [Secrets of equals() - Part 2](concept/Secrets_of_Equals_Part2_번역.md)
 - [Stream<T>](concept/Stream.md)
 - [[원문 링크](http://www.butunclebob.com/ArticleS.UncleBob.PrinciplesOfOod)](concept/The Principles of OOD_번역.md)
-- [enum(Codelatte정리)](concept/enum(Codelatte정리).md)
 - [equals](concept/equals.md)
 - [메이븐](concept/maven.md)
 - [Padding bit](concept/padding_bit.md)
-- [singleton 패턴(Codelatte정리)](concept/singleton 패턴(Codelatte정리).md)
 - [[Local Variable Type InferenceStyle Guidelines](http://openjdk.java.net/projects/amber/guides/lvti-style-guide)](concept/var사용시 주의사항.md)
-- [객체지향(Codelatte 정리)](concept/객체지향(Codelatte 정리).md)
-- [자료형, 형변환(Codelatte.io정리)](concept/자료형, 형변환(Codelatte io정리).md)
-- [제네릭Generic(Codelatte 정리)](concept/제네릭Generic(Codelatte 정리).md)
+- [부동소수점과 형변환](concept/부동_소수점과_형변환.md)
 
 ### [devcourse](#devcourse)
 - [프레임워크를 위한 자바](devcourse/1.1.프레임워크를_위한_자바.md)
@@ -104,7 +97,7 @@ _72 TILs and counting..._
 - [스프링 핵심 원리 - 고급편](lecture/스프링_핵심_원리_고급편.md)
 - [스프링 핵심 원리 - 기본편](lecture/스프링_핵심_원리_기본편.md)
 - [﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편](lecture/자바_ORM_표준_JPA_프로그래밍_기본편.md)
-- [팀 개발을 위한 Git, GitHub 입문](lecture/팀 개발을 위한 Git, GitHub 입문.md)
+- [팀 개발을 위한 Git, GitHub 입문](lecture/팀_개발을_위한_Git,GitHub_입문.md)
 
 ### [mathematics](#mathematics)
 - [﻿# 이산수학](mathematics/이산수학.md)
