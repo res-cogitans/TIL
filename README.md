@@ -4,13 +4,13 @@
 학습 내용에 대한 정리
 
 
-_65 TILs and counting..._
+_66 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
-- [﻿# Collections Framework](concept/Collections_Framework.md) - Wed Sep 21 00:41:42 2022 +0900
+- [클린 아키텍처](books/클린_아키텍처.md) - Sat Sep 24 17:03:05 2022 +0900
 - [부동소수점과 형변환](concept/부동_소수점과_형변환.md) - Wed Sep 21 00:41:42 2022 +0900
 
 ### Categories
@@ -35,6 +35,7 @@ _65 TILs and counting..._
 - [이펙티브 자바](books/이펙티브_자바.md)
 - [자바 ORM 표준 JPA 프로그래밍](books/자바_ORM_표준_JPA_프로그래밍.md)
 - [﻿# 자바의 정석](books/자바의_정석.md)
+- [클린 아키텍처](books/클린_아키텍처.md)
 - [클린 코드](books/클린_코드.md)
 - [테스트 주도 개발](books/테스트_주도_개발.md)
 - [핵심 데이터 모델링](books/핵심_데이터_모델링.md)
