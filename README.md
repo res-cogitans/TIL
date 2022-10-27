@@ -4,14 +4,14 @@
 학습 내용에 대한 정리
 
 
-_66 TILs and counting..._
+_67 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
+- [자바 개발자를 위한 코틀린 입문](lecture/자바_개발자를_위한_코틀린_입문.md) - Thu Oct 27 14:10:48 2022 +0900
 - [클린 아키텍처](books/클린_아키텍처.md) - Sat Sep 24 17:03:05 2022 +0900
-- [부동소수점과 형변환](concept/부동_소수점과_형변환.md) - Wed Sep 21 00:41:42 2022 +0900
 
 ### Categories
 
@@ -98,6 +98,7 @@ _66 TILs and counting..._
 - [스프링 핵심 원리 - 고급편](lecture/스프링_핵심_원리_고급편.md)
 - [스프링 핵심 원리 - 기본편](lecture/스프링_핵심_원리_기본편.md)
 - [﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편](lecture/자바_ORM_표준_JPA_프로그래밍_기본편.md)
+- [자바 개발자를 위한 코틀린 입문](lecture/자바_개발자를_위한_코틀린_입문.md)
 - [팀 개발을 위한 Git, GitHub 입문](lecture/팀_개발을_위한_Git,GitHub_입문.md)
 
 ### [mathematics](#mathematics)
