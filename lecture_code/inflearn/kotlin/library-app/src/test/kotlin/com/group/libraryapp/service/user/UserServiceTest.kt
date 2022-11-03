@@ -32,9 +32,9 @@ open class UserServiceTest @Autowired constructor(
     @Test
     internal fun getUserTest() {
         userRepository.saveAll(listOf(
-                User("A", 10),
-                User("B", 15),
-                User("C", null)
+            User("A", 10),
+            User("B", 15),
+            User("C", null)
         ))
 
         val users = userService.getUsers()

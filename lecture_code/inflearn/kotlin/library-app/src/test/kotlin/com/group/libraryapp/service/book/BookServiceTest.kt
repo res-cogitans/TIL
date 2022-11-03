@@ -1,5 +1,6 @@
 package com.group.libraryapp.service.book
 
+import com.group.libraryapp.domain.book.Book
 import com.group.libraryapp.domain.book.BookRepository
 import com.group.libraryapp.domain.user.User
 import com.group.libraryapp.domain.user.UserRepository
@@ -15,7 +16,6 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
-import java.lang.IllegalArgumentException
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext
 
