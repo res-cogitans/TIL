@@ -10,7 +10,7 @@ _74 TILs and counting..._
 
 ### 2 most recent TILs
 
-- [패턴이나 모범 사례에 대해 학습하다 보면 팩토리라는 용어를 자주 접하게 됩니다.](concept/헷갈리는_팩토리들_구별하기.md) - Mon Nov 14 00:42:30 2022 +0900
+- [헷갈리는 팩토리들 구별하기](concept/헷갈리는_팩토리들_구별하기.md) - Mon Nov 14 00:42:30 2022 +0900
 - [.gitignore](concept/.gitignore.md) - Mon Nov 14 00:42:30 2022 +0900
 
 ### Categories
@@ -55,7 +55,7 @@ _74 TILs and counting..._
 - [메이븐](concept/maven.md)
 - [Padding bit](concept/padding_bit.md)
 - [부동소수점과 형변환](concept/부동_소수점과_형변환.md)
-- [패턴이나 모범 사례에 대해 학습하다 보면 팩토리라는 용어를 자주 접하게 됩니다.](concept/헷갈리는_팩토리들_구별하기.md)
+- [헷갈리는 팩토리들 구별하기](concept/헷갈리는_팩토리들_구별하기.md)
 
 ### [devcourse](#devcourse)
 - [프레임워크를 위한 자바](devcourse/1.1.프레임워크를_위한_자바.md)
