@@ -4,14 +4,14 @@
 학습 내용에 대한 정리
 
 
-_68 TILs and counting..._
+_74 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
-- [자바 개발자를 위한 코틀린 입문](lecture/자바_개발자를_위한_코틀린_입문.md) - Thu Oct 27 14:10:48 2022 +0900
-- [클린 아키텍처](books/클린_아키텍처.md) - Sat Sep 24 17:03:05 2022 +0900
+- [패턴이나 모범 사례에 대해 학습하다 보면 팩토리라는 용어를 자주 접하게 됩니다.](concept/헷갈리는_팩토리들_구별하기.md) - Mon Nov 14 00:42:30 2022 +0900
+- [.gitignore](concept/.gitignore.md) - Mon Nov 14 00:42:30 2022 +0900
 
 ### Categories
 
@@ -22,6 +22,7 @@ _68 TILs and counting..._
 - [etc](#etc)
 - [lecture](#lecture)
 - [mathematics](#mathematics)
+- [translation](#translation)
 
 ### [algorithm](#algorithm)
 - [DP; Dynamic Programming](algorithm/Dynamic_Programming.md)
@@ -41,21 +42,20 @@ _68 TILs and counting..._
 - [핵심 데이터 모델링](books/핵심_데이터_모델링.md)
 
 ### [concept](#concept)
+- [.gitignore](concept/.gitignore.md)
 - [﻿# Collections Framework](concept/Collections_Framework.md)
 - [﻿# Generics, Enumeration, Annotation](concept/Generics,Enumeration,Annotation.md)
 - [# 초기화 블록Initialization Block](concept/Initialization_Block.md)
-- [[UnitTest](https://martinfowler.com/bliki/UnitTest.html)](concept/Martin_Fowler의_UnitTest글_일부_번역.md)
 - [---](concept/Optional.md)
 - [RESTful](concept/RESTful.md)
 - [org.springframework.web.bind.annotation](concept/RequestParam.md)
-- [Secrets of equals() - Part 2](concept/Secrets_of_Equals_Part2_번역.md)
 - [Stream<T>](concept/Stream.md)
-- [[원문 링크](http://www.butunclebob.com/ArticleS.UncleBob.PrinciplesOfOod)](concept/The Principles of OOD_번역.md)
+- [# 빌드](concept/build.md)
 - [equals](concept/equals.md)
 - [메이븐](concept/maven.md)
 - [Padding bit](concept/padding_bit.md)
-- [[Local Variable Type InferenceStyle Guidelines](http://openjdk.java.net/projects/amber/guides/lvti-style-guide)](concept/var사용시 주의사항.md)
 - [부동소수점과 형변환](concept/부동_소수점과_형변환.md)
+- [패턴이나 모범 사례에 대해 학습하다 보면 팩토리라는 용어를 자주 접하게 됩니다.](concept/헷갈리는_팩토리들_구별하기.md)
 
 ### [devcourse](#devcourse)
 - [프레임워크를 위한 자바](devcourse/1.1.프레임워크를_위한_자바.md)
@@ -78,6 +78,7 @@ _68 TILs and counting..._
 ### [etc](#etc)
 - [2021 회고](etc/2021회고.md)
 - [InteliJ 단축키](etc/InteliJ_단축키.md)
+- [Silly Talk](etc/Silly_Talk_세미나_정리.md)
 - [Using Prototypical Objects to Implement Shared Behavior in Object Oriented Systems](etc/Using_Prototypical_Objects_to_Implement_Shared_Behavior_in_Obiect_Oriented_Systems.md)
 - [﻿# 네이버 웹툰 개발자 채용 설명회](etc/네이버_웹툰_개발자_채용_설명회.md)
 - [﻿](etc/정보처리기사_실기.md)
@@ -104,5 +105,13 @@ _68 TILs and counting..._
 
 ### [mathematics](#mathematics)
 - [﻿# 이산수학](mathematics/이산수학.md)
+
+### [translation](#translation)
+- [How does a JPA Proxy work and how to unproxy it with Hibernate](translation/How_does_a_JPA_Proxy_work_and_how_to_unproxy_it_with_Hibernate(번역).md)
+- [[UnitTest](https://martinfowler.com/bliki/UnitTest.html)](translation/Martin_Fowler의_UnitTest글_일부_번역.md)
+- [[Protected in Interfaces](https://stackoverflow.com/questions/5376970/protected-in-interfaces)](translation/Protected_in_Interfaces.md)
+- [Secrets of equals() - Part 2](translation/Secrets_of_Equals_Part2_번역.md)
+- [[원문 링크](http://www.butunclebob.com/ArticleS.UncleBob.PrinciplesOfOod)](translation/The Principles of OOD_번역.md)
+- [[Local Variable Type InferenceStyle Guidelines](http://openjdk.java.net/projects/amber/guides/lvti-style-guide)](translation/var사용시_주의사항.md)
 
 
