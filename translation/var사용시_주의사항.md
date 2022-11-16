@@ -1,4 +1,6 @@
-# [Local Variable Type InferenceStyle Guidelines](http://openjdk.java.net/projects/amber/guides/lvti-style-guide)
+# Local Variable Type InferenceStyle Guidelines(var 주의사항)
+
+- http://openjdk.java.net/projects/amber/guides/lvti-style-guide
 
 var를 어떻게 사용하면 좋을지에 대한 이야기입니다.
 
