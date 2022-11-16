@@ -1,4 +1,6 @@
-#  [Protected in Interfaces](https://stackoverflow.com/questions/5376970/protected-in-interfaces)
+#  Protected in Interfaces
+
+- https://stackoverflow.com/questions/5376970/protected-in-interfaces
 
 Why are all methods in an `interface` definition implicitly `public`? Why does it not allow a `protected` method?
 

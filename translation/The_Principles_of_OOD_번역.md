@@ -1,8 +1,8 @@
-[원문 링크](http://www.butunclebob.com/ArticleS.UncleBob.PrinciplesOfOod)
-
 # The Principles of OOD
 
 객체지향 디자인의 원칙들
+
+http://www.butunclebob.com/ArticleS.UncleBob.PrinciplesOfOod
 
 ------
 
