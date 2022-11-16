@@ -128,6 +128,6 @@ _84 TILs and counting..._
 - [Protected in Interfaces](translation/Protected_in_Interfaces.md)
 - [Secrets of equals() - Part 2](translation/Secrets_of_Equals_Part2_번역.md)
 - [The Principles of OOD](translation/The_Principles_of_OOD_번역.md)
-- [[Local Variable Type InferenceStyle Guidelines](http://openjdk.java.net/projects/amber/guides/lvti-style-guide)](translation/var사용시_주의사항.md)
+- [Local Variable Type InferenceStyle Guidelines(var 주의사항)](translation/var사용시_주의사항.md)
 
 
