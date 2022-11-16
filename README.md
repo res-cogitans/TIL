@@ -4,19 +4,20 @@
 학습 내용에 대한 정리
 
 
-_74 TILs and counting..._
+_75 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
-- [헷갈리는 팩토리들 구별하기](concept/헷갈리는_팩토리들_구별하기.md) - Mon Nov 14 00:42:30 2022 +0900
-- [.gitignore](concept/.gitignore.md) - Mon Nov 14 00:42:30 2022 +0900
+- [면접  / 자기소개 팁(원티드)](career/면접,이력서_관련_원티드_영상_정리.md) - Mon Nov 14 01:02:24 2022 +0900
+- [[Protected in Interfaces](https://stackoverflow.com/questions/5376970/protected-in-interfaces)](translation/Protected_in_Interfaces.md) - Mon Nov 14 00:42:30 2022 +0900
 
 ### Categories
 
 - [algorithm](#algorithm)
 - [books](#books)
+- [career](#career)
 - [concept](#concept)
 - [devcourse](#devcourse)
 - [etc](#etc)
@@ -40,6 +41,9 @@ _74 TILs and counting..._
 - [클린 코드](books/클린_코드.md)
 - [테스트 주도 개발](books/테스트_주도_개발.md)
 - [핵심 데이터 모델링](books/핵심_데이터_모델링.md)
+
+### [career](#career)
+- [면접  / 자기소개 팁(원티드)](career/면접,이력서_관련_원티드_영상_정리.md)
 
 ### [concept](#concept)
 - [.gitignore](concept/.gitignore.md)
