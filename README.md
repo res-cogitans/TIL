@@ -4,13 +4,13 @@
 학습 내용에 대한 정리
 
 
-_84 TILs and counting..._
+_85 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
-- [CQRS 패턴](devcourse_special-lecture/CQRS_패턴.md) - Thu Nov 17 03:05:49 2022 +0900
+- [아키텍쳐 특강](devcourse_special-lecture/아키텍쳐_특강.md) - Thu Nov 17 03:05:49 2022 +0900
 - [How To Work](devcourse_special-lecture/How_To_Work.md) - Thu Nov 17 03:05:49 2022 +0900
 
 ### Categories
@@ -38,6 +38,7 @@ _84 TILs and counting..._
 - [이펙티브 자바](books/이펙티브_자바.md)
 - [자바 ORM 표준 JPA 프로그래밍](books/자바_ORM_표준_JPA_프로그래밍.md)
 - [﻿# 자바의 정석](books/자바의_정석.md)
+- [코틀린으로 배우는 함수형 프로그래밍](books/코틀린으로_배우는_함수형_프로그래밍.md)
 - [클린 아키텍처](books/클린_아키텍처.md)
 - [클린 코드](books/클린_코드.md)
 - [테스트 주도 개발](books/테스트_주도_개발.md)
