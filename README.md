@@ -4,13 +4,13 @@
 학습 내용에 대한 정리
 
 
-_85 TILs and counting..._
+_86 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
-- [아키텍쳐 특강](devcourse_special-lecture/아키텍쳐_특강.md) - Thu Nov 17 03:05:49 2022 +0900
+- [CQRS 패턴](devcourse_special-lecture/CQRS_패턴.md) - Thu Nov 17 03:05:49 2022 +0900
 - [How To Work](devcourse_special-lecture/How_To_Work.md) - Thu Nov 17 03:05:49 2022 +0900
 
 ### Categories
@@ -115,6 +115,7 @@ _85 TILs and counting..._
 - [스프링_입문](lecture/스프링_입문.md)
 - [스프링 핵심 원리 - 고급편](lecture/스프링_핵심_원리_고급편.md)
 - [스프링 핵심 원리 - 기본편](lecture/스프링_핵심_원리_기본편.md)
+- [Query DSL](lecture/실전_Query_DSL.md)
 - [﻿# 자바 ORM 표준 JPA 프로그래밍 - 기본편](lecture/자바_ORM_표준_JPA_프로그래밍_기본편.md)
 - [자바 개발자를 위한 코틀린 입문](lecture/자바_개발자를_위한_코틀린_입문.md)
 - [코틀린과 스프링부트](lecture/코틀린과_스프링부트.md)
