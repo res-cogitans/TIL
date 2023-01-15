@@ -4,14 +4,14 @@
 학습 내용에 대한 정리
 
 
-_86 TILs and counting..._
+_87 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
+- [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java:Kotlin_문자열_시작:끝부분에_있는_공백_자르기.md) - Mon Jan 16 03:29:36 2023 +0900
 - [CQRS 패턴](devcourse_special-lecture/CQRS_패턴.md) - Thu Nov 17 03:05:49 2022 +0900
-- [How To Work](devcourse_special-lecture/How_To_Work.md) - Thu Nov 17 03:05:49 2022 +0900
 
 ### Categories
 
@@ -22,6 +22,7 @@ _86 TILs and counting..._
 - [devcourse](#devcourse)
 - [devcourse_special-lecture](#devcourse_special-lecture)
 - [etc](#etc)
+- [issue](#issue)
 - [lecture](#lecture)
 - [mathematics](#mathematics)
 - [translation](#translation)
@@ -99,6 +100,9 @@ _86 TILs and counting..._
 - [Silly Talk](etc/Silly_Talk_세미나_정리.md)
 - [Using Prototypical Objects to Implement Shared Behavior in Object Oriented Systems](etc/Using_Prototypical_Objects_to_Implement_Shared_Behavior_in_Obiect_Oriented_Systems.md)
 - [﻿# 네이버 웹툰 개발자 채용 설명회](etc/네이버_웹툰_개발자_채용_설명회.md)
+
+### [issue](#issue)
+- [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java:Kotlin_문자열_시작:끝부분에_있는_공백_자르기.md)
 
 ### [lecture](#lecture)
 - [CSS (생활코딩)](lecture/CSS(생활코딩).md)
