@@ -10,7 +10,7 @@ _87 TILs and counting..._
 
 ### 2 most recent TILs
 
-- [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java:Kotlin_문자열_앞뒤에_있는_공백_자르기.md) - Thu Nov 23 22:14:41 2023 +0900
+- [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java_Kotlin_문자열_앞뒤에_있는_공백_자르기.md) - Thu Nov 23 22:16:04 2023 +0900
 - [CQRS 패턴](devcourse_special-lecture/CQRS_패턴.md) - Thu Nov 17 03:05:49 2022 +0900
 
 ### Categories
@@ -102,7 +102,7 @@ _87 TILs and counting..._
 - [﻿# 네이버 웹툰 개발자 채용 설명회](etc/네이버_웹툰_개발자_채용_설명회.md)
 
 ### [issue](#issue)
-- [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java:Kotlin_문자열_앞뒤에_있는_공백_자르기.md)
+- [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java_Kotlin_문자열_앞뒤에_있는_공백_자르기.md)
 
 ### [lecture](#lecture)
 - [CSS (생활코딩)](lecture/CSS(생활코딩).md)
