@@ -4,14 +4,14 @@
 학습 내용에 대한 정리
 
 
-_87 TILs and counting..._
+_88 TILs and counting..._
 
 ---
 
 ### 2 most recent TILs
 
+- [Programming Ruby](books/루비_프로그래밍.md) - Sun Nov 26 03:10:42 2023 +0900
 - [Java / Kotlin 문자열 시작 / 끝부분에 있는 공백 자르기](issue/Java_Kotlin_문자열_앞뒤에_있는_공백_자르기.md) - Thu Nov 23 22:16:04 2023 +0900
-- [CQRS 패턴](devcourse_special-lecture/CQRS_패턴.md) - Thu Nov 17 03:05:49 2022 +0900
 
 ### Categories
 
@@ -35,6 +35,7 @@ _87 TILs and counting..._
 ### [books](#books)
 - [HTTP 완벽 가이드](books/HTTP_완벽_가이드.md)
 - [단위 테스트(Unit Testing)](books/단위_테스트.md)
+- [Programming Ruby](books/루비_프로그래밍.md)
 - [모던 자바스크립트 Deep Dive](books/모던_자바스크립트_Deep_Dive.md)
 - [이펙티브 자바](books/이펙티브_자바.md)
 - [자바 ORM 표준 JPA 프로그래밍](books/자바_ORM_표준_JPA_프로그래밍.md)
